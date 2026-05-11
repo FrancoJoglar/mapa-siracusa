@@ -26,6 +26,7 @@ const FILTROS_VACIOS: FiltrosCuartel = {
 };
 
 export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Props) {
+  console.log("MapaCuarteles render:", { cuarteles: cuarteles.length, sectores: sectores.length, firstSector: sectores[0]?.codigo, firstGeo: !!sectores[0]?.geojson });
   const [filtros, setFiltros] = useState<FiltrosCuartel>(FILTROS_VACIOS);
   const [vista, setVista] = useState<Vista>("cuarteles");
   const [mostrarEdif, setMostrarEdif] = useState(true);
@@ -86,7 +87,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   }, [cuarteles, filtros]);
 
   const filteredSectores = useMemo(() => {
-    return sectores.filter(s => {
+    const result = sectores.filter(s => {
       if (filtros.especie && s.especie !== filtros.especie) return false;
       if (filtros.variedad && s.variedad !== filtros.variedad) return false;
       if (filtros.anioDesde && (!s.anio || s.anio < filtros.anioDesde)) return false;
@@ -96,6 +97,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
       if (filtros.jefeCampo && s.jefe_campo !== filtros.jefeCampo) return false;
       return true;
     });
+    console.log("filteredSectores:", { total: sectores.length, filtrados: result.length, filtros, first: result[0]?.codigo });
+    return result;
   }, [sectores, filtros]);
 
   const numFiltrados = vista === "cuarteles" ? filteredCuarteles.length : filteredSectores.length;
@@ -112,12 +115,16 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
     })),
   }), [filteredCuarteles]);
 
-  const geoJsonSectores = useMemo(() => ({
-    type: "FeatureCollection" as const,
-    features: filteredSectores.filter(s => !!s.geojson).map(s => ({
-      ...s.geojson!, properties: { sector_id: s.id },
-    })),
-  }), [filteredSectores]);
+  const geoJsonSectores = useMemo(() => {
+    const fc: any = {
+      type: "FeatureCollection" as const,
+      features: filteredSectores.filter(s => !!s.geojson).map(s => ({
+        ...s.geojson!, properties: { sector_id: s.id },
+      })),
+    };
+    console.log("geoJsonSectores:", { features: fc.features.length, first: fc.features[0]?.properties?.sector_id });
+    return fc;
+  }, [filteredSectores]);
 
   const geoJsonEdif = useMemo(() => ({
     type: "FeatureCollection" as const,
