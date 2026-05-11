@@ -26,6 +26,8 @@ export default function BarraFiltros({
   cuartelesFiltrados,
   totalCuarteles,
   totalSuperficie,
+  onExportExcel,
+  onExportGeoJSON,
 }: Props) {
   const set = (k: keyof FiltrosCuartel, v: string | number | null) =>
     onChange({ ...filtros, [k]: v });

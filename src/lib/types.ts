@@ -46,6 +46,8 @@ export interface Cuartel {
   polinizante: string;
   jefe_campo: string;
   centro_costo: string;
+  equipo_riego: string;
+  sector_raw: string;
   sector_ids: string[];
   sectores?: Sector[];
   geojson?: Feature;

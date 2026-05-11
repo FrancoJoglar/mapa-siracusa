@@ -8,7 +8,6 @@ import {
 import "leaflet/dist/leaflet.css";
 import { Cuartel, Edificacion, FiltrosCuartel } from "../../lib/types";
 import {
-  COLOR_DEFAULT,
   COLOR_EDIFICACION,
   COLOR_FILTRADO_OUT,
   colorPorEspecie,
@@ -233,7 +232,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones }: Props) {
             <GeoJSON
               key="edificaciones"
               data={geoJsonEdificaciones}
-              onEachFeature={(feature, layer) => {
+              onEachFeature={(feature: any, layer: any) => {
                 layer.setStyle({
                   fillColor: COLOR_EDIFICACION,
                   color: "#e65100",

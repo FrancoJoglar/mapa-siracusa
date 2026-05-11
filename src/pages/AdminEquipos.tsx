@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useEquipos } from "../hooks/useEquipos";
-import { useSectores } from "../hooks/useSectores";
 import { Equipo } from "../lib/types";
 import FormularioEquipo from "../components/equipos/FormularioEquipo";
 
