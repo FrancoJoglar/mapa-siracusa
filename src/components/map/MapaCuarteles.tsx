@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Cuartel, Edificacion, SectorGeo, FiltrosCuartel } from "../../lib/types";
@@ -8,6 +8,7 @@ import {
 import BarraFiltros from "./BarraFiltros";
 import BuscadorCuartel from "./BuscadorCuartel";
 import { exportarCuarteles, exportarCuartelesGeoJSON } from "../../lib/export";
+import L from "leaflet";
 
 const CENTRO_MAPA: [number, number] = [-35.14, -71.625];
 const ZOOM_INICIAL = 14;
@@ -26,14 +27,15 @@ const FILTROS_VACIOS: FiltrosCuartel = {
 };
 
 export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Props) {
-  console.log("MapaCuarteles render:", { cuarteles: cuarteles.length, sectores: sectores.length, firstSector: sectores[0]?.codigo, firstGeo: !!sectores[0]?.geojson });
   const [filtros, setFiltros] = useState<FiltrosCuartel>(FILTROS_VACIOS);
   const [vista, setVista] = useState<Vista>("cuarteles");
   const [mostrarEdif, setMostrarEdif] = useState(true);
+  const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
 
   const cambiarVista = (v: Vista) => {
     setVista(v);
     setFiltros(FILTROS_VACIOS);
+    setFitBounds(null);
   };
 
   // ====== UNIQUE VALUES ======
@@ -87,7 +89,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   }, [cuarteles, filtros]);
 
   const filteredSectores = useMemo(() => {
-    const result = sectores.filter(s => {
+    return sectores.filter(s => {
       if (filtros.especie && s.especie !== filtros.especie) return false;
       if (filtros.variedad && s.variedad !== filtros.variedad) return false;
       if (filtros.anioDesde && (!s.anio || s.anio < filtros.anioDesde)) return false;
@@ -97,8 +99,6 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
       if (filtros.jefeCampo && s.jefe_campo !== filtros.jefeCampo) return false;
       return true;
     });
-    console.log("filteredSectores:", { total: sectores.length, filtrados: result.length, filtros, first: result[0]?.codigo });
-    return result;
   }, [sectores, filtros]);
 
   const numFiltrados = vista === "cuarteles" ? filteredCuarteles.length : filteredSectores.length;
@@ -115,16 +115,12 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
     })),
   }), [filteredCuarteles]);
 
-  const geoJsonSectores = useMemo(() => {
-    const fc: any = {
-      type: "FeatureCollection" as const,
-      features: filteredSectores.filter(s => !!s.geojson).map(s => ({
-        ...s.geojson!, properties: { sector_id: s.id },
-      })),
-    };
-    console.log("geoJsonSectores:", { features: fc.features.length, first: fc.features[0]?.properties?.sector_id });
-    return fc;
-  }, [filteredSectores]);
+  const geoJsonSectores = useMemo(() => ({
+    type: "FeatureCollection" as const,
+    features: filteredSectores.filter(s => !!s.geojson).map(s => ({
+      ...s.geojson!, properties: { sector_id: s.id },
+    })),
+  }), [filteredSectores]);
 
   const geoJsonEdif = useMemo(() => ({
     type: "FeatureCollection" as const,
@@ -165,7 +161,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
 
           {vista === "cuarteles" && (
             <GeoJSON
-              key={`cuarteles-${filteredCuarteles.length}-${vista}`}
+              key={`cuarteles-${filteredCuarteles.length}`}
               data={geoJsonCuarteles}
               onEachFeature={(feature: any, layer: any) => {
                 const c = cuarteles.find(x => x.id === feature.properties.cuartel_id);
@@ -180,20 +176,10 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
           )}
 
           {vista === "sectores" && (
-            <GeoJSON
-              key={`sectores-${filteredSectores.length}-${vista}`}
+            <SectoresLayer
               data={geoJsonSectores}
-              onEachFeature={(feature: any, layer: any) => {
-                const s = sectores.find(x => x.id === feature.properties.sector_id);
-                layer.setStyle({
-                  fillColor: colorPorEspecie(s?.especie || ""),
-                  color: "#333", weight: 2, fillOpacity: 0.5, opacity: 0.7,
-                });
-                if (s) {
-                  layer.bindTooltip(s.codigo, { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
-                  layer.bindPopup(popupSectorHtml(s), { maxWidth: 300 });
-                }
-              }}
+              sectores={sectores}
+              onFitBounds={setFitBounds}
             />
           )}
 
@@ -204,12 +190,63 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
             }} />
           )}
 
+          {fitBounds && <FlyToBounds bounds={fitBounds} />}
           <Leyenda />
           {vista === "cuarteles" && <BuscadorCuartel cuarteles={cuarteles} />}
         </MapContainer>
       </div>
     </div>
   );
+}
+
+// ====== SECTORES LAYER WITH AUTO-BOUNDS ======
+function SectoresLayer({ data, sectores, onFitBounds }: {
+  data: GeoJSON.FeatureCollection;
+  sectores: SectorGeo[];
+  onFitBounds: (b: L.LatLngBounds | null) => void;
+}) {
+
+  useEffect(() => {
+    if (data.features.length === 1 && data.features[0].geometry) {
+      try {
+        const gj = L.geoJSON(data.features[0] as any);
+        const bounds = gj.getBounds();
+        if (bounds.isValid()) {
+          onFitBounds(bounds);
+        }
+      } catch { /* ignore */ }
+    } else {
+      onFitBounds(null);
+    }
+  }, [data]);
+
+  return (
+    <GeoJSON
+      key={`sectores-${data.features.length}`}
+      data={data}
+      onEachFeature={(feature: any, layer: any) => {
+        const s = sectores.find(x => x.id === feature.properties.sector_id);
+        layer.setStyle({
+          fillColor: colorPorEspecie(s?.especie || ""),
+          color: "#1565c0", weight: 3, fillOpacity: 0.5, opacity: 0.8,
+        });
+        if (s) {
+          layer.bindTooltip(s.codigo, { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
+          layer.bindPopup(popupSectorHtml(s), { maxWidth: 300 });
+        }
+      }}
+    />
+  );
+}
+
+function FlyToBounds({ bounds }: { bounds: L.LatLngBounds }) {
+  const map = useMap();
+  useEffect(() => {
+    if (bounds && bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [80, 80], maxZoom: 16 });
+    }
+  }, [bounds, map]);
+  return null;
 }
 
 // ====== POPUP HTML ======
