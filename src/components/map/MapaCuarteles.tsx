@@ -29,6 +29,14 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   const [vista, setVista] = useState<Vista>("cuarteles");
   const [mostrarEdif, setMostrarEdif] = useState(true);
 
+  const cambiarVista = (v: Vista) => {
+    setVista(v);
+    setFiltros({
+      especie: "", variedad: "", anioDesde: null, anioHasta: null,
+      equipo: "", sector: "", jefeCampo: "",
+    });
+  };
+
   // ====== CUARTELES FILTERS ======
   const uniqueCuarteles = useMemo(() => {
     const esp = new Set<string>();
@@ -189,7 +197,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <ControlSatelite />
-          <ToggleVista vista={vista} onChange={setVista} />
+          <ToggleVista vista={vista} onChange={cambiarVista} />
           <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
 
           {vista === "cuarteles" && (
