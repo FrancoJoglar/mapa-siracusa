@@ -55,6 +55,22 @@ export interface Cuartel {
   updated_at: string;
 }
 
+export interface SectorGeo {
+  id: string;
+  codigo: string;
+  numero: number;
+  especie: string;
+  variedad: string;
+  equipo: string;
+  hectareas: number | null;
+  jefe_campo: string;
+  anio: number | null;
+  bomba: string;
+  filtro: string;
+  caudal_nominal: number | null;
+  geojson?: Feature;
+}
+
 export interface Edificacion {
   id: string;
   nombre: string;
