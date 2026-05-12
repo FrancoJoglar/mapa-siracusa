@@ -181,6 +181,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
 
           {vista === "sectores" && (
             <SectoresLayer
+              key={filteredSectores.map(s => s.id).join('-') || 'empty'}
               data={geoJsonSectores}
               sectores={sectores}
               onFitBounds={setFitBounds}
@@ -226,7 +227,6 @@ function SectoresLayer({ data, sectores, onFitBounds }: {
 
   return (
     <GeoJSON
-      key={`sectores-${data.features.length}`}
       data={data}
       onEachFeature={(feature: any, layer: any) => {
         const s = sectores.find(x => x.id === feature.properties.sector_id);
