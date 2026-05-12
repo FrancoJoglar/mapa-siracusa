@@ -39,20 +39,24 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   };
 
   // ====== UNIQUE VALUES ======
+  // Helper: split "3 - 4" / "1 - 2 - 3" into individual strings
+  const parts = (raw: string) => raw.split('-').map(x => x.trim()).filter(Boolean);
+
   const uniqueCuarteles = useMemo(() => {
     const e = new Set<string>(); const v = new Set<string>();
-    const eq = new Set<string>(); const s = new Set<string>();
+    const eq = new Set<number>(); const s = new Set<number>();
     const j = new Set<string>();
     cuarteles.forEach(c => {
       if (c.especie) e.add(c.especie);
       if (c.variedad) v.add(c.variedad);
-      if (c.equipo_riego) eq.add(c.equipo_riego);
-      if (c.sector_raw) s.add(c.sector_raw);
+      if (c.equipo_riego) parts(c.equipo_riego).forEach(n => eq.add(Number(n)));
+      if (c.sector_raw) parts(c.sector_raw).forEach(n => s.add(Number(n)));
       if (c.jefe_campo) j.add(c.jefe_campo);
     });
     return {
       especies: Array.from(e).sort(), variedades: Array.from(v).sort(),
-      equipos: Array.from(eq).sort(), sectores: Array.from(s).sort(),
+      equipos: Array.from(eq).sort((a, b) => a - b).map(String),
+      sectores: Array.from(s).sort((a, b) => a - b).map(String),
       jefes: Array.from(j).sort(),
     };
   }, [cuarteles]);
@@ -81,8 +85,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
       if (filtros.variedad && c.variedad !== filtros.variedad) return false;
       if (filtros.anioDesde && (!c.anio_plantacion || c.anio_plantacion < filtros.anioDesde)) return false;
       if (filtros.anioHasta && (!c.anio_plantacion || c.anio_plantacion > filtros.anioHasta)) return false;
-      if (filtros.equipo && c.equipo_riego !== filtros.equipo) return false;
-      if (filtros.sector && c.sector_raw !== filtros.sector) return false;
+      if (filtros.equipo && (!c.equipo_riego || !parts(c.equipo_riego).includes(filtros.equipo))) return false;
+      if (filtros.sector && (!c.sector_raw || !parts(c.sector_raw).includes(filtros.sector))) return false;
       if (filtros.jefeCampo && c.jefe_campo !== filtros.jefeCampo) return false;
       return true;
     });
