@@ -82,13 +82,23 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
 
   // Sector codes filtered by selected equipo (cascading dropdown)
   const sectoresFiltradosPorEquipo = useMemo(() => {
-    if (vista !== "sectores") return uniqueSectores.sectores;
-    if (!filtros.equipo) return uniqueSectores.sectores;
-    return sectores
-      .filter(s => s.equipo === filtros.equipo)
-      .map(s => s.codigo)
-      .sort();
-  }, [vista, filtros.equipo, sectores, uniqueSectores.sectores]);
+    if (vista === "sectores") {
+      if (!filtros.equipo) return uniqueSectores.sectores;
+      return sectores
+        .filter(s => s.equipo === filtros.equipo)
+        .map(s => s.codigo)
+        .sort();
+    }
+    // Cuarteles view: filter sector numbers by selected equipo
+    if (!filtros.equipo) return uniqueCuarteles.sectores;
+    const nums = new Set<number>();
+    cuarteles.forEach(c => {
+      if (c.equipo_riego && parts(c.equipo_riego).includes(filtros.equipo) && c.sector_raw) {
+        parts(c.sector_raw).forEach(n => nums.add(Number(n)));
+      }
+    });
+    return Array.from(nums).sort((a, b) => a - b).map(String);
+  }, [vista, filtros.equipo, sectores, cuarteles, uniqueSectores.sectores, uniqueCuarteles.sectores]);
 
   // ====== FILTERING ======
   const filteredCuarteles = useMemo(() => {
@@ -119,7 +129,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
 
   // Reset sector filter when equipo changes (cascading)
   const handleFiltroChange = (f: FiltrosCuartel) => {
-    if (vista === "sectores" && f.equipo !== filtros.equipo) {
+    if (f.equipo !== filtros.equipo) {
       setFiltros({ ...f, sector: "" });
     } else {
       setFiltros(f);
@@ -172,7 +182,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
             ? exportarCuartelesGeoJSON(filteredCuarteles, "siracusa_cuarteles")
             : exportarCuartelesGeoJSON(filteredSectores as any, "siracusa_sectores")
         }
-        {...(vista === "cuarteles" ? uniqueCuarteles : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo })}
+        {...(vista === "cuarteles" 
+          ? { ...uniqueCuarteles, sectores: sectoresFiltradosPorEquipo } 
+          : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo })}
       />
       <div style={{ flex: 1, position: "relative" }}>
         <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} style={{ height: "100%", width: "100%" }}>
