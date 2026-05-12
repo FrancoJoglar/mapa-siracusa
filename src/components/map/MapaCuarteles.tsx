@@ -64,19 +64,31 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   const uniqueSectores = useMemo(() => {
     const e = new Set<string>(); const v = new Set<string>();
     const eq = new Set<string>(); const j = new Set<string>();
+    const allCodes: string[] = [];
     sectores.forEach(s => {
       if (s.especie) e.add(s.especie);
       if (s.variedad) v.add(s.variedad);
       if (s.equipo) eq.add(s.equipo);
       if (s.jefe_campo) j.add(s.jefe_campo);
+      allCodes.push(s.codigo);
     });
     return {
       especies: Array.from(e).sort(), variedades: Array.from(v).sort(),
       equipos: Array.from(eq).sort(),
-      sectores: sectores.map(s => s.codigo).sort(),
+      sectores: allCodes.sort(),
       jefes: Array.from(j).sort(),
     };
   }, [sectores]);
+
+  // Sector codes filtered by selected equipo (cascading dropdown)
+  const sectoresFiltradosPorEquipo = useMemo(() => {
+    if (vista !== "sectores") return uniqueSectores.sectores;
+    if (!filtros.equipo) return uniqueSectores.sectores;
+    return sectores
+      .filter(s => s.equipo === filtros.equipo)
+      .map(s => s.codigo)
+      .sort();
+  }, [vista, filtros.equipo, sectores, uniqueSectores.sectores]);
 
   // ====== FILTERING ======
   const filteredCuarteles = useMemo(() => {
@@ -104,6 +116,15 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
       return true;
     });
   }, [sectores, filtros]);
+
+  // Reset sector filter when equipo changes (cascading)
+  const handleFiltroChange = (f: FiltrosCuartel) => {
+    if (vista === "sectores" && f.equipo !== filtros.equipo) {
+      setFiltros({ ...f, sector: "" });
+    } else {
+      setFiltros(f);
+    }
+  };
 
   const numFiltrados = vista === "cuarteles" ? filteredCuarteles.length : filteredSectores.length;
   const total = vista === "cuarteles" ? cuarteles.length : sectores.length;
@@ -137,7 +158,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <BarraFiltros
         filtros={filtros}
-        onChange={setFiltros}
+        onChange={handleFiltroChange}
         cuartelesFiltrados={numFiltrados}
         totalCuarteles={total}
         totalSuperficie={superficieFiltrada}
@@ -151,7 +172,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
             ? exportarCuartelesGeoJSON(filteredCuarteles, "siracusa_cuarteles")
             : exportarCuartelesGeoJSON(filteredSectores as any, "siracusa_sectores")
         }
-        {...(vista === "cuarteles" ? uniqueCuarteles : uniqueSectores)}
+        {...(vista === "cuarteles" ? uniqueCuarteles : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo })}
       />
       <div style={{ flex: 1, position: "relative" }}>
         <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} style={{ height: "100%", width: "100%" }}>
