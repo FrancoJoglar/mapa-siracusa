@@ -23,7 +23,7 @@ export default function MapaPage() {
 
         if (cuartelesRes.error) throw cuartelesRes.error;
         if (edificacionesRes.error) throw edificacionesRes.error;
-        // sectores may be empty if no geometry loaded yet
+        if (sectoresRes.error) throw sectoresRes.error;
 
         const parsedCuarteles: Cuartel[] = (cuartelesRes.data || []).map(
           (r: any) => ({
