@@ -75,7 +75,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
       if (s.especie) e.add(s.especie);
       if (s.variedad) v.add(s.variedad);
       if (s.equipo) eq.add(s.equipo);
-      if (s.jefe_campo) j.add(s.jefe_campo);
+      if (s.jefe_campo) s.jefe_campo.split("/").forEach((jc: string) => j.add(jc.trim()));
       allCodes.push(s.codigo);
     });
     return {
@@ -128,7 +128,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
       if (filtros.anioHasta && (!s.anio || s.anio > filtros.anioHasta)) return false;
       if (filtros.equipo && s.equipo !== filtros.equipo) return false;
       if (filtros.sector && s.codigo !== filtros.sector) return false;
-      if (filtros.jefeCampo && s.jefe_campo !== filtros.jefeCampo) return false;
+      if (filtros.jefeCampo && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jefeCampo))) return false;
       return true;
     });
   }, [sectores, filtros]);
