@@ -111,5 +111,24 @@ export function useCuarteles() {
     createCuartel,
     updateCuartel,
     deleteCuartel,
+    updateGeometria: async (id: string, geojson: any) => {
+      const wkt = geojsonToWKT(geojson);
+      if (!wkt) throw new Error("Geometria invalida");
+      const { error: err } = await supabase
+        .from("cuarteles")
+        .update({ geometria: `SRID=4326;${wkt}` })
+        .eq("id", id);
+      if (err) throw err;
+      await fetchCuarteles();
+    },
   };
+}
+
+function geojsonToWKT(geojson: any): string | null {
+  try {
+    if (!geojson?.geometry || geojson.geometry.type !== "Polygon") return null;
+    const coords = geojson.geometry.coordinates[0];
+    const points = coords.map((c: number[]) => `${c[0]} ${c[1]}`).join(", ");
+    return `POLYGON((${points}))`;
+  } catch { return null; }
 }

@@ -57,5 +57,49 @@ export function useSectores() {
     await fetchSectores();
   };
 
-  return { sectores, loading, error, refetch: fetchSectores, createSector, updateSector, deleteSector };
+  return {
+    sectores, loading, error, refetch: fetchSectores,
+    createSector, updateSector, deleteSector,
+    updateGeometria: async (id: string, geojson: any) => {
+      const wkt = geojsonToWKT(geojson);
+      if (!wkt) throw new Error("Geometria invalida");
+      const { error: err } = await supabase
+        .from("sectores")
+        .update({ geometria: `SRID=4326;${wkt}` })
+        .eq("id", id);
+      if (err) throw err;
+      await fetchSectores();
+    },
+    fetchGeometriaSector: async (id: string) => {
+      const { data, error: err } = await supabase
+        .from("sectores")
+        .select("geometria")
+        .eq("id", id)
+        .single();
+      if (err || !data?.geometria) return null;
+      try {
+        // Parse EWKT to GeoJSON
+        const ewkt = data.geometria as string;
+        const coordsStr = ewkt.replace("SRID=4326;POLYGON((", "").replace("))", "");
+        const points = coordsStr.split(",").map(p => {
+          const [lng, lat] = p.trim().split(" ").map(Number);
+          return [lng, lat];
+        });
+        return {
+          type: "Feature" as const,
+          geometry: { type: "Polygon" as const, coordinates: [points] },
+          properties: {},
+        };
+      } catch { return null; }
+    },
+  };
+}
+
+function geojsonToWKT(geojson: any): string | null {
+  try {
+    if (!geojson?.geometry || geojson.geometry.type !== "Polygon") return null;
+    const coords = geojson.geometry.coordinates[0];
+    const points = coords.map((c: number[]) => `${c[0]} ${c[1]}`).join(", ");
+    return `POLYGON((${points}))`;
+  } catch { return null; }
 }

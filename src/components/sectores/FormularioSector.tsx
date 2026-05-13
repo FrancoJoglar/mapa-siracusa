@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { Equipo, Sector } from "../../lib/types";
+import EditorGeometria from "../ui/EditorGeometria";
+import type { Feature } from "geojson";
 
 interface Props {
   sector: Sector | null;
   equipos: Equipo[];
   onSave: (data: Partial<Sector>) => Promise<void>;
   onCancel: () => void;
+  onUpdateGeometria?: (geojson: Feature) => Promise<void>;
+  fetchGeometria?: (id: string) => Promise<Feature | null>;
 }
 
-export default function FormularioSector({ sector, equipos, onSave, onCancel }: Props) {
+export default function FormularioSector({ sector, equipos, onSave, onCancel, onUpdateGeometria, fetchGeometria }: Props) {
   const [equipoId, setEquipoId] = useState(sector?.equipo_id || "");
   const [numero, setNumero] = useState(sector?.numero || 0);
   const [caudalNominal, setCaudalNominal] = useState(sector?.caudal_nominal ?? 0);
@@ -30,6 +34,8 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel }: 
   const [descripcion, setDescripcion] = useState(sector?.descripcion || "");
   const [m3ha, setM3ha] = useState(sector?.m3_ha ?? 0);
   const [saving, setSaving] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [geoData, setGeoData] = useState<Feature | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,12 +127,34 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel }: 
           <Campo label="Descripción">
             <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={2} style={{...inputStyle, width:"100%", resize:"vertical"}} />
           </Campo>
-          <div style={{display:"flex", gap:8, justifyContent:"flex-end", marginTop:16}}>
-            <button type="button" onClick={onCancel} style={btnCancel}>Cancelar</button>
-            <button type="submit" disabled={saving} style={btnSave}>{saving ? "Guardando..." : "Guardar"}</button>
+          <div style={{display:"flex", gap:8, justifyContent:"space-between", marginTop:16}}>
+            {sector && onUpdateGeometria && (
+              <button type="button" onClick={async () => {
+                if (fetchGeometria) {
+                  const geo = await fetchGeometria(sector.id);
+                  setGeoData(geo);
+                }
+                setShowEditor(true);
+              }} style={btnEditor}>Editar Poligono</button>
+            )}
+            <div style={{display:"flex", gap:8, marginLeft: "auto"}}>
+              <button type="button" onClick={onCancel} style={btnCancel}>Cancelar</button>
+              <button type="submit" disabled={saving} style={btnSave}>{saving ? "Guardando..." : "Guardar"}</button>
+            </div>
           </div>
         </form>
       </div>
+
+      {showEditor && (
+        <EditorGeometria
+          geojson={geoData}
+          onSave={async (gj) => {
+            if (onUpdateGeometria) await onUpdateGeometria(gj);
+            setShowEditor(false);
+          }}
+          onCancel={() => setShowEditor(false)}
+        />
+      )}
     </div>
   );
 }
@@ -146,3 +174,4 @@ const modal: React.CSSProperties = { background: "#fff", padding: 24, borderRadi
 const inputStyle: React.CSSProperties = { width: "100%", padding: "5px 8px", border: "1px solid #ccc", borderRadius: 4, fontSize: 12, boxSizing: "border-box" };
 const btnCancel: React.CSSProperties = { padding: "6px 14px", border: "1px solid #ccc", borderRadius: 4, background: "#f5f5f5", cursor: "pointer" };
 const btnSave: React.CSSProperties = { padding: "6px 14px", background: "#1565c0", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 500 };
+const btnEditor: React.CSSProperties = { padding: "6px 14px", background: "#fff3e0", color: "#e65100", border: "1px solid #ffcc80", borderRadius: 4, cursor: "pointer", fontWeight: 500, fontSize: 13 };
