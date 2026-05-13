@@ -41,15 +41,11 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   // ====== UNIQUE VALUES ======
   // Helper: sort equipo names numerically ("Equipo 2" < "Equipo 10")
   const sortEquipos = (arr: string[]) =>
-    arr.sort((a, b) => (parseInt(a.match(/\d+/)?.[0] || "0")) - (parseInt(b.match(/\d+/)?.[0] || "0")));
+    [...arr].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   // Helper: sort sector codes numerically ("E1S1" < "E2S1" < "E10S1")
   const sortSectorCodes = (arr: string[]) =>
-    arr.sort((a, b) => {
-      const [ea, sa] = a.match(/\d+/g)?.map(Number) || [0, 0];
-      const [eb, sb] = b.match(/\d+/g)?.map(Number) || [0, 0];
-      return ea - eb || sa - sb;
-    });
+    [...arr].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   // Helper: split "3 - 4" / "1 - 2 - 3" into individual strings
   const parts = (raw: string) => raw.split('-').map(x => x.trim()).filter(Boolean);
