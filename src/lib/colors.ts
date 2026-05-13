@@ -3,11 +3,8 @@ import { EspecieColor } from "./types";
 export const COLOR_POR_ESPECIE: EspecieColor[] = [
   { especie: "Olivo", color: "#2e7d32" },
   { especie: "Avellano", color: "#795548" },
-  { especie: "Avellano (Plantación)", color: "#795548" },
-  { especie: "Avellanos (Plantación)", color: "#795548" },
   { especie: "Cerezo", color: "#c62828" },
-  { especie: "Cerezo (Plantación)", color: "#c62828" },
-  { especie: "Cerezos (Plantación)", color: "#c62828" },
+  { especie: "Kiwi", color: "#7cb342" },
 ];
 
 export const COLOR_DEFAULT = "#90caf9";
