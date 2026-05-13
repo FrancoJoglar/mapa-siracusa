@@ -31,6 +31,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   const [vista, setVista] = useState<Vista>("sectores");
   const [mostrarEdif, setMostrarEdif] = useState(true);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
+  const [satelite, setSatelite] = useState(true);
 
   const cambiarVista = (v: Vista) => {
     setVista(v);
@@ -195,10 +196,14 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
       <div style={{ flex: 1, position: "relative" }}>
         <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} style={{ height: "100%", width: "100%" }}>
           <TileLayer
+            key={satelite ? "sat" : "osm"}
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            url={satelite
+              ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            }
           />
-          <ControlSatelite />
+          <ControlSatelite satelite={satelite} onToggle={() => setSatelite(!satelite)} />
           <ToggleVista vista={vista} onChange={cambiarVista} />
           <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
 
@@ -336,25 +341,14 @@ function ToggleEdificaciones({ visible, onToggle }: { visible: boolean; onToggle
   );
 }
 
-function ControlSatelite() {
-  const map = useMap();
-  const [sat, setSat] = useState(false);
+function ControlSatelite({ satelite, onToggle }: { satelite: boolean; onToggle: () => void }) {
   return (
     <div className="leaflet-top leaflet-right" style={{ top: 120 }}>
       <div className="leaflet-control">
-        <button onClick={() => {
-          map.eachLayer((layer: any) => {
-            if (layer._url?.includes("tile.openstreetmap.org")) {
-              layer.setUrl(sat
-                ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}");
-            }
-          });
-          setSat(!sat);
-        }} style={{
+        <button onClick={onToggle} style={{
           padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
-          background: sat ? "#1565c0" : "white", color: sat ? "white" : "#333", border: "1px solid #ccc",
-        }}>{sat ? "Satelite" : "Satelite"}</button>
+          background: satelite ? "#1565c0" : "white", color: satelite ? "white" : "#333", border: "1px solid #ccc",
+        }}>Satelite</button>
       </div>
     </div>
   );
