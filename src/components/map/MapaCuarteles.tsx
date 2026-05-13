@@ -38,18 +38,15 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
     setFitBounds(null);
   };
 
-  // ====== UNIQUE VALUES ======
-  // Helper: sort equipo names numerically ("Equipo 2" < "Equipo 10")
-  const sortEquipos = (arr: string[]) =>
-    [...arr].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-
-  // Helper: sort sector codes numerically ("E1S1" < "E2S1" < "E10S1")
-  const sortSectorCodes = (arr: string[]) =>
-    [...arr].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-
-  // Helper: split "3 - 4" / "1 - 2 - 3" into individual strings
+  // ====== HELPERS ======
   const parts = (raw: string) => raw.split('-').map(x => x.trim()).filter(Boolean);
+  const numSort = (a: string, b: string) => {
+    const na = parseInt(a.replace(/\D/g, ''), 10) || 0;
+    const nb = parseInt(b.replace(/\D/g, ''), 10) || 0;
+    return na - nb;
+  };
 
+  // ====== UNIQUE VALUES ======
   const uniqueCuarteles = useMemo(() => {
     const e = new Set<string>(); const v = new Set<string>();
     const eq = new Set<number>(); const s = new Set<number>();
@@ -82,8 +79,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
     });
     return {
       especies: Array.from(e).sort(), variedades: Array.from(v).sort(),
-      equipos: sortEquipos(Array.from(eq)),
-      sectores: sortSectorCodes(allCodes),
+      equipos: Array.from(eq).sort(numSort),
+      sectores: allCodes.sort(numSort),
       jefes: Array.from(j).sort(),
     };
   }, [sectores]);
@@ -92,11 +89,10 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   const sectoresFiltradosPorEquipo = useMemo(() => {
     if (vista === "sectores") {
       if (!filtros.equipo) return uniqueSectores.sectores;
-      return sortSectorCodes(
-        sectores
-          .filter(s => s.equipo === filtros.equipo)
-          .map(s => s.codigo)
-      );
+      return sectores
+        .filter(s => s.equipo === filtros.equipo)
+        .map(s => s.codigo)
+        .sort(numSort);
     }
     // Cuarteles view: filter sector numbers by selected equipo
     if (!filtros.equipo) return uniqueCuarteles.sectores;

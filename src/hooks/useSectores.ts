@@ -16,11 +16,10 @@ export function useSectores() {
         .select("*, equipo:equipos(*)")
         .order("numero");
       if (err) throw err;
-      // Sort client-side by equipo codigo then numero for cardinal order
-      const sorted = (data || []).sort((a: any, b: any) => {
-        const ea = a.equipo?.codigo || 0;
-        const eb = b.equipo?.codigo || 0;
-        return ea - eb || (a.numero || 0) - (b.numero || 0);
+      const sorted = [...(data || [])].sort((a: any, b: any) => {
+        const na = parseInt((a.codigo || '').replace(/\D/g, ''), 10) || 0;
+        const nb = parseInt((b.codigo || '').replace(/\D/g, ''), 10) || 0;
+        return na - nb;
       });
       setSectores(sorted);
     } catch (e: any) {
