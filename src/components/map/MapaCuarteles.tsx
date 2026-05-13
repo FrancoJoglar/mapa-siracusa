@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Cuartel, Edificacion, SectorGeo, FiltrosCuartel } from "../../lib/types";
@@ -32,11 +32,28 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   const [mostrarEdif, setMostrarEdif] = useState(true);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
   const [satelite, setSatelite] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const selectedRef = useRef<string | null>(null);
+  useEffect(() => { selectedRef.current = selectedId; }, [selectedId]);
+
+  const aplicarEstiloSeleccion = (layer: any, featureId: string) => {
+    const sel = selectedId === featureId;
+    const hov = highlightedId === featureId;
+    if (sel) {
+      layer.setStyle({ weight: 4, color: "#e65100", fillOpacity: 0.85, opacity: 1 });
+      layer.bringToFront();
+    } else if (hov) {
+      layer.setStyle({ weight: 3, color: "#ff9800", fillOpacity: 0.8, opacity: 0.9 });
+    }
+  };
 
   const cambiarVista = (v: Vista) => {
     setVista(v);
     setFiltros(FILTROS_VACIOS);
     setFitBounds(null);
+    setSelectedId(null);
+    setHighlightedId(null);
   };
 
   // ====== HELPERS ======
@@ -204,6 +221,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
             }
           />
           <ControlSatelite satelite={satelite} onToggle={() => setSatelite(!satelite)} />
+          <MapClickHandler onDeselect={() => setSelectedId(null)} />
           <ToggleVista vista={vista} onChange={cambiarVista} />
           <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
 
@@ -213,12 +231,30 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
               data={geoJsonCuarteles}
               onEachFeature={(feature: any, layer: any) => {
                 const c = cuarteles.find(x => x.id === feature.properties.cuartel_id);
+                const fId = feature.properties.cuartel_id;
                 layer.setStyle({
                   fillColor: colorPorEspecie(c?.especie || ""),
                   color: "#333", weight: 1, fillOpacity: 0.7, opacity: 0.6,
                 });
-                layer.bindTooltip(c?.nombre || "", { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
-                if (c) layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
+                if (c) {
+                  layer.bindTooltip(c.nombre || "", { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
+                  layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
+                }
+                layer.on("mouseover", () => { setHighlightedId(fId); aplicarEstiloSeleccion(layer, fId); });
+                layer.on("mouseout", () => {
+                  setHighlightedId(null);
+                  if (selectedRef.current !== fId) {
+                    layer.setStyle({
+                      fillColor: colorPorEspecie(c?.especie || ""),
+                      color: "#333", weight: 1, fillOpacity: 0.7, opacity: 0.6,
+                    });
+                  }
+                });
+                layer.on("click", (e: any) => {
+                  L.DomEvent.stopPropagation(e);
+                  const prev = selectedRef.current;
+                  setSelectedId(prev === fId ? null : fId);
+                });
               }}
             />
           )}
@@ -229,6 +265,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
               data={geoJsonSectores}
               sectores={sectores}
               onFitBounds={setFitBounds}
+              selectedRef={selectedRef}
+              onSelect={(id) => setSelectedId(id)}
+              onHighlight={(id) => setHighlightedId(id)}
             />
           )}
 
@@ -249,10 +288,13 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
 }
 
 // ====== SECTORES LAYER WITH AUTO-BOUNDS ======
-function SectoresLayer({ data, sectores, onFitBounds }: {
+function SectoresLayer({ data, sectores, onFitBounds, selectedRef, onSelect, onHighlight }: {
   data: GeoJSON.FeatureCollection;
   sectores: SectorGeo[];
   onFitBounds: (b: L.LatLngBounds | null) => void;
+  selectedRef: React.MutableRefObject<string | null>;
+  onSelect: (id: string | null) => void;
+  onHighlight: (id: string | null) => void;
 }) {
 
   useEffect(() => {
@@ -274,6 +316,7 @@ function SectoresLayer({ data, sectores, onFitBounds }: {
       data={data}
       onEachFeature={(feature: any, layer: any) => {
         const s = sectores.find(x => x.id === feature.properties.sector_id);
+        const fId = feature.properties.sector_id;
         layer.setStyle({
           fillColor: colorPorEspecie(s?.especie || ""),
           color: "#1565c0", weight: 3, fillOpacity: 0.5, opacity: 0.8,
@@ -282,6 +325,24 @@ function SectoresLayer({ data, sectores, onFitBounds }: {
           layer.bindTooltip(s.codigo, { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
           layer.bindPopup(popupSectorHtml(s), { maxWidth: 300 });
         }
+        layer.on("mouseover", () => {
+          onHighlight(fId);
+          layer.setStyle({ weight: 4, color: "#ff9800", fillOpacity: 0.7, opacity: 1 });
+        });
+        layer.on("mouseout", () => {
+          onHighlight(null);
+          if (selectedRef.current !== fId) {
+            layer.setStyle({
+              fillColor: colorPorEspecie(s?.especie || ""),
+              color: "#1565c0", weight: 3, fillOpacity: 0.5, opacity: 0.8,
+            });
+          }
+        });
+        layer.on("click", (e: any) => {
+          L.DomEvent.stopPropagation(e);
+          const next = selectedRef.current === fId ? null : fId;
+          onSelect(next);
+        });
       }}
     />
   );
@@ -339,6 +400,11 @@ function ToggleEdificaciones({ visible, onToggle }: { visible: boolean; onToggle
       </div>
     </div>
   );
+}
+
+function MapClickHandler({ onDeselect }: { onDeselect: () => void }) {
+  useMap().on("click", onDeselect);
+  return null;
 }
 
 function ControlSatelite({ satelite, onToggle }: { satelite: boolean; onToggle: () => void }) {
