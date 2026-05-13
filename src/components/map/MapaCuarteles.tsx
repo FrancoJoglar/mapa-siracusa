@@ -28,7 +28,7 @@ const FILTROS_VACIOS: FiltrosCuartel = {
 
 export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Props) {
   const [filtros, setFiltros] = useState<FiltrosCuartel>(FILTROS_VACIOS);
-  const [vista, setVista] = useState<Vista>("cuarteles");
+  const [vista, setVista] = useState<Vista>("sectores");
   const [mostrarEdif, setMostrarEdif] = useState(true);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
 
@@ -190,6 +190,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
         {...(vista === "cuarteles" 
           ? { ...uniqueCuarteles, sectores: sectoresFiltradosPorEquipo } 
           : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo })}
+        vista={vista}
       />
       <div style={{ flex: 1, position: "relative" }}>
         <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} style={{ height: "100%", width: "100%" }}>

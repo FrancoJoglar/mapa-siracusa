@@ -13,6 +13,7 @@ interface Props {
   cuartelesFiltrados: number;
   onExportExcel: () => void;
   onExportGeoJSON: () => void;
+  vista: "cuarteles" | "sectores";
 }
 
 export default function BarraFiltros({
@@ -28,6 +29,7 @@ export default function BarraFiltros({
   totalSuperficie,
   onExportExcel,
   onExportGeoJSON,
+  vista,
 }: Props) {
   const set = (k: keyof FiltrosCuartel, v: string | number | null) =>
     onChange({ ...filtros, [k]: v });
@@ -91,31 +93,35 @@ export default function BarraFiltros({
           style={numberInputStyle}
         />
 
-        <select
-          value={filtros.equipo}
-          onChange={(e) => set("equipo", e.target.value)}
-          style={selectStyle}
-        >
-          <option value="">Equipo</option>
-          {equipos.map((e) => (
-            <option key={e} value={e}>
-              {e}
-            </option>
-          ))}
-        </select>
+        {vista === "sectores" && (
+          <select
+            value={filtros.equipo}
+            onChange={(e) => set("equipo", e.target.value)}
+            style={selectStyle}
+          >
+            <option value="">Equipo</option>
+            {equipos.map((e) => (
+              <option key={e} value={e}>
+                {e}
+              </option>
+            ))}
+          </select>
+        )}
 
-        <select
-          value={filtros.sector}
-          onChange={(e) => set("sector", e.target.value)}
-          style={selectStyle}
-        >
-          <option value="">Sector</option>
-          {sectores.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+        {vista === "sectores" && (
+          <select
+            value={filtros.sector}
+            onChange={(e) => set("sector", e.target.value)}
+            style={selectStyle}
+          >
+            <option value="">Sector</option>
+            {sectores.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        )}
 
         <select
           value={filtros.jefeCampo}
