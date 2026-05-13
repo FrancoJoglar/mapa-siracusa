@@ -14,9 +14,15 @@ export function useSectores() {
       const { data, error: err } = await supabase
         .from("sectores")
         .select("*, equipo:equipos(*)")
-        .order("codigo");
+        .order("numero");
       if (err) throw err;
-      setSectores(data || []);
+      // Sort client-side by equipo codigo then numero for cardinal order
+      const sorted = (data || []).sort((a: any, b: any) => {
+        const ea = a.equipo?.codigo || 0;
+        const eb = b.equipo?.codigo || 0;
+        return ea - eb || (a.numero || 0) - (b.numero || 0);
+      });
+      setSectores(sorted);
     } catch (e: any) {
       setError(e.message);
     } finally {

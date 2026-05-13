@@ -39,6 +39,18 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   };
 
   // ====== UNIQUE VALUES ======
+  // Helper: sort equipo names numerically ("Equipo 2" < "Equipo 10")
+  const sortEquipos = (arr: string[]) =>
+    arr.sort((a, b) => (parseInt(a.match(/\d+/)?.[0] || "0")) - (parseInt(b.match(/\d+/)?.[0] || "0")));
+
+  // Helper: sort sector codes numerically ("E1S1" < "E2S1" < "E10S1")
+  const sortSectorCodes = (arr: string[]) =>
+    arr.sort((a, b) => {
+      const [ea, sa] = a.match(/\d+/g)?.map(Number) || [0, 0];
+      const [eb, sb] = b.match(/\d+/g)?.map(Number) || [0, 0];
+      return ea - eb || sa - sb;
+    });
+
   // Helper: split "3 - 4" / "1 - 2 - 3" into individual strings
   const parts = (raw: string) => raw.split('-').map(x => x.trim()).filter(Boolean);
 
@@ -74,8 +86,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
     });
     return {
       especies: Array.from(e).sort(), variedades: Array.from(v).sort(),
-      equipos: Array.from(eq).sort(),
-      sectores: allCodes.sort(),
+      equipos: sortEquipos(Array.from(eq)),
+      sectores: sortSectorCodes(allCodes),
       jefes: Array.from(j).sort(),
     };
   }, [sectores]);
@@ -84,10 +96,11 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   const sectoresFiltradosPorEquipo = useMemo(() => {
     if (vista === "sectores") {
       if (!filtros.equipo) return uniqueSectores.sectores;
-      return sectores
-        .filter(s => s.equipo === filtros.equipo)
-        .map(s => s.codigo)
-        .sort();
+      return sortSectorCodes(
+        sectores
+          .filter(s => s.equipo === filtros.equipo)
+          .map(s => s.codigo)
+      );
     }
     // Cuarteles view: filter sector numbers by selected equipo
     if (!filtros.equipo) return uniqueCuarteles.sectores;
