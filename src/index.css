@@ -59,3 +59,8 @@ a.active {
 .leaflet-container {
   font-family: inherit;
 }
+
+path.leaflet-interactive:focus,
+path.leaflet-interactive:focus-visible {
+  outline: none;
+}
