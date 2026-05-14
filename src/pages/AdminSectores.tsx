@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { useSectores } from "../hooks/useSectores";
 import { useEquipos } from "../hooks/useEquipos";
 import { Sector } from "../lib/types";
@@ -8,7 +7,6 @@ import FormularioSector from "../components/sectores/FormularioSector";
 export default function AdminSectores() {
   const { sectores, loading, error, createSector, updateSector, deleteSector, updateGeometria, fetchGeometriaSector } = useSectores();
   const { equipos } = useEquipos();
-  const navigate = useNavigate();
   const [editing, setEditing] = useState<Sector | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
@@ -135,7 +133,7 @@ export default function AdminSectores() {
           onCancel={() => { setShowForm(false); setEditing(null); }}
           onUpdateGeometria={async (gj) => {
             if (editing) await updateGeometria(editing.id, gj);
-            navigate("/");
+            window.location.href = "/";
           }}
           fetchGeometria={fetchGeometriaSector}
         />

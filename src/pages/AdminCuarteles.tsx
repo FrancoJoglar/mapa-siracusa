@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { useCuarteles } from "../hooks/useCuarteles";
 import { useSectores } from "../hooks/useSectores";
 import { Cuartel } from "../lib/types";
@@ -8,7 +7,6 @@ import FormularioCuartel from "../components/cuarteles/FormularioCuartel";
 export default function AdminCuarteles() {
   const { cuarteles, loading, error, updateCuartel, deleteCuartel, updateGeometria } = useCuarteles();
   const { sectores } = useSectores();
-  const navigate = useNavigate();
   const [editing, setEditing] = useState<Cuartel | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
@@ -118,7 +116,7 @@ export default function AdminCuarteles() {
           onSave={async (data) => { await updateCuartel(editing.id, data); setShowForm(false); setEditing(null); }}
           onUpdateGeometria={async (gj) => {
             await updateGeometria(editing.id, gj);
-            navigate("/");
+            window.location.href = "/";
           }}
           onCancel={() => { setShowForm(false); setEditing(null); }}
         />
