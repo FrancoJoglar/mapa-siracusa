@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Cuartel, Edificacion, SectorGeo, FiltrosCuartel } from "../../lib/types";
@@ -26,6 +26,9 @@ const FILTROS_VACIOS: FiltrosCuartel = {
   equipo: "", sector: "", jefeCampo: "",
 };
 
+type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions };
+type LayersMap = Map<string, LayerEntry>;
+
 export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Props) {
   const [filtros, setFiltros] = useState<FiltrosCuartel>(FILTROS_VACIOS);
   const [vista, setVista] = useState<Vista>("sectores");
@@ -34,19 +37,31 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   const [satelite, setSatelite] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+
+  const layersRef = useRef<LayersMap>(new Map());
   const selectedRef = useRef<string | null>(null);
   useEffect(() => { selectedRef.current = selectedId; }, [selectedId]);
 
-  const aplicarEstiloSeleccion = (layer: any, featureId: string) => {
-    const sel = selectedId === featureId;
-    const hov = highlightedId === featureId;
-    if (sel) {
-      layer.setStyle({ weight: 4, color: "#e65100", fillOpacity: 0.85, opacity: 1 });
-      layer.bringToFront();
-    } else if (hov) {
-      layer.setStyle({ weight: 3, color: "#ff9800", fillOpacity: 0.8, opacity: 0.9 });
-    }
-  };
+  // Register a layer with its base style
+  const registerLayer = useCallback((id: string, layer: L.Path, baseStyle: L.PathOptions) => {
+    layersRef.current.set(id, { layer, baseStyle });
+  }, []);
+
+  // Unified painting: iterates all registered layers and applies correct style
+  const pintarCapas = useCallback(() => {
+    layersRef.current.forEach(({ layer, baseStyle }, id) => {
+      if (id === selectedId) {
+        layer.setStyle({ ...baseStyle, weight: 4, color: "#e65100", fillOpacity: 0.85, opacity: 0.9 });
+        layer.bringToFront();
+      } else if (id === highlightedId) {
+        layer.setStyle({ ...baseStyle, weight: 3, color: "#ff9800", fillOpacity: 0.8, opacity: 0.9 });
+      } else {
+        layer.setStyle(baseStyle);
+      }
+    });
+  }, [selectedId, highlightedId]);
+
+  useEffect(() => { pintarCapas(); }, [pintarCapas]);
 
   const cambiarVista = (v: Vista) => {
     setVista(v);
@@ -107,12 +122,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   const sectoresFiltradosPorEquipo = useMemo(() => {
     if (vista === "sectores") {
       if (!filtros.equipo) return uniqueSectores.sectores;
-      return sectores
-        .filter(s => s.equipo === filtros.equipo)
-        .map(s => s.codigo)
-        .sort(numSort);
+      return sectores.filter(s => s.equipo === filtros.equipo).map(s => s.codigo).sort(numSort);
     }
-    // Cuarteles view: filter sector numbers by selected equipo
     if (!filtros.equipo) return uniqueCuarteles.sectores;
     const nums = new Set<number>();
     cuarteles.forEach(c => {
@@ -150,13 +161,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
     });
   }, [sectores, filtros]);
 
-  // Reset sector filter when equipo changes (cascading)
   const handleFiltroChange = (f: FiltrosCuartel) => {
-    if (f.equipo !== filtros.equipo) {
-      setFiltros({ ...f, sector: "" });
-    } else {
-      setFiltros(f);
-    }
+    if (f.equipo !== filtros.equipo) { setFiltros({ ...f, sector: "" }); }
+    else { setFiltros(f); }
   };
 
   const numFiltrados = vista === "cuarteles" ? filteredCuarteles.length : filteredSectores.length;
@@ -187,6 +194,11 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
     })),
   }), [edificaciones]);
 
+  // Clear layers when view or filtered data changes
+  useEffect(() => {
+    layersRef.current.clear();
+  }, [vista, geoJsonCuarteles.features.length, geoJsonSectores.features.length]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <BarraFiltros
@@ -205,8 +217,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
             ? exportarCuartelesGeoJSON(filteredCuarteles, "siracusa_cuarteles")
             : exportarCuartelesGeoJSON(filteredSectores as any, "siracusa_sectores")
         }
-        {...(vista === "cuarteles" 
-          ? { ...uniqueCuarteles, sectores: sectoresFiltradosPorEquipo } 
+        {...(vista === "cuarteles"
+          ? { ...uniqueCuarteles, sectores: sectoresFiltradosPorEquipo }
           : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo })}
         vista={vista}
       />
@@ -232,28 +244,21 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
               onEachFeature={(feature: any, layer: any) => {
                 const c = cuarteles.find(x => x.id === feature.properties.cuartel_id);
                 const fId = feature.properties.cuartel_id;
-                layer.setStyle({
+                const baseStyle: L.PathOptions = {
                   fillColor: colorPorEspecie(c?.especie || ""),
                   color: "#333", weight: 1, fillOpacity: 0.7, opacity: 0.6,
-                });
+                };
+                layer.setStyle(baseStyle);
+                registerLayer(fId, layer, baseStyle);
                 if (c) {
                   layer.bindTooltip(c.nombre || "", { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
                   layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
                 }
-                layer.on("mouseover", () => { setHighlightedId(fId); aplicarEstiloSeleccion(layer, fId); });
-                layer.on("mouseout", () => {
-                  setHighlightedId(null);
-                  if (selectedRef.current !== fId) {
-                    layer.setStyle({
-                      fillColor: colorPorEspecie(c?.especie || ""),
-                      color: "#333", weight: 1, fillOpacity: 0.7, opacity: 0.6,
-                    });
-                  }
-                });
+                layer.on("mouseover", () => setHighlightedId(fId));
+                layer.on("mouseout", () => setHighlightedId(null));
                 layer.on("click", (e: any) => {
                   L.DomEvent.stopPropagation(e);
-                  const prev = selectedRef.current;
-                  setSelectedId(prev === fId ? null : fId);
+                  setSelectedId(prev => prev === fId ? null : fId);
                 });
               }}
             />
@@ -265,9 +270,10 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
               data={geoJsonSectores}
               sectores={sectores}
               onFitBounds={setFitBounds}
+              registerLayer={registerLayer}
               selectedRef={selectedRef}
-              onSelect={(id) => setSelectedId(id)}
-              onHighlight={(id) => setHighlightedId(id)}
+              setSelected={setSelectedId}
+              setHighlighted={setHighlightedId}
             />
           )}
 
@@ -287,29 +293,27 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   );
 }
 
-// ====== SECTORES LAYER WITH AUTO-BOUNDS ======
-function SectoresLayer({ data, sectores, onFitBounds, selectedRef, onSelect, onHighlight }: {
+// ====== SECTORES LAYER ======
+function SectoresLayer({ data, sectores, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted }: {
   data: GeoJSON.FeatureCollection;
   sectores: SectorGeo[];
   onFitBounds: (b: L.LatLngBounds | null) => void;
+  registerLayer: (id: string, layer: L.Path, baseStyle: L.PathOptions) => void;
   selectedRef: React.MutableRefObject<string | null>;
-  onSelect: (id: string | null) => void;
-  onHighlight: (id: string | null) => void;
+  setSelected: (id: string | null) => void;
+  setHighlighted: (id: string | null) => void;
 }) {
-
   useEffect(() => {
     if (data.features.length === 1 && data.features[0].geometry) {
       try {
         const gj = L.geoJSON(data.features[0] as any);
         const bounds = gj.getBounds();
-        if (bounds.isValid()) {
-          onFitBounds(bounds);
-        }
-      } catch { /* ignore */ }
+        if (bounds.isValid()) onFitBounds(bounds);
+      } catch {}
     } else {
       onFitBounds(null);
     }
-  }, [data]);
+  }, [data, onFitBounds]);
 
   return (
     <GeoJSON
@@ -317,31 +321,21 @@ function SectoresLayer({ data, sectores, onFitBounds, selectedRef, onSelect, onH
       onEachFeature={(feature: any, layer: any) => {
         const s = sectores.find(x => x.id === feature.properties.sector_id);
         const fId = feature.properties.sector_id;
-        layer.setStyle({
+        const baseStyle: L.PathOptions = {
           fillColor: colorPorEspecie(s?.especie || ""),
           color: "#1565c0", weight: 3, fillOpacity: 0.5, opacity: 0.8,
-        });
+        };
+        layer.setStyle(baseStyle);
+        registerLayer(fId, layer, baseStyle);
         if (s) {
           layer.bindTooltip(s.codigo, { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
           layer.bindPopup(popupSectorHtml(s), { maxWidth: 300 });
         }
-        layer.on("mouseover", () => {
-          onHighlight(fId);
-          layer.setStyle({ weight: 4, color: "#ff9800", fillOpacity: 0.7, opacity: 1 });
-        });
-        layer.on("mouseout", () => {
-          onHighlight(null);
-          if (selectedRef.current !== fId) {
-            layer.setStyle({
-              fillColor: colorPorEspecie(s?.especie || ""),
-              color: "#1565c0", weight: 3, fillOpacity: 0.5, opacity: 0.8,
-            });
-          }
-        });
+        layer.on("mouseover", () => setHighlighted(fId));
+        layer.on("mouseout", () => setHighlighted(null));
         layer.on("click", (e: any) => {
           L.DomEvent.stopPropagation(e);
-          const next = selectedRef.current === fId ? null : fId;
-          onSelect(next);
+          setSelected(selectedRef.current === fId ? null : fId);
         });
       }}
     />
@@ -351,9 +345,7 @@ function SectoresLayer({ data, sectores, onFitBounds, selectedRef, onSelect, onH
 function FlyToBounds({ bounds }: { bounds: L.LatLngBounds }) {
   const map = useMap();
   useEffect(() => {
-    if (bounds && bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [80, 80], maxZoom: 16 });
-    }
+    if (bounds?.isValid()) map.fitBounds(bounds, { padding: [80, 80], maxZoom: 16 });
   }, [bounds, map]);
   return null;
 }
