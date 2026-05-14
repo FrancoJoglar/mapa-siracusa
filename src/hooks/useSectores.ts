@@ -78,8 +78,24 @@ export function useSectores() {
         .single();
       if (err || !data?.geometria) return null;
       try {
-        // Parse EWKT to GeoJSON
         const ewkt = data.geometria as string;
+        if (ewkt.includes("MULTIPOLYGON")) {
+          const inner = ewkt.replace("SRID=4326;MULTIPOLYGON(", "").slice(0, -1);
+          const rings: number[][][] = [];
+          const polyRe = /\(\(([^)]+)\)\)/g;
+          let match;
+          while ((match = polyRe.exec(inner)) !== null) {
+            rings.push(match[1].split(",").map(p => {
+              const [lng, lat] = p.trim().split(" ").map(Number);
+              return [lng, lat];
+            }));
+          }
+          return {
+            type: "Feature" as const,
+            geometry: { type: "MultiPolygon" as const, coordinates: [rings] },
+            properties: {},
+          };
+        }
         const coordsStr = ewkt.replace("SRID=4326;POLYGON((", "").replace("))", "");
         const points = coordsStr.split(",").map(p => {
           const [lng, lat] = p.trim().split(" ").map(Number);
