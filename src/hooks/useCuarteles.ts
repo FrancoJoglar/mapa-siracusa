@@ -112,9 +112,19 @@ export function useCuarteles() {
     updateCuartel,
     deleteCuartel,
     updateGeometria: async (id: string, geojson: any) => {
-      const geometry = geojson?.geometry || geojson;
-      console.log("updateGeometria:", { hasGeometry: !!geojson?.geometry, type: geometry?.type, hasCoords: !!geometry?.coordinates, keys: Object.keys(geojson || {}), geojsonType: geojson?.type });
-      if (!geometry?.type || !geometry?.coordinates) throw new Error("Geometria invalida");
+      // Accept Feature, Geometry, or FeatureCollection
+      let geometry = geojson?.geometry;
+      if (!geometry) {
+        if (geojson?.type === "FeatureCollection") {
+          geometry = geojson.features?.[0]?.geometry || geojson.features?.[0];
+        } else if (geojson?.coordinates) {
+          geometry = geojson; // Direct geometry object
+        }
+      }
+      if (!geometry?.type || !geometry?.coordinates) {
+        console.error("Geometria invalida. geojson:", geojson);
+        throw new Error("Geometria invalida");
+      }
       const { error: err } = await supabase
         .from("cuarteles")
         .update({ geometria: geometry })

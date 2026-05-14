@@ -61,8 +61,18 @@ export function useSectores() {
     sectores, loading, error, refetch: fetchSectores,
     createSector, updateSector, deleteSector,
     updateGeometria: async (id: string, geojson: any) => {
-      const geometry = geojson?.geometry || geojson;
-      if (!geometry?.type || !geometry?.coordinates) throw new Error("Geometria invalida");
+      let geometry = geojson?.geometry;
+      if (!geometry) {
+        if (geojson?.type === "FeatureCollection") {
+          geometry = geojson.features?.[0]?.geometry || geojson.features?.[0];
+        } else if (geojson?.coordinates) {
+          geometry = geojson;
+        }
+      }
+      if (!geometry?.type || !geometry?.coordinates) {
+        console.error("Geometria invalida. geojson:", geojson);
+        throw new Error("Geometria invalida");
+      }
       const { error: err } = await supabase
         .from("sectores")
         .update({ geometria: geometry })
