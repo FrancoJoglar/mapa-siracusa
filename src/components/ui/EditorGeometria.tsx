@@ -34,7 +34,6 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
 
   const handleSave = async () => {
     if (!geoRef.current) return;
-    console.log("Guardando geometria:", JSON.stringify(geoRef.current).slice(0, 200));
     setSaving(true);
     try {
       await onSave(geoRef.current);
@@ -93,14 +92,32 @@ function EditorSetup({ geojson, geoRef }: { geojson: Feature | null; geoRef: Rea
         (l as any).pm.enable();
       });
       map.fitBounds(layer.getBounds().pad(0.3));
-      geoRef.current = layer.toGeoJSON() as any;
+      // Store the ORIGINAL geojson (not L.geoJSON output)
+      geoRef.current = geojson;
     }
 
     map.on("pm:update", (e: any) => {
-      geoRef.current = e.layer.toGeoJSON() as any;
+      // Extract raw latlngs and build clean GeoJSON geometry
+      const latlngs = e.layer.getLatLngs();
+      const coords = (latlngs as any[]).map((ring: any[]) =>
+        ring.map((ll: { lng: number; lat: number }) => [ll.lng, ll.lat])
+      );
+      geoRef.current = {
+        type: "Feature" as const,
+        geometry: { type: "Polygon" as const, coordinates: coords },
+        properties: {},
+      };
     });
     map.on("pm:create", (e: any) => {
-      geoRef.current = e.layer.toGeoJSON() as any;
+      const latlngs = e.layer.getLatLngs();
+      const coords = (latlngs as any[]).map((ring: any[]) =>
+        ring.map((ll: { lng: number; lat: number }) => [ll.lng, ll.lat])
+      );
+      geoRef.current = {
+        type: "Feature" as const,
+        geometry: { type: "Polygon" as const, coordinates: coords },
+        properties: {},
+      };
     });
 
     return () => {
