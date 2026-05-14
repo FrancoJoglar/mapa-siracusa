@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { MapContainer, TileLayer } from "react-leaflet";
+import { useState, useRef, useEffect } from "react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import "leaflet/dist/leaflet.css";
@@ -54,50 +54,12 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
             center={initialCenter}
             zoom={15}
             style={{ height: "100%", width: "100%" }}
-            ref={(mapRef) => {
-              if (!mapRef) return;
-              const map = mapRef;
-              // Wait for map to be ready
-              setTimeout(() => {
-                // @ts-ignore - geoman types
-                map.pm.addControls({
-                  position: "topleft",
-                  drawCircle: false,
-                  drawCircleMarker: false,
-                  drawRectangle: false,
-                  drawPolyline: false,
-                  drawMarker: false,
-                  drawText: false,
-                  cutPolygon: false,
-                  rotateMode: false,
-                  dragMode: true,
-                  editMode: true,
-                  removalMode: true,
-                });
-
-                if (geojson?.geometry) {
-                  const layer = L.geoJSON(geojson);
-                  layer.eachLayer((l) => {
-                    l.addTo(map);
-                    // @ts-ignore
-                    l.pm.enable();
-                  });
-                  map.fitBounds(layer.getBounds().pad(0.3));
-                }
-
-                map.on("pm:update", (e: any) => {
-                  geoRef.current = e.layer.toGeoJSON();
-                });
-                map.on("pm:create", (e: any) => {
-                  geoRef.current = e.layer.toGeoJSON();
-                });
-              }, 300);
-            }}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+              attribution='&copy; OSM'
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             />
+            <EditorSetup geojson={geojson} geoRef={geoRef} />
           </MapContainer>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -109,6 +71,45 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
       </div>
     </div>
   );
+}
+
+function EditorSetup({ geojson, geoRef }: { geojson: Feature | null; geoRef: React.MutableRefObject<Feature | null> }) {
+  const map = useMap();
+
+  useEffect(() => {
+    map.pm.addControls({
+      position: "topleft",
+      drawCircle: false, drawCircleMarker: false, drawRectangle: false,
+      drawPolyline: false, drawMarker: false, drawText: false,
+      cutPolygon: false, rotateMode: false,
+      dragMode: true, editMode: true, removalMode: true,
+    });
+
+    if (geojson?.geometry) {
+      const layer = L.geoJSON(geojson as any);
+      layer.eachLayer((l: L.Layer) => {
+        l.addTo(map);
+        (l as any).pm.enable();
+      });
+      map.fitBounds(layer.getBounds().pad(0.3));
+      geoRef.current = layer.toGeoJSON() as any;
+    }
+
+    map.on("pm:update", (e: any) => {
+      geoRef.current = e.layer.toGeoJSON() as any;
+    });
+    map.on("pm:create", (e: any) => {
+      geoRef.current = e.layer.toGeoJSON() as any;
+    });
+
+    return () => {
+      map.pm.removeControls();
+      map.off("pm:update");
+      map.off("pm:create");
+    };
+  }, [map, geojson, geoRef]);
+
+  return null;
 }
 
 const overlay: React.CSSProperties = {
