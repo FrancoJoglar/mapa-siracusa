@@ -113,6 +113,7 @@ export function useCuarteles() {
     deleteCuartel,
     updateGeometria: async (id: string, geojson: any) => {
       const geometry = geojson?.geometry || geojson;
+      console.log("updateGeometria:", { hasGeometry: !!geojson?.geometry, type: geometry?.type, hasCoords: !!geometry?.coordinates, keys: Object.keys(geojson || {}), geojsonType: geojson?.type });
       if (!geometry?.type || !geometry?.coordinates) throw new Error("Geometria invalida");
       const { error: err } = await supabase
         .from("cuarteles")

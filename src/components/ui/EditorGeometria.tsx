@@ -34,6 +34,7 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
 
   const handleSave = async () => {
     if (!geoRef.current) return;
+    console.log("Guardando geometria:", JSON.stringify(geoRef.current).slice(0, 200));
     setSaving(true);
     try {
       await onSave(geoRef.current);
