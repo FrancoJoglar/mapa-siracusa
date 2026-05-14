@@ -194,11 +194,6 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
     })),
   }), [edificaciones]);
 
-  // Clear layers when view or filtered data changes
-  useEffect(() => {
-    layersRef.current.clear();
-  }, [vista, geoJsonCuarteles.features.length, geoJsonSectores.features.length]);
-
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <BarraFiltros
@@ -242,6 +237,10 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
               key={`cuarteles-${filteredCuarteles.length}`}
               data={geoJsonCuarteles}
               onEachFeature={(feature: any, layer: any) => {
+                // Clear layers on first feature of this mount
+                if (feature === geoJsonCuarteles.features[0]) {
+                  layersRef.current.clear();
+                }
                 const c = cuarteles.find(x => x.id === feature.properties.cuartel_id);
                 const fId = feature.properties.cuartel_id;
                 const baseStyle: L.PathOptions = {
@@ -274,6 +273,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
               selectedRef={selectedRef}
               setSelected={setSelectedId}
               setHighlighted={setHighlightedId}
+              clearLayers={() => layersRef.current.clear()}
             />
           )}
 
@@ -294,7 +294,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
 }
 
 // ====== SECTORES LAYER ======
-function SectoresLayer({ data, sectores, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted }: {
+function SectoresLayer({ data, sectores, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
   data: GeoJSON.FeatureCollection;
   sectores: SectorGeo[];
   onFitBounds: (b: L.LatLngBounds | null) => void;
@@ -302,6 +302,7 @@ function SectoresLayer({ data, sectores, onFitBounds, registerLayer, selectedRef
   selectedRef: React.MutableRefObject<string | null>;
   setSelected: (id: string | null) => void;
   setHighlighted: (id: string | null) => void;
+  clearLayers: () => void;
 }) {
   useEffect(() => {
     if (data.features.length === 1 && data.features[0].geometry) {
@@ -319,6 +320,10 @@ function SectoresLayer({ data, sectores, onFitBounds, registerLayer, selectedRef
     <GeoJSON
       data={data}
       onEachFeature={(feature: any, layer: any) => {
+        // Clear layers on first feature of this mount
+        if (feature === data.features[0]) {
+          clearLayers();
+        }
         const s = sectores.find(x => x.id === feature.properties.sector_id);
         const fId = feature.properties.sector_id;
         const baseStyle: L.PathOptions = {
