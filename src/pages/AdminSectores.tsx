@@ -10,6 +10,7 @@ export default function AdminSectores() {
   const [editing, setEditing] = useState<Sector | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
+  const [search, setSearch] = useState("");
 
   const getEquipoNombre = (equipoId: string) =>
     equipos.find(e => e.id === equipoId)?.nombre || "";
@@ -38,13 +39,14 @@ export default function AdminSectores() {
   }, [sectores, equipos]);
 
   const filtered = useMemo(() => sectores.filter(s => {
+    if (search && !s.codigo.toLowerCase().includes(search.toLowerCase())) return false;
     const eqName = getEquipoNombre(s.equipo_id);
     if (filtros.equipo && eqName !== filtros.equipo) return false;
     if (filtros.especie && s.especie !== filtros.especie) return false;
     if (filtros.variedad && s.variedad !== filtros.variedad) return false;
     if (filtros.jc && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jc))) return false;
     return true;
-  }), [sectores, filtros, equipos]);
+  }), [sectores, filtros, equipos, search]);
 
   if (loading) return <CenterMsg msg="Cargando sectores..." />;
   if (error) return <CenterMsg msg={`Error: ${error}`} />;
@@ -58,6 +60,11 @@ export default function AdminSectores() {
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
+        <input
+          type="text" placeholder="Buscar sector..." value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ padding: "5px 8px", border: "1px solid #ccc", borderRadius: 4, fontSize: 12, width: 160 }}
+        />
         <select value={filtros.equipo} onChange={e => setFiltros({ ...filtros, equipo: e.target.value })} style={s}>
           <option value="">Equipo</option>
           {unique.equipos.map(v => <option key={v} value={v}>{v}</option>)}

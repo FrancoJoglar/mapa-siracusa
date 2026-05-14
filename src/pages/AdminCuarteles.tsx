@@ -10,6 +10,7 @@ export default function AdminCuarteles() {
   const [editing, setEditing] = useState<Cuartel | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
+  const [search, setSearch] = useState("");
 
   const parts = (raw: string) => raw.split('-').map(x => x.trim()).filter(Boolean);
 
@@ -33,12 +34,13 @@ export default function AdminCuarteles() {
   }, [cuarteles]);
 
   const filtered = useMemo(() => cuarteles.filter(c => {
+    if (search && !c.nombre.toLowerCase().includes(search.toLowerCase())) return false;
     if (filtros.especie && c.especie !== filtros.especie) return false;
     if (filtros.variedad && c.variedad !== filtros.variedad) return false;
     if (filtros.jc && c.jefe_campo !== filtros.jc) return false;
     if (filtros.equipo && (!c.equipo_riego || !parts(c.equipo_riego).includes(filtros.equipo))) return false;
     return true;
-  }), [cuarteles, filtros]);
+  }), [cuarteles, filtros, search]);
 
   if (loading) return <CenterMsg msg="Cargando cuarteles..." />;
   if (error) return <CenterMsg msg={`Error: ${error}`} />;
@@ -49,6 +51,11 @@ export default function AdminCuarteles() {
       <h2 style={{ margin: "0 0 12px" }}>Cuarteles ({cuarteles.length})</h2>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
+        <input
+          type="text" placeholder="Buscar cuartel..." value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ padding: "5px 8px", border: "1px solid #ccc", borderRadius: 4, fontSize: 12, width: 160 }}
+        />
         <select value={filtros.equipo} onChange={e => setFiltros({ ...filtros, equipo: e.target.value })} style={s}>
           <option value="">Equipo</option>
           {unique.equipos.map(v => <option key={v} value={v}>{v}</option>)}
