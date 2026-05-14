@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
+import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import "leaflet/dist/leaflet.css";
 import type { Feature } from "geojson";
@@ -16,9 +17,16 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
   const geoRef = useRef<Feature | null>(null);
 
   const initialCenter: [number, number] = (() => {
-    if (!geojson?.geometry || geojson.geometry.type !== "Polygon") return [-35.14, -71.625];
-    const coords = (geojson.geometry as any).coordinates[0];
-    if (!coords?.length) return [-35.14, -71.625];
+    const geometry = geojson?.geometry;
+    if (!geometry) return [-35.14, -71.625];
+    let coords: number[][] = [];
+    if (geometry.type === "Polygon") {
+      coords = (geometry as any).coordinates[0] || [];
+    } else if (geometry.type === "MultiPolygon") {
+      const polys = (geometry as any).coordinates[0] || [];
+      coords = polys.flat() as number[][];
+    }
+    if (!coords.length) return [-35.14, -71.625];
     const lats = coords.map((c: number[]) => c[1]);
     const lngs = coords.map((c: number[]) => c[0]);
     return [(Math.min(...lats) + Math.max(...lats)) / 2, (Math.min(...lngs) + Math.max(...lngs)) / 2];
