@@ -113,9 +113,19 @@ export function useSectores() {
 
 function geojsonToWKT(geojson: any): string | null {
   try {
-    if (!geojson?.geometry || geojson.geometry.type !== "Polygon") return null;
-    const coords = geojson.geometry.coordinates[0];
-    const points = coords.map((c: number[]) => `${c[0]} ${c[1]}`).join(", ");
-    return `POLYGON((${points}))`;
+    const g = geojson?.geometry;
+    if (!g) return null;
+    if (g.type === "MultiPolygon") {
+      const polys = g.coordinates[0].map((ring: number[][]) => {
+        const pts = ring.map((c: number[]) => `${c[0]} ${c[1]}`).join(", ");
+        return `((${pts}))`;
+      }).join(", ");
+      return `MULTIPOLYGON(${polys})`;
+    }
+    if (g.type === "Polygon") {
+      const pts = g.coordinates[0].map((c: number[]) => `${c[0]} ${c[1]}`).join(", ");
+      return `POLYGON((${pts}))`;
+    }
+    return null;
   } catch { return null; }
 }

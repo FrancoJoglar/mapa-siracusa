@@ -14,7 +14,7 @@ interface Props {
 
 export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
   const [saving, setSaving] = useState(false);
-  const geoRef = useRef<Feature | null>(null);
+  const geoRef = useRef<Feature | null>(geojson || null);
 
   const initialCenter: [number, number] = (() => {
     const geometry = geojson?.geometry;
