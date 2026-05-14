@@ -4,8 +4,6 @@ import { useSectores } from "../hooks/useSectores";
 import { Cuartel } from "../lib/types";
 import FormularioCuartel from "../components/cuarteles/FormularioCuartel";
 
-const parts = (raw: string) => raw.split('-').map(x => x.trim()).filter(Boolean);
-
 export default function AdminCuarteles() {
   const { cuarteles, loading, error, updateCuartel, deleteCuartel, updateGeometria } = useCuarteles();
   const { sectores } = useSectores();
@@ -13,8 +11,7 @@ export default function AdminCuarteles() {
   const [showForm, setShowForm] = useState(false);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
 
-  if (loading) return <CenterMsg msg="Cargando cuarteles..." />;
-  if (error) return <CenterMsg msg={`Error: ${error}`} />;
+  const parts = (raw: string) => raw.split('-').map(x => x.trim()).filter(Boolean);
 
   const unique = useMemo(() => {
     const eq = new Set<string>();
@@ -42,6 +39,9 @@ export default function AdminCuarteles() {
     if (filtros.equipo && (!c.equipo_riego || !parts(c.equipo_riego).includes(filtros.equipo))) return false;
     return true;
   }), [cuarteles, filtros]);
+
+  if (loading) return <CenterMsg msg="Cargando cuarteles..." />;
+  if (error) return <CenterMsg msg={`Error: ${error}`} />;
 
   const s = selectStyle;
   return (

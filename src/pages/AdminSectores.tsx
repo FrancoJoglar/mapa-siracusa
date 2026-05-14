@@ -11,9 +11,6 @@ export default function AdminSectores() {
   const [showForm, setShowForm] = useState(false);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
 
-  if (loading) return <CenterMsg msg="Cargando sectores..." />;
-  if (error) return <CenterMsg msg={`Error: ${error}`} />;
-
   const getEquipoNombre = (equipoId: string) =>
     equipos.find(e => e.id === equipoId)?.nombre || "";
 
@@ -48,6 +45,9 @@ export default function AdminSectores() {
     if (filtros.jc && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jc))) return false;
     return true;
   }), [sectores, filtros, equipos]);
+
+  if (loading) return <CenterMsg msg="Cargando sectores..." />;
+  if (error) return <CenterMsg msg={`Error: ${error}`} />;
 
   const s = selectStyle;
   return (
