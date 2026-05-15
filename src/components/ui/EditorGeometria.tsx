@@ -90,7 +90,16 @@ function EditorSetup({ geojson, onReady, onEdit }: {
   const map = useMap();
 
   useEffect(() => {
-    const setup = () => {
+    let cancelled = false;
+
+    const doSetup = () => {
+      if (cancelled || !map) return;
+      if (!(map as any).pm) {
+        // Geoman not loaded yet, retry on load event
+        map.once("load", doSetup);
+        return;
+      }
+      
       (map as any).pm.addControls({
         position: "topleft",
         drawCircle: false, drawCircleMarker: false, drawRectangle: false,
@@ -106,8 +115,6 @@ function EditorSetup({ geojson, onReady, onEdit }: {
           l.pm.enable();
         });
         map.fitBounds(layer.getBounds().pad(0.3));
-        
-        // Store initial geometry as Feature
         onEdit(geojson);
       }
 
@@ -116,12 +123,11 @@ function EditorSetup({ geojson, onReady, onEdit }: {
         const coords = (latlngs as any[]).map((ring: any[]) =>
           ring.map((ll: any) => [ll.lng, ll.lat])
         );
-        const geo: Feature = {
+        onEdit({
           type: "Feature",
           geometry: { type: "Polygon", coordinates: coords },
           properties: {},
-        };
-        onEdit(geo);
+        });
       });
 
       map.on("pm:create", (e: any) => {
@@ -129,24 +135,27 @@ function EditorSetup({ geojson, onReady, onEdit }: {
         const coords = (latlngs as any[]).map((ring: any[]) =>
           ring.map((ll: any) => [ll.lng, ll.lat])
         );
-        const geo: Feature = {
+        onEdit({
           type: "Feature",
           geometry: { type: "Polygon", coordinates: coords },
           properties: {},
-        };
-        onEdit(geo);
+        });
       });
 
       onReady();
     };
 
-    // Small delay to ensure map is fully initialized
-    const t = setTimeout(setup, 500);
+    // Use requestAnimationFrame to wait for map initialization
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(doSetup);
+    });
+
     return () => {
-      clearTimeout(t);
-      try { (map as any).pm.removeControls(); } catch {}
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      try { (map as any)?.pm?.removeControls(); } catch {}
     };
-  }, []); // Run once on mount
+  }, []);
 
   return null;
 }
