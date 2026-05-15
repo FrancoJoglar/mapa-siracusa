@@ -33,10 +33,13 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
   })();
 
   const handleSave = async () => {
-    if (!geoRef.current) return;
+    if (!geoRef.current) { alert("No hay geometria para guardar"); return; }
     setSaving(true);
     try {
       await onSave(geoRef.current);
+    } catch(e: any) {
+      console.error("Error al guardar:", e);
+      alert("Error al guardar: " + (e.message || e));
     } finally {
       setSaving(false);
     }
@@ -97,7 +100,7 @@ function EditorSetup({ geojson, geoRef }: { geojson: Feature | null; geoRef: Rea
     }
 
     map.on("pm:update", (e: any) => {
-      // Extract raw latlngs and build clean GeoJSON geometry
+      console.log("pm:update fired");
       const latlngs = e.layer.getLatLngs();
       const coords = (latlngs as any[]).map((ring: any[]) =>
         ring.map((ll: { lng: number; lat: number }) => [ll.lng, ll.lat])
@@ -107,6 +110,7 @@ function EditorSetup({ geojson, geoRef }: { geojson: Feature | null; geoRef: Rea
         geometry: { type: "Polygon" as const, coordinates: coords },
         properties: {},
       };
+      console.log("geoRef actualizado, primer punto:", coords[0]?.[0]);
     });
     map.on("pm:create", (e: any) => {
       const latlngs = e.layer.getLatLngs();
