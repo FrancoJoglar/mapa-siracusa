@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
@@ -14,17 +14,17 @@ interface Props {
 
 export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
   const [saving, setSaving] = useState(false);
-  const geoRef = useRef<Feature | null>(geojson || null);
+  const [ready, setReady] = useState(false);
+  const [editedGeo, setEditedGeo] = useState<Feature | null>(null);
 
   const initialCenter: [number, number] = (() => {
-    const geometry = geojson?.geometry;
-    if (!geometry) return [-35.14, -71.625];
+    const geometry = geojson?.geometry || (geojson as any);
+    if (!geometry?.coordinates) return [-35.14, -71.625];
     let coords: number[][] = [];
     if (geometry.type === "Polygon") {
-      coords = (geometry as any).coordinates[0] || [];
+      coords = geometry.coordinates[0] || [];
     } else if (geometry.type === "MultiPolygon") {
-      const polys = (geometry as any).coordinates[0] || [];
-      coords = polys.flat() as number[][];
+      coords = (geometry.coordinates[0] || []).flat() as number[][];
     }
     if (!coords.length) return [-35.14, -71.625];
     const lats = coords.map((c: number[]) => c[1]);
@@ -33,13 +33,14 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
   })();
 
   const handleSave = async () => {
-    if (!geoRef.current) { alert("No hay geometria para guardar"); return; }
+    const toSave = editedGeo || geojson;
+    if (!toSave) { alert("No hay geometria para guardar"); return; }
     setSaving(true);
     try {
-      await onSave(geoRef.current);
-    } catch(e: any) {
-      console.error("Error al guardar:", e);
-      alert("Error al guardar: " + (e.message || e));
+      await onSave(toSave);
+      alert("Geometria guardada correctamente");
+    } catch (e: any) {
+      alert("Error al guardar: " + (e?.message || e));
     } finally {
       setSaving(false);
     }
@@ -50,9 +51,10 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
       <div style={modal}>
         <h3 style={{ marginTop: 0 }}>Editor de Poligono</h3>
         <p style={{ fontSize: 12, color: "#666", margin: "0 0 8px" }}>
-          Arrastra vertices para modificar. Usa los controles de la barra superior para agregar/quitar puntos.
+          Arrastra vertices para modificar.
         </p>
-        <div style={{ height: 440, marginBottom: 12 }}>
+        {!ready && <p style={{ color: "#999", fontSize: 12 }}>Cargando editor...</p>}
+        <div style={{ height: 440, marginBottom: 12, display: ready ? "block" : "none" }}>
           <MapContainer
             center={initialCenter}
             zoom={15}
@@ -62,12 +64,16 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
               attribution='&copy; OSM'
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             />
-            <EditorSetup geojson={geojson} geoRef={geoRef} />
+            <EditorSetup
+              geojson={geojson}
+              onReady={() => setReady(true)}
+              onEdit={(geo) => setEditedGeo(geo)}
+            />
           </MapContainer>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button onClick={onCancel} style={btnCancel}>Cancelar</button>
-          <button onClick={handleSave} disabled={saving} style={btnSave}>
+          <button onClick={handleSave} disabled={saving || !ready} style={btnSave}>
             {saving ? "Guardando..." : "Guardar"}
           </button>
         </div>
@@ -76,60 +82,71 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
   );
 }
 
-function EditorSetup({ geojson, geoRef }: { geojson: Feature | null; geoRef: React.MutableRefObject<Feature | null> }) {
+function EditorSetup({ geojson, onReady, onEdit }: {
+  geojson: Feature | null;
+  onReady: () => void;
+  onEdit: (geo: Feature) => void;
+}) {
   const map = useMap();
 
   useEffect(() => {
-    map.pm.addControls({
-      position: "topleft",
-      drawCircle: false, drawCircleMarker: false, drawRectangle: false,
-      drawPolyline: false, drawMarker: false, drawText: false,
-      cutPolygon: false, rotateMode: false,
-      dragMode: true, editMode: true, removalMode: true,
-    });
-
-    if (geojson?.geometry) {
-      const layer = L.geoJSON(geojson as any);
-      layer.eachLayer((l: L.Layer) => {
-        l.addTo(map);
-        (l as any).pm.enable();
+    const setup = () => {
+      (map as any).pm.addControls({
+        position: "topleft",
+        drawCircle: false, drawCircleMarker: false, drawRectangle: false,
+        drawPolyline: false, drawMarker: false, drawText: false,
+        cutPolygon: false, rotateMode: false,
+        dragMode: true, editMode: true, removalMode: true,
       });
-      map.fitBounds(layer.getBounds().pad(0.3));
-      // Store the ORIGINAL geojson (not L.geoJSON output)
-      geoRef.current = geojson;
-    }
 
-    map.on("pm:update", (e: any) => {
-      console.log("pm:update fired");
-      const latlngs = e.layer.getLatLngs();
-      const coords = (latlngs as any[]).map((ring: any[]) =>
-        ring.map((ll: { lng: number; lat: number }) => [ll.lng, ll.lat])
-      );
-      geoRef.current = {
-        type: "Feature" as const,
-        geometry: { type: "Polygon" as const, coordinates: coords },
-        properties: {},
-      };
-      console.log("geoRef actualizado, primer punto:", coords[0]?.[0]);
-    });
-    map.on("pm:create", (e: any) => {
-      const latlngs = e.layer.getLatLngs();
-      const coords = (latlngs as any[]).map((ring: any[]) =>
-        ring.map((ll: { lng: number; lat: number }) => [ll.lng, ll.lat])
-      );
-      geoRef.current = {
-        type: "Feature" as const,
-        geometry: { type: "Polygon" as const, coordinates: coords },
-        properties: {},
-      };
-    });
+      if (geojson) {
+        const layer = L.geoJSON(geojson as any);
+        layer.eachLayer((l: any) => {
+          l.addTo(map);
+          l.pm.enable();
+        });
+        map.fitBounds(layer.getBounds().pad(0.3));
+        
+        // Store initial geometry as Feature
+        onEdit(geojson);
+      }
 
-    return () => {
-      map.pm.removeControls();
-      map.off("pm:update");
-      map.off("pm:create");
+      map.on("pm:update", (e: any) => {
+        const latlngs = e.layer.getLatLngs();
+        const coords = (latlngs as any[]).map((ring: any[]) =>
+          ring.map((ll: any) => [ll.lng, ll.lat])
+        );
+        const geo: Feature = {
+          type: "Feature",
+          geometry: { type: "Polygon", coordinates: coords },
+          properties: {},
+        };
+        onEdit(geo);
+      });
+
+      map.on("pm:create", (e: any) => {
+        const latlngs = e.layer.getLatLngs();
+        const coords = (latlngs as any[]).map((ring: any[]) =>
+          ring.map((ll: any) => [ll.lng, ll.lat])
+        );
+        const geo: Feature = {
+          type: "Feature",
+          geometry: { type: "Polygon", coordinates: coords },
+          properties: {},
+        };
+        onEdit(geo);
+      });
+
+      onReady();
     };
-  }, [map, geojson, geoRef]);
+
+    // Small delay to ensure map is fully initialized
+    const t = setTimeout(setup, 500);
+    return () => {
+      clearTimeout(t);
+      try { (map as any).pm.removeControls(); } catch {}
+    };
+  }, []); // Run once on mount
 
   return null;
 }

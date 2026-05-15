@@ -114,10 +114,7 @@ export default function AdminCuarteles() {
           cuartel={editing}
           sectores={sectores}
           onSave={async (data) => { await updateCuartel(editing.id, data); setShowForm(false); setEditing(null); }}
-          onUpdateGeometria={async (gj) => {
-            await updateGeometria(editing.id, gj);
-            window.location.href = "/";
-          }}
+          onUpdateGeometria={async (gj) => { await updateGeometria(editing.id, gj); }}
           onCancel={() => { setShowForm(false); setEditing(null); }}
         />
       )}

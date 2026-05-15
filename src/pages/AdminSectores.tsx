@@ -133,7 +133,6 @@ export default function AdminSectores() {
           onCancel={() => { setShowForm(false); setEditing(null); }}
           onUpdateGeometria={async (gj) => {
             if (editing) await updateGeometria(editing.id, gj);
-            window.location.href = "/";
           }}
           fetchGeometria={fetchGeometriaSector}
         />
