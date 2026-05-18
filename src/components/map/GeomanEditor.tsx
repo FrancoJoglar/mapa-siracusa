@@ -19,69 +19,70 @@ export default function GeomanEditor({ initialGeoJSON, readOnly = false }: Props
   // Initialize Geoman once
   useEffect(() => {
     if (setupDone.current) return;
-    setupDone.current = true;
 
-    if (!(map as any).pm) {
-      // Geoman not loaded yet, retry
-      setupDone.current = false;
-      const id = requestAnimationFrame(() => { /* force re-render by not changing flag */ });
-      return () => cancelAnimationFrame(id);
-    }
+    const init = () => {
+      if (!(map as any)?.pm) {
+        setupDone.current = false;
+        requestAnimationFrame(init);
+        return;
+      }
+      setupDone.current = true;
+      const pm = (map as any).pm;
 
-    const pm = (map as any).pm;
-
-    pm.addControls({
-      position: "topleft",
-      drawCircle: false,
-      drawCircleMarker: false,
-      drawRectangle: false,
-      drawPolyline: false,
-      drawMarker: false,
-      drawText: false,
-      cutPolygon: false,
-      rotateMode: false,
-      dragMode: !readOnly,
-      editMode: !readOnly,
-      removalMode: !readOnly,
-    });
-
-    // Load initial geometry if provided
-    if (initialGeoJSON?.geometry) {
-      const layer = L.geoJSON(initialGeoJSON);
-      layer.eachLayer((l: any) => {
-        l.addTo(map);
-        if (!readOnly) l.pm.enable();
+      pm.addControls({
+        position: "topleft",
+        drawCircle: false,
+        drawCircleMarker: false,
+        drawRectangle: false,
+        drawPolyline: false,
+        drawMarker: false,
+        drawText: false,
+        cutPolygon: false,
+        rotateMode: false,
+        dragMode: !readOnly,
+        editMode: !readOnly,
+        removalMode: !readOnly,
       });
-      layerRef.current = layer;
-      map.fitBounds(layer.getBounds().pad(0.2));
-      setGeojson(initialGeoJSON);
-      const initialValidation = validateGeometry(initialGeoJSON);
-      setValid(initialValidation.valid, initialValidation.errors);
-    }
 
-    // Handle create
-    map.on("pm:create", (e: any) => {
-      layerRef.current = e.layer;
-      const geo = layerToGeoJSON(e.layer);
-      const validation = validateGeometry(geo);
-      setGeojson(geo);
-      setValid(validation.valid, validation.errors);
-    });
+      if (initialGeoJSON?.geometry) {
+        const layer = L.geoJSON(initialGeoJSON);
+        layer.eachLayer((l: any) => {
+          l.addTo(map);
+          if (!readOnly) l.pm.enable();
+        });
+        layerRef.current = layer;
+        map.fitBounds(layer.getBounds().pad(0.2));
+        setGeojson(initialGeoJSON);
+        const v = validateGeometry(initialGeoJSON);
+        setValid(v.valid, v.errors);
+      }
 
-    // Handle update
-    map.on("pm:update", (e: any) => {
-      const geo = layerToGeoJSON(e.layer);
-      const validation = validateGeometry(geo);
-      setGeojson(geo);
-      setValid(validation.valid, validation.errors);
-    });
+      map.on("pm:create", (e: any) => {
+        layerRef.current = e.layer;
+        const geo = layerToGeoJSON(e.layer);
+        const v = validateGeometry(geo);
+        setGeojson(geo);
+        setValid(v.valid, v.errors);
+      });
+
+      map.on("pm:update", (e: any) => {
+        const geo = layerToGeoJSON(e.layer);
+        const v = validateGeometry(geo);
+        setGeojson(geo);
+        setValid(v.valid, v.errors);
+      });
+    };
+
+    requestAnimationFrame(init);
 
     return () => {
+      setupDone.current = false;
       try {
-        pm.removeControls();
+        (map as any)?.pm?.removeControls();
         map.off("pm:create");
         map.off("pm:update");
         layerRef.current?.remove();
+        layerRef.current = null;
       } catch {}
     };
   }, [map, initialGeoJSON, readOnly, setGeojson, setValid]);
