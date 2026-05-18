@@ -45,7 +45,7 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
         geo_json: geometry,
       });
       console.log("RPC result:", { data, err });
-      if (err) throw new Error(err.message || String(err));
+      if (err) throw new Error(JSON.stringify(err));
       alert("Poligono guardado. Recargando...");
       window.location.reload();
     } catch (e: any) {
