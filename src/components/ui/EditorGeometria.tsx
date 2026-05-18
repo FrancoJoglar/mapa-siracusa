@@ -80,35 +80,43 @@ function EditorSetup({ geojson, geoRef }: {
   const map = useMap();
 
   useEffect(() => {
-    (map as any).pm.addControls({
-      position: "topleft",
-      drawCircle: false, drawCircleMarker: false, drawRectangle: false,
-      drawPolyline: false, drawMarker: false, drawText: false,
-      cutPolygon: false, rotateMode: false,
-      dragMode: true, editMode: true, removalMode: true,
-    });
-
-    if (geojson) {
-      const layer = L.geoJSON(geojson as any);
-      layer.eachLayer((l: any) => {
-        l.addTo(map);
-        l.pm.enable();
+    const doSetup = () => {
+      if (!(map as any).pm) {
+        setTimeout(doSetup, 200);
+        return;
+      }
+      (map as any).pm.addControls({
+        position: "topleft",
+        drawCircle: false, drawCircleMarker: false, drawRectangle: false,
+        drawPolyline: false, drawMarker: false, drawText: false,
+        cutPolygon: false, rotateMode: false,
+        dragMode: true, editMode: true, removalMode: true,
       });
-      map.fitBounds(layer.getBounds().pad(0.3));
-      geoRef.current = geojson;
-    }
 
-    map.on("pm:update", (e: any) => {
-      const latlngs = e.layer.getLatLngs();
-      const coords = (latlngs as any[]).map((ring: any[]) =>
-        ring.map((ll: any) => [ll.lng, ll.lat])
-      );
-      geoRef.current = {
-        type: "Feature",
-        geometry: { type: "Polygon", coordinates: coords },
-        properties: {},
-      };
-    });
+      if (geojson) {
+        const layer = L.geoJSON(geojson as any);
+        layer.eachLayer((l: any) => {
+          l.addTo(map);
+          l.pm.enable();
+        });
+        map.fitBounds(layer.getBounds().pad(0.3));
+        geoRef.current = geojson;
+      }
+
+      map.on("pm:update", (e: any) => {
+        const latlngs = e.layer.getLatLngs();
+        const coords = (latlngs as any[]).map((ring: any[]) =>
+          ring.map((ll: any) => [ll.lng, ll.lat])
+        );
+        geoRef.current = {
+          type: "Feature",
+          geometry: { type: "Polygon", coordinates: coords },
+          properties: {},
+        };
+      });
+    };
+
+    doSetup();
 
     return () => {
       try { (map as any).pm.removeControls(); } catch {}
