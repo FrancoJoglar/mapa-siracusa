@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from "react";
-import { MapContainer, TileLayer } from "react-leaflet";
+import { useState, useRef, useEffect } from "react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import "leaflet/dist/leaflet.css";
@@ -14,13 +14,10 @@ interface Props {
 
 export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
   const [saving, setSaving] = useState(false);
-  const [ready, setReady] = useState(false);
-  const editedRef = useRef<Feature | null>(null);
-  const mapRef = useRef<L.Map | null>(null);
+  const geoRef = useRef<Feature | null>(geojson || null);
 
   const initialCenter: [number, number] = (() => {
-    if (!geojson) return [-35.14, -71.625];
-    const g = (geojson as any).geometry || geojson;
+    const g = (geojson as any)?.geometry || geojson;
     if (!g?.coordinates) return [-35.14, -71.625];
     let coords: number[][] = [];
     if (g.type === "Polygon") coords = g.coordinates[0] || [];
@@ -31,56 +28,16 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
     return [(Math.min(...lats) + Math.max(...lats)) / 2, (Math.min(...lngs) + Math.max(...lngs)) / 2];
   })();
 
-  const handleReady = useCallback(() => {
-    if (!mapRef.current) return;
-    const map = mapRef.current;
-
-    setTimeout(() => {
-      (map as any).pm.addControls({
-        position: "topleft",
-        drawCircle: false, drawCircleMarker: false, drawRectangle: false,
-        drawPolyline: false, drawMarker: false, drawText: false,
-        cutPolygon: false, rotateMode: false,
-        dragMode: true, editMode: true, removalMode: true,
-      });
-
-      if (geojson) {
-        const layer = L.geoJSON(geojson as any);
-        layer.eachLayer((l: any) => {
-          l.addTo(map);
-          l.pm.enable();
-        });
-        map.fitBounds(layer.getBounds().pad(0.3));
-        editedRef.current = geojson;
-      }
-
-      map.on("pm:update", (e: any) => {
-        const latlngs = e.layer.getLatLngs();
-        const coords = (latlngs as any[]).map((ring: any[]) =>
-          ring.map((ll: any) => [ll.lng, ll.lat])
-        );
-        editedRef.current = {
-          type: "Feature",
-          geometry: { type: "Polygon", coordinates: coords },
-          properties: {},
-        };
-      });
-
-      setReady(true);
-    }, 100);
-  }, [geojson]);
-
   const handleSave = async () => {
-    const toSave = editedRef.current || geojson;
-    if (!toSave) { alert("No hay geometria para guardar"); return; }
+    if (!geoRef.current) { alert("No hay geometria para guardar"); return; }
     setSaving(true);
     try {
-      await onSave(toSave);
-      alert("Guardado. Refrescando mapa...");
+      await onSave(geoRef.current);
+      alert("Guardado. Refrescando...");
       window.location.reload();
     } catch (e: any) {
       console.error("Error al guardar:", e);
-      alert("Error al guardar: " + (e?.message || String(e)));
+      alert("Error: " + (e?.message || String(e)));
       setSaving(false);
     }
   };
@@ -92,30 +49,74 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
         <p style={{ fontSize: 12, color: "#666", margin: "0 0 8px" }}>
           Arrastra vertices para modificar.
         </p>
-        {!ready && <p style={{ color: "#999", fontSize: 12 }}>Cargando editor...</p>}
-        <div style={{ height: 440, marginBottom: 12, display: ready ? "block" : "none" }}>
+        <div style={{ height: 440, marginBottom: 12 }}>
           <MapContainer
             center={initialCenter}
             zoom={15}
             style={{ height: "100%", width: "100%" }}
-            ref={mapRef}
-            whenReady={handleReady}
           >
             <TileLayer
               attribution='&copy; OSM'
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             />
+            <EditorSetup geojson={geojson} geoRef={geoRef} />
           </MapContainer>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button onClick={onCancel} style={btnCancel}>Cancelar</button>
-          <button onClick={handleSave} disabled={saving || !ready} style={btnSave}>
+          <button onClick={handleSave} disabled={saving} style={btnSave}>
             {saving ? "Guardando..." : "Guardar"}
           </button>
         </div>
       </div>
     </div>
   );
+}
+
+function EditorSetup({ geojson, geoRef }: {
+  geojson: Feature | null;
+  geoRef: React.MutableRefObject<Feature | null>;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    (map as any).pm.addControls({
+      position: "topleft",
+      drawCircle: false, drawCircleMarker: false, drawRectangle: false,
+      drawPolyline: false, drawMarker: false, drawText: false,
+      cutPolygon: false, rotateMode: false,
+      dragMode: true, editMode: true, removalMode: true,
+    });
+
+    if (geojson) {
+      const layer = L.geoJSON(geojson as any);
+      layer.eachLayer((l: any) => {
+        l.addTo(map);
+        l.pm.enable();
+      });
+      map.fitBounds(layer.getBounds().pad(0.3));
+      geoRef.current = geojson;
+    }
+
+    map.on("pm:update", (e: any) => {
+      const latlngs = e.layer.getLatLngs();
+      const coords = (latlngs as any[]).map((ring: any[]) =>
+        ring.map((ll: any) => [ll.lng, ll.lat])
+      );
+      geoRef.current = {
+        type: "Feature",
+        geometry: { type: "Polygon", coordinates: coords },
+        properties: {},
+      };
+    });
+
+    return () => {
+      try { (map as any).pm.removeControls(); } catch {}
+      map.off("pm:update");
+    };
+  }, [map]);
+
+  return null;
 }
 
 const overlay: React.CSSProperties = {
