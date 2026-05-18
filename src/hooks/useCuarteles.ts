@@ -111,31 +111,5 @@ export function useCuarteles() {
     createCuartel,
     updateCuartel,
     deleteCuartel,
-    updateGeometria: async (id: string, geojson: any) => {
-      const geometry = geojson?.geometry || geojson;
-      console.log("updateGeometria iniciando:", { id, type: geometry?.type, coordCount: geometry?.coordinates?.[0]?.length });
-      if (!geometry?.type || !geometry?.coordinates) throw new Error("Geometria invalida");
-      
-      // Use direct fetch to avoid supabase-js 404 issues
-      const resp = await fetch(
-        `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/cuarteles?id=eq.${encodeURIComponent(id)}`,
-        {
-          method: "PATCH",
-          headers: {
-            "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
-            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            "Content-Type": "application/json",
-            "Prefer": "return=minimal",
-          },
-          body: JSON.stringify({ geometria: geometry }),
-        }
-      );
-      console.log("updateGeometria fetch:", { status: resp.status, ok: resp.ok });
-      if (!resp.ok) {
-        const err = await resp.text();
-        throw new Error(`Error al guardar: ${resp.status} ${err.slice(0, 200)}`);
-      }
-      await fetchCuarteles();
-    },
   };
 }

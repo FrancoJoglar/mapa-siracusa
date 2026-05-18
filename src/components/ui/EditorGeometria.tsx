@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
@@ -18,8 +18,6 @@ interface Props {
 export default function EditorGeometria({ geojson, table, entityId, onCancel }: Props) {
   const [saving, setSaving] = useState(false);
   const { geojson: editedGeo, isValid, errors, reset } = useGeometryStore();
-
-  useEffect(() => { reset(); }, []);
 
   const initialCenter: [number, number] = (() => {
     const g = (geojson as any)?.geometry || geojson;
