@@ -5,7 +5,7 @@ import { Sector } from "../lib/types";
 import FormularioSector from "../components/sectores/FormularioSector";
 
 export default function AdminSectores() {
-  const { sectores, loading, error, createSector, updateSector, deleteSector, updateGeometria, fetchGeometriaSector } = useSectores();
+  const { sectores, loading, error, createSector, updateSector, deleteSector, fetchGeometriaSector } = useSectores();
   const { equipos } = useEquipos();
   const [editing, setEditing] = useState<Sector | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -131,9 +131,6 @@ export default function AdminSectores() {
             setShowForm(false); setEditing(null);
           }}
           onCancel={() => { setShowForm(false); setEditing(null); }}
-          onUpdateGeometria={async (gj) => {
-            if (editing) await updateGeometria(editing.id, gj);
-          }}
           fetchGeometria={fetchGeometriaSector}
         />
       )}

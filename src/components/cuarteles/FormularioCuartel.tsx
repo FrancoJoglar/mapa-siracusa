@@ -6,7 +6,6 @@ interface Props {
   cuartel: Cuartel;
   sectores: Sector[];
   onSave: (data: Partial<Cuartel>) => Promise<void>;
-  onUpdateGeometria: (geojson: any) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -14,7 +13,6 @@ export default function FormularioCuartel({
   cuartel,
   sectores,
   onSave,
-  onUpdateGeometria,
   onCancel,
 }: Props) {
   const [nombre, setNombre] = useState(cuartel.nombre);
@@ -214,10 +212,8 @@ export default function FormularioCuartel({
       {showEditor && (
         <EditorGeometria
           geojson={cuartel.geojson || null}
-          onSave={async (gj) => {
-            await onUpdateGeometria(gj);
-            setShowEditor(false);
-          }}
+          table="cuarteles"
+          entityId={cuartel.id}
           onCancel={() => setShowEditor(false)}
         />
       )}

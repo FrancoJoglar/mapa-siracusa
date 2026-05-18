@@ -5,7 +5,7 @@ import { Cuartel } from "../lib/types";
 import FormularioCuartel from "../components/cuarteles/FormularioCuartel";
 
 export default function AdminCuarteles() {
-  const { cuarteles, loading, error, updateCuartel, deleteCuartel, updateGeometria } = useCuarteles();
+  const { cuarteles, loading, error, updateCuartel, deleteCuartel } = useCuarteles();
   const { sectores } = useSectores();
   const [editing, setEditing] = useState<Cuartel | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -114,7 +114,6 @@ export default function AdminCuarteles() {
           cuartel={editing}
           sectores={sectores}
           onSave={async (data) => { await updateCuartel(editing.id, data); setShowForm(false); setEditing(null); }}
-          onUpdateGeometria={async (gj) => { await updateGeometria(editing.id, gj); }}
           onCancel={() => { setShowForm(false); setEditing(null); }}
         />
       )}

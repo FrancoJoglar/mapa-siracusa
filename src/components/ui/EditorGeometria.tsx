@@ -8,11 +8,12 @@ import type { Feature } from "geojson";
 
 interface Props {
   geojson: Feature | null;
-  onSave: (geojson: Feature) => Promise<void>;
+  table: "cuarteles" | "sectores";
+  entityId: string;
   onCancel: () => void;
 }
 
-export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
+export default function EditorGeometria({ geojson, table, entityId, onCancel }: Props) {
   const [saving, setSaving] = useState(false);
   const geoRef = useRef<Feature | null>(geojson || null);
 
@@ -29,14 +30,31 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
   })();
 
   const handleSave = async () => {
-    if (!geoRef.current) { alert("No hay geometria para guardar"); return; }
+    const toSave = geoRef.current || geojson;
+    if (!toSave) { alert("No hay geometria para guardar"); return; }
+    const geometry = (toSave as any).geometry || toSave;
+    if (!geometry?.type || !geometry?.coordinates) { alert("Geometria invalida"); return; }
+
     setSaving(true);
     try {
-      await onSave(geoRef.current);
-      alert("Guardado. Refrescando...");
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const resp = await fetch(
+        `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${encodeURIComponent(entityId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "apikey": key,
+            "Authorization": `Bearer ${key}`,
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+          },
+          body: JSON.stringify({ geometria: geometry }),
+        }
+      );
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+      alert("Poligono guardado. Recargando...");
       window.location.reload();
     } catch (e: any) {
-      console.error("Error al guardar:", e);
       alert("Error: " + (e?.message || String(e)));
       setSaving(false);
     }
@@ -81,10 +99,7 @@ function EditorSetup({ geojson, geoRef }: {
 
   useEffect(() => {
     const doSetup = () => {
-      if (!(map as any).pm) {
-        setTimeout(doSetup, 200);
-        return;
-      }
+      if (!(map as any).pm) { setTimeout(doSetup, 200); return; }
       (map as any).pm.addControls({
         position: "topleft",
         drawCircle: false, drawCircleMarker: false, drawRectangle: false,
@@ -104,12 +119,10 @@ function EditorSetup({ geojson, geoRef }: {
       }
 
       map.on("pm:update", (e: any) => {
-        console.log("pm:update fired");
         const latlngs = e.layer.getLatLngs();
         const coords = (latlngs as any[]).map((ring: any[]) =>
           ring.map((ll: any) => [ll.lng, ll.lat])
         );
-        console.log("nuevas coords, primer punto:", coords[0]?.[0]);
         geoRef.current = {
           type: "Feature",
           geometry: { type: "Polygon", coordinates: coords },
@@ -119,11 +132,7 @@ function EditorSetup({ geojson, geoRef }: {
     };
 
     doSetup();
-
-    return () => {
-      try { (map as any).pm.removeControls(); } catch {}
-      map.off("pm:update");
-    };
+    return () => { try { (map as any).pm.removeControls(); } catch {} };
   }, [map]);
 
   return null;

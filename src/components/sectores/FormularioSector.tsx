@@ -8,11 +8,10 @@ interface Props {
   equipos: Equipo[];
   onSave: (data: Partial<Sector>) => Promise<void>;
   onCancel: () => void;
-  onUpdateGeometria?: (geojson: Feature) => Promise<void>;
   fetchGeometria?: (id: string) => Promise<Feature | null>;
 }
 
-export default function FormularioSector({ sector, equipos, onSave, onCancel, onUpdateGeometria, fetchGeometria }: Props) {
+export default function FormularioSector({ sector, equipos, onSave, onCancel, fetchGeometria }: Props) {
   const [equipoId, setEquipoId] = useState(sector?.equipo_id || "");
   const [numero, setNumero] = useState(sector?.numero || 0);
   const [caudalNominal, setCaudalNominal] = useState(sector?.caudal_nominal ?? 0);
@@ -128,7 +127,7 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, on
             <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={2} style={{...inputStyle, width:"100%", resize:"vertical"}} />
           </Campo>
           <div style={{display:"flex", gap:8, justifyContent:"space-between", marginTop:16}}>
-            {sector && onUpdateGeometria && (
+            {sector && (
               <button type="button" onClick={async () => {
                 if (fetchGeometria) {
                   const geo = await fetchGeometria(sector.id);
@@ -145,13 +144,11 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, on
         </form>
       </div>
 
-      {showEditor && (
+      {showEditor && sector && (
         <EditorGeometria
           geojson={geoData}
-          onSave={async (gj) => {
-            if (onUpdateGeometria) await onUpdateGeometria(gj);
-            setShowEditor(false);
-          }}
+          table="sectores"
+          entityId={sector.id}
           onCancel={() => setShowEditor(false)}
         />
       )}
