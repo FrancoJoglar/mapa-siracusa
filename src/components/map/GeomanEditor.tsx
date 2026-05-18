@@ -55,6 +55,8 @@ export default function GeomanEditor({ initialGeoJSON, readOnly = false }: Props
       layerRef.current = layer;
       map.fitBounds(layer.getBounds().pad(0.2));
       setGeojson(initialGeoJSON);
+      const initialValidation = validateGeometry(initialGeoJSON);
+      setValid(initialValidation.valid, initialValidation.errors);
     }
 
     // Handle create
