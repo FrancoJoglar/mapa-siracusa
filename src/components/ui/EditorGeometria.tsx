@@ -5,6 +5,7 @@ import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import "leaflet/dist/leaflet.css";
 import type { Feature } from "geojson";
+import { supabase } from "../../lib/supabase";
 
 interface Props {
   geojson: Feature | null;
@@ -37,21 +38,11 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
 
     setSaving(true);
     try {
-      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const resp = await fetch(
-        `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${encodeURIComponent(entityId)}`,
-        {
-          method: "PATCH",
-          headers: {
-            "apikey": key,
-            "Authorization": `Bearer ${key}`,
-            "Content-Type": "application/json",
-            "Prefer": "return=minimal",
-          },
-          body: JSON.stringify({ geometria: geometry }),
-        }
-      );
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+      const { error: err } = await supabase
+        .from(table as any)
+        .update({ geometria: geometry } as any)
+        .eq("id", entityId);
+      if (err) throw err;
       alert("Poligono guardado. Recargando...");
       window.location.reload();
     } catch (e: any) {
