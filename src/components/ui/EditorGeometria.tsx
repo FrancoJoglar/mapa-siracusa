@@ -38,10 +38,11 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
 
     setSaving(true);
     try {
-      const { error: err } = await supabase
-        .from(table as any)
-        .update({ geometria: geometry } as any)
-        .eq("id", entityId);
+      const { error: err } = await supabase.rpc("update_geometria", {
+        table_name: table,
+        entity_id: entityId,
+        geo_json: geometry,
+      });
       if (err) throw err;
       alert("Poligono guardado. Recargando...");
       window.location.reload();
