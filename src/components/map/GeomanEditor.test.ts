@@ -45,12 +45,12 @@ describe("validateGeometry", () => {
     expect(result.errors.some((e) => e.includes("auto-intersecci"))).toBe(true);
   });
 
-  it("rechaza geometria con menos de 3 vertices", () => {
+  it("rechaza geometria con menos de 4 coordenadas (3 vertices)", () => {
     const geo: GeoJSON.Feature = {
       type: "Feature",
       geometry: {
         type: "Polygon",
-        coordinates: [[[0, 0], [1, 1]]],
+        coordinates: [[[0, 0], [1, 1], [0, 1]]],
       },
       properties: {},
     };

@@ -109,32 +109,33 @@ export function layerToGeoJSON(layer: any): GeoJSON.Feature {
 export function validateGeometry(geo: GeoJSON.Feature): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  if (!geo?.geometry || geo.geometry.type !== "Polygon") {
+  const g = (geo as any)?.geometry || geo;
+  if (!g || (g.type !== "Polygon" && g.type !== "MultiPolygon")) {
     return { valid: false, errors: ["Geometria no es un poligono valido"] };
   }
 
-  const coords = (geo.geometry as any).coordinates[0] as number[][] | undefined;
-  if (!coords || coords.length < 3) {
+  // Extract first ring coordinates
+  const coords = g.type === "Polygon"
+    ? (g.coordinates[0] as number[][])
+    : (g.coordinates[0]?.[0] as number[][]) || [];
+
+  if (!coords || coords.length < 4) {
     errors.push("El poligono debe tener al menos 3 vertices");
+    return { valid: false, errors };
   }
 
-  if (coords && coords.length >= 3) {
-    try {
-      // Check self-intersection
-      const polygon = turf.polygon([coords]);
-      const kinks = turf.kinks(polygon);
-      if (kinks.features.length > 0) {
-        errors.push("El poligono tiene auto-intersecciones");
-      }
-
-      // Check minimum area (500 m²)
-      const area = turf.area(polygon);
-      if (area < 500) {
-        errors.push(`Area minima 500 m2, actual: ${Math.round(area)} m2`);
-      }
-    } catch {
-      errors.push("Error al validar la geometria");
+  try {
+    const polygon = turf.polygon([coords]);
+    const kinks = turf.kinks(polygon);
+    if (kinks.features.length > 0) {
+      errors.push("El poligono tiene auto-intersecciones");
     }
+    const area = turf.area(polygon);
+    if (area < 500) {
+      errors.push(`Area minima 500 m2, actual: ${Math.round(area)} m2`);
+    }
+  } catch {
+    errors.push("Error al validar la geometria");
   }
 
   return { valid: errors.length === 0, errors };
