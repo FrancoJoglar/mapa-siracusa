@@ -76,10 +76,11 @@ export default function EditorGeometria({ geojson, onSave, onCancel }: Props) {
     setSaving(true);
     try {
       await onSave(toSave);
-      alert("Geometria guardada correctamente");
+      alert("Guardado. Refrescando mapa...");
+      window.location.reload();
     } catch (e: any) {
-      alert("Error al guardar: " + (e?.message || e));
-    } finally {
+      console.error("Error al guardar:", e);
+      alert("Error al guardar: " + (e?.message || String(e)));
       setSaving(false);
     }
   };
