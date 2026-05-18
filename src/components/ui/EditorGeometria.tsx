@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from "react";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
-import L from "leaflet";
+import { useState, useEffect } from "react";
+import { MapContainer, TileLayer } from "react-leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import "leaflet/dist/leaflet.css";
 import type { Feature } from "geojson";
 import { supabase } from "../../lib/supabase";
+import GeomanEditor from "../map/GeomanEditor";
+import { useGeometryStore } from "../../store/editorStore";
 
 interface Props {
   geojson: Feature | null;
@@ -16,7 +17,9 @@ interface Props {
 
 export default function EditorGeometria({ geojson, table, entityId, onCancel }: Props) {
   const [saving, setSaving] = useState(false);
-  const geoRef = useRef<Feature | null>(geojson || null);
+  const { geojson: editedGeo, isValid, errors, reset } = useGeometryStore();
+
+  useEffect(() => { reset(); }, []);
 
   const initialCenter: [number, number] = (() => {
     const g = (geojson as any)?.geometry || geojson;
@@ -31,25 +34,23 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
   })();
 
   const handleSave = async () => {
-    const toSave = geoRef.current || geojson;
+    const toSave = editedGeo || geojson;
     if (!toSave) { alert("No hay geometria para guardar"); return; }
     const geometry = (toSave as any).geometry || toSave;
     if (!geometry?.type || !geometry?.coordinates) { alert("Geometria invalida"); return; }
 
     setSaving(true);
     try {
-      console.log("Saving geometry:", { table, entityId, geometryType: geometry?.type });
-      const { data, error: err } = await supabase.rpc("update_geometria", {
+      const { error: err } = await supabase.rpc("update_geometria", {
         table_name: table,
         entity_id: entityId,
         geo_json: geometry,
       });
-      console.log("RPC result:", { data, err });
-      if (err) throw new Error(JSON.stringify(err));
+      if (err) throw err;
+      reset();
       alert("Poligono guardado. Recargando...");
       window.location.reload();
     } catch (e: any) {
-      console.error("Save error:", e);
       alert("Error: " + (e?.message || String(e)));
       setSaving(false);
     }
@@ -59,9 +60,11 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
     <div style={overlay}>
       <div style={modal}>
         <h3 style={{ marginTop: 0 }}>Editor de Poligono</h3>
-        <p style={{ fontSize: 12, color: "#666", margin: "0 0 8px" }}>
-          Arrastra vertices para modificar.
-        </p>
+        {errors.length > 0 && (
+          <div style={{ background: "#fce4ec", padding: "6px 12px", borderRadius: 4, marginBottom: 8, fontSize: 12 }}>
+            {errors.map((e, i) => <div key={i} style={{ color: "#c62828" }}>{e}</div>)}
+          </div>
+        )}
         <div style={{ height: 440, marginBottom: 12 }}>
           <MapContainer
             center={initialCenter}
@@ -72,65 +75,18 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
               attribution='&copy; OSM'
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             />
-            <EditorSetup geojson={geojson} geoRef={geoRef} />
+            <GeomanEditor initialGeoJSON={geojson} />
           </MapContainer>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={btnCancel}>Cancelar</button>
-          <button onClick={handleSave} disabled={saving} style={btnSave}>
+          <button onClick={() => { reset(); onCancel(); }} style={btnCancel}>Cancelar</button>
+          <button onClick={handleSave} disabled={saving || !isValid} style={btnSave}>
             {saving ? "Guardando..." : "Guardar"}
           </button>
         </div>
       </div>
     </div>
   );
-}
-
-function EditorSetup({ geojson, geoRef }: {
-  geojson: Feature | null;
-  geoRef: React.MutableRefObject<Feature | null>;
-}) {
-  const map = useMap();
-
-  useEffect(() => {
-    const doSetup = () => {
-      if (!(map as any).pm) { setTimeout(doSetup, 200); return; }
-      (map as any).pm.addControls({
-        position: "topleft",
-        drawCircle: false, drawCircleMarker: false, drawRectangle: false,
-        drawPolyline: false, drawMarker: false, drawText: false,
-        cutPolygon: false, rotateMode: false,
-        dragMode: true, editMode: true, removalMode: true,
-      });
-
-      if (geojson) {
-        const layer = L.geoJSON(geojson as any);
-        layer.eachLayer((l: any) => {
-          l.addTo(map);
-          l.pm.enable();
-        });
-        map.fitBounds(layer.getBounds().pad(0.3));
-        geoRef.current = geojson;
-      }
-
-      map.on("pm:update", (e: any) => {
-        const latlngs = e.layer.getLatLngs();
-        const coords = (latlngs as any[]).map((ring: any[]) =>
-          ring.map((ll: any) => [ll.lng, ll.lat])
-        );
-        geoRef.current = {
-          type: "Feature",
-          geometry: { type: "Polygon", coordinates: coords },
-          properties: {},
-        };
-      });
-    };
-
-    doSetup();
-    return () => { try { (map as any).pm.removeControls(); } catch {} };
-  }, [map]);
-
-  return null;
 }
 
 const overlay: React.CSSProperties = {
