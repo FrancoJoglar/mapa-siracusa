@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import "leaflet/dist/leaflet.css";
 import type { Feature } from "geojson";
-import L from "leaflet";
 
 interface Props {
   geojson: Feature | null;
