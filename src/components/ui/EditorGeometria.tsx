@@ -104,10 +104,12 @@ function EditorSetup({ geojson, geoRef }: {
       }
 
       map.on("pm:update", (e: any) => {
+        console.log("pm:update fired");
         const latlngs = e.layer.getLatLngs();
         const coords = (latlngs as any[]).map((ring: any[]) =>
           ring.map((ll: any) => [ll.lng, ll.lat])
         );
+        console.log("nuevas coords, primer punto:", coords[0]?.[0]);
         geoRef.current = {
           type: "Feature",
           geometry: { type: "Polygon", coordinates: coords },

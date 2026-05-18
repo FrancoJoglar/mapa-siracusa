@@ -113,6 +113,7 @@ export function useCuarteles() {
     deleteCuartel,
     updateGeometria: async (id: string, geojson: any) => {
       const geometry = geojson?.geometry || geojson;
+      console.log("updateGeometria iniciando:", { id, type: geometry?.type, coordCount: geometry?.coordinates?.[0]?.length });
       if (!geometry?.type || !geometry?.coordinates) throw new Error("Geometria invalida");
       
       // Use direct fetch to avoid supabase-js 404 issues
@@ -129,6 +130,7 @@ export function useCuarteles() {
           body: JSON.stringify({ geometria: geometry }),
         }
       );
+      console.log("updateGeometria fetch:", { status: resp.status, ok: resp.ok });
       if (!resp.ok) {
         const err = await resp.text();
         throw new Error(`Error al guardar: ${resp.status} ${err.slice(0, 200)}`);
