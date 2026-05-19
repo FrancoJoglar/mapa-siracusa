@@ -126,7 +126,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
 
   return (
     <>
-      <div className="leaflet-top leaflet-right" style={{ top: 150 }}>
+      <div className="leaflet-top leaflet-right" style={{ top: 150, pointerEvents: "auto" as any }}>
         <button
           onClick={handleSave}
           disabled={saving}
@@ -145,7 +145,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
         </button>
       </div>
       {onClose && (
-        <div className="leaflet-top leaflet-right" style={{ top: 190 }}>
+        <div className="leaflet-top leaflet-right" style={{ top: 190, pointerEvents: "auto" as any }}>
           <button
             onClick={onClose}
             style={{
