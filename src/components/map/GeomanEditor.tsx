@@ -4,6 +4,8 @@ import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import * as turf from "@turf/turf";
 
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
+
 interface Props {
   initialGeoJSON?: GeoJSON.Feature | null;
   table?: "cuarteles" | "sectores";
@@ -72,9 +74,12 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
   }, [map, initialGeoJSON, readOnly]);
 
   const handleSave = async () => {
+    console.log("=== SAVE CLICKED ===");
+    console.log("featureLayerRef:", !!featureLayerRef.current);
     let targetLayer = featureLayerRef.current;
 
     if (!targetLayer) {
+      console.log("No featureLayer, trying fallback with initialGeoJSON");
       if (initialGeoJSON?.geometry) {
         await doSave(initialGeoJSON);
         return;
@@ -83,8 +88,15 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
       return;
     }
 
+    console.log("Getting latlngs...");
+    const latlngs = targetLayer.getLatLngs();
+    console.log("latlngs type:", typeof latlngs, "depth:", JSON.stringify(latlngs).slice(0, 100));
+
     const geo = layerToGeoJSON(targetLayer);
+    console.log("geo created:", (geo as any)?.geometry?.type, "coords:", (geo as any)?.geometry?.coordinates?.[0]?.length);
+
     const v = validateGeometry(geo);
+    console.log("validation:", v);
     if (!v.valid) {
       alert("Poligono invalido:\n" + v.errors.join("\n"));
       return;
@@ -97,27 +109,34 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
     const geometry = (feature as any)?.geometry || feature;
     if (!geometry?.type || !geometry?.coordinates) { alert("Geometria invalida"); return; }
 
+    const url = `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}`;
+    console.log("=== DOSAVE ===");
+    console.log("table:", table, "entityId:", entityId);
+    console.log("url:", url);
+    console.log("geometry type:", geometry?.type, "pts:", geometry?.coordinates?.[0]?.length);
+
     setSaving(true);
     try {
-      const resp = await fetch(
-        `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
-          },
-          body: JSON.stringify({ geometria: geometry }),
-        }
-      );
+      const resp = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": ANON_KEY,
+          "Authorization": `Bearer ${ANON_KEY}`,
+        },
+        body: JSON.stringify({ geometria: geometry }),
+      });
+      console.log("fetch status:", resp.status);
       if (!resp.ok) {
         const errText = await resp.text();
+        console.log("fetch error body:", errText.slice(0, 300));
         throw new Error(`HTTP ${resp.status}: ${errText.slice(0, 300)}`);
       }
+      console.log("SAVE SUCCESS");
       alert("Poligono guardado correctamente");
       onClose?.();
     } catch (e: any) {
+      console.log("SAVE ERROR:", e.message);
       alert("Error: " + (e?.message || String(e)));
     } finally {
       setSaving(false);
