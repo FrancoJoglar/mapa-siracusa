@@ -3,7 +3,6 @@ import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import * as turf from "@turf/turf";
-import { supabase } from "../../lib/supabase";
 
 interface Props {
   initialGeoJSON?: GeoJSON.Feature | null;
@@ -100,11 +99,22 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
 
     setSaving(true);
     try {
-      const { error: err } = await (supabase as any)
-        .from(table)
-        .update({ geometria: geometry })
-        .eq("id", entityId);
-      if (err) throw new Error(JSON.stringify(err));
+      const resp = await fetch(
+        `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
+          },
+          body: JSON.stringify({ geometria: geometry }),
+        }
+      );
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`HTTP ${resp.status}: ${errText.slice(0, 300)}`);
+      }
       alert("Poligono guardado correctamente");
       onClose?.();
     } catch (e: any) {
