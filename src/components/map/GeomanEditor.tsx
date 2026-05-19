@@ -15,7 +15,7 @@ interface Props {
 
 export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly = false, onClose }: Props) {
   const map = useMap();
-  const layerRef = useRef<any>(null);
+  const featureLayerRef = useRef<any>(null);
   const setupDone = useRef(false);
   const [saving, setSaving] = useState(false);
 
@@ -52,9 +52,11 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
         layer.eachLayer((l: any) => {
           l.addTo(map);
           if (!readOnly) l.pm.enable();
+          featureLayerRef.current = l; // Store the FIRST feature layer
         });
-        layerRef.current = layer;
-        map.fitBounds(layer.getBounds().pad(0.2));
+        if (layer.getBounds().isValid()) {
+          map.fitBounds(layer.getBounds().pad(0.2));
+        }
       }
     };
 
@@ -66,21 +68,14 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
         (map as any)?.pm?.removeControls();
         map.off("pm:create");
         map.off("pm:update");
-        layerRef.current?.remove();
-        layerRef.current = null;
       } catch {}
     };
   }, [map, initialGeoJSON, readOnly]);
 
   const handleSave = async () => {
-    // Find the current edited layer
-    let targetLayer: any = null;
-    map.eachLayer((l: any) => {
-      if ((l as any).pm?.enabled()) targetLayer = l;
-    });
+    let targetLayer = featureLayerRef.current;
 
     if (!targetLayer) {
-      // Fallback: use initial geojson if no edit was made
       if (initialGeoJSON?.geometry) {
         await doSave(initialGeoJSON);
         return;
