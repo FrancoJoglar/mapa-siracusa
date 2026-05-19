@@ -75,32 +75,15 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
 
   const handleSave = async () => {
     console.log("=== SAVE CLICKED ===");
-    console.log("featureLayerRef:", !!featureLayerRef.current);
     let targetLayer = featureLayerRef.current;
 
     if (!targetLayer) {
-      console.log("No featureLayer, trying fallback with initialGeoJSON");
-      if (initialGeoJSON?.geometry) {
-        await doSave(initialGeoJSON);
-        return;
-      }
+      if (initialGeoJSON?.geometry) { await doSave(initialGeoJSON); return; }
       alert("No hay poligono para guardar");
       return;
     }
 
-    console.log("Getting latlngs...");
-    const latlngs = targetLayer.getLatLngs();
-    console.log("latlngs type:", typeof latlngs, "depth:", JSON.stringify(latlngs).slice(0, 100));
-
     const geo = layerToGeoJSON(targetLayer);
-    console.log("geo created:", (geo as any)?.geometry?.type, "coords:", (geo as any)?.geometry?.coordinates?.[0]?.length);
-
-    const v = validateGeometry(geo);
-    console.log("validation:", v);
-    if (!v.valid) {
-      alert("Poligono invalido:\n" + v.errors.join("\n"));
-      return;
-    }
     await doSave(geo);
   };
 
