@@ -1,20 +1,23 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import * as turf from "@turf/turf";
-import { useGeometryStore } from "../../store/editorStore";
+import { supabase } from "../../lib/supabase";
 
 interface Props {
   initialGeoJSON?: GeoJSON.Feature | null;
+  table?: "cuarteles" | "sectores";
+  entityId?: string;
   readOnly?: boolean;
+  onClose?: () => void;
 }
 
-export default function GeomanEditor({ initialGeoJSON, readOnly = false }: Props) {
+export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly = false, onClose }: Props) {
   const map = useMap();
-  const layerRef = useRef<L.GeoJSON | null>(null);
+  const layerRef = useRef<any>(null);
   const setupDone = useRef(false);
-  const { setGeojson, setValid } = useGeometryStore();
+  const [saving, setSaving] = useState(false);
 
   // Initialize Geoman once
   useEffect(() => {
@@ -52,25 +55,7 @@ export default function GeomanEditor({ initialGeoJSON, readOnly = false }: Props
         });
         layerRef.current = layer;
         map.fitBounds(layer.getBounds().pad(0.2));
-        setGeojson(initialGeoJSON);
-        const v = validateGeometry(initialGeoJSON);
-        setValid(v.valid, v.errors);
       }
-
-      map.on("pm:create", (e: any) => {
-        layerRef.current = e.layer;
-        const geo = layerToGeoJSON(e.layer);
-        const v = validateGeometry(geo);
-        setGeojson(geo);
-        setValid(v.valid, v.errors);
-      });
-
-      map.on("pm:update", (e: any) => {
-        const geo = layerToGeoJSON(e.layer);
-        const v = validateGeometry(geo);
-        setGeojson(geo);
-        setValid(v.valid, v.errors);
-      });
     };
 
     requestAnimationFrame(init);
@@ -85,9 +70,96 @@ export default function GeomanEditor({ initialGeoJSON, readOnly = false }: Props
         layerRef.current = null;
       } catch {}
     };
-  }, [map, initialGeoJSON, readOnly, setGeojson, setValid]);
+  }, [map, initialGeoJSON, readOnly]);
 
-  return null;
+  const handleSave = async () => {
+    // Find the current edited layer
+    let targetLayer: any = null;
+    map.eachLayer((l: any) => {
+      if ((l as any).pm?.enabled()) targetLayer = l;
+    });
+
+    if (!targetLayer) {
+      // Fallback: use initial geojson if no edit was made
+      if (initialGeoJSON?.geometry) {
+        await doSave(initialGeoJSON);
+        return;
+      }
+      alert("No hay poligono para guardar");
+      return;
+    }
+
+    const geo = layerToGeoJSON(targetLayer);
+    const v = validateGeometry(geo);
+    if (!v.valid) {
+      alert("Poligono invalido:\n" + v.errors.join("\n"));
+      return;
+    }
+    await doSave(geo);
+  };
+
+  const doSave = async (feature: GeoJSON.Feature) => {
+    if (!table || !entityId) { alert("Faltan datos de guardado"); return; }
+    const geometry = (feature as any)?.geometry || feature;
+    if (!geometry?.type || !geometry?.coordinates) { alert("Geometria invalida"); return; }
+
+    setSaving(true);
+    try {
+      const { error: err } = await (supabase as any)
+        .from(table)
+        .update({ geometria: geometry })
+        .eq("id", entityId);
+      if (err) throw new Error(JSON.stringify(err));
+      alert("Poligono guardado correctamente");
+      onClose?.();
+    } catch (e: any) {
+      alert("Error: " + (e?.message || String(e)));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="leaflet-top leaflet-right" style={{ top: 150 }}>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            padding: "8px 16px",
+            background: saving ? "#ccc" : "#1565c0",
+            color: "#fff",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: 13,
+          }}
+        >
+          {saving ? "Guardando..." : "Guardar"}
+        </button>
+      </div>
+      {onClose && (
+        <div className="leaflet-top leaflet-right" style={{ top: 190 }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "8px 16px",
+              background: "#e53935",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 13,
+            }}
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+    </>
+  );
 }
 
 // ===== PURE FUNCTIONS (testable without DOM) =====
