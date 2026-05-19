@@ -75,11 +75,14 @@ export function useCuarteles() {
     if (cuartel.centro_costo !== undefined) updates.centro_costo = cuartel.centro_costo;
     updates.updated_at = new Date().toISOString();
 
+    console.log("updateCuartel:", { id, updates });
+
     const { error: err } = await supabase
       .from("cuarteles")
       .update(updates)
       .eq("id", id);
-    if (err) throw err;
+    if (err) { console.error("updateCuartel error:", err); throw err; }
+    console.log("updateCuartel OK");
 
     if (cuartel.sector_ids) {
       await supabase.from("cuartel_sector").delete().eq("cuartel_id", id);
