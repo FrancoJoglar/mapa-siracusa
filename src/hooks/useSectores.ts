@@ -68,7 +68,17 @@ export function useSectores() {
         .single();
       if (err || !data?.geometria) return null;
       try {
-        const ewkt = data.geometria as string;
+        const raw = data.geometria;
+        // If it's a GeoJSON object (PostgREST returns GeoJSON for GEOMETRY columns)
+        if (typeof raw === "object" && raw !== null) {
+          return {
+            type: "Feature" as const,
+            geometry: raw as any,
+            properties: {},
+          };
+        }
+        // Legacy: EWKT string
+        const ewkt = raw as string;
         if (ewkt.includes("MULTIPOLYGON")) {
           const inner = ewkt.replace("SRID=4326;MULTIPOLYGON(", "").slice(0, -1);
           const rings: number[][][] = [];
