@@ -5,8 +5,7 @@ import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import "leaflet/dist/leaflet.css";
 import type { Feature } from "geojson";
 import GeomanEditor from "../map/GeomanEditor";
-
-const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
+import { supabase } from "../../lib/supabase";
 
 interface Props {
   geojson: Feature | null;
@@ -25,18 +24,19 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
       return;
     }
     setFetching(true);
-    fetch(
-      `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}&select=geometria`,
-      { headers: { "apikey": ANON_KEY, "Authorization": `Bearer ${ANON_KEY}` } }
-    )
-      .then(r => r.json())
-      .then(data => {
-        if (data?.length > 0 && data[0]?.geometria) {
-          setResolvedGeo({ type: "Feature", geometry: data[0].geometria, properties: {} });
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from(table)
+          .select("geometria")
+          .eq("id", entityId)
+          .single();
+        if (!error && data?.geometria) {
+          setResolvedGeo({ type: "Feature", geometry: data.geometria, properties: {} });
         }
-      })
-      .catch(() => {})
-      .finally(() => setFetching(false));
+      } catch {}
+      finally { setFetching(false); }
+    })();
   }, [geojson, table, entityId]);
 
   const initialGeo = resolvedGeo;
