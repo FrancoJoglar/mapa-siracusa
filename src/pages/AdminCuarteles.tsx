@@ -7,6 +7,11 @@ import FormularioCuartel from "../components/cuarteles/FormularioCuartel";
 export default function AdminCuarteles() {
   const { cuarteles, loading, error, updateCuartel, deleteCuartel } = useCuarteles();
   const { sectores } = useSectores();
+  const sectorCodeMap = useMemo(() => {
+    const map = new Map<string, string>();
+    sectores.forEach(s => map.set(s.id, s.codigo));
+    return map;
+  }, [sectores]);
   const [editing, setEditing] = useState<Cuartel | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
@@ -84,7 +89,7 @@ export default function AdminCuarteles() {
           <thead>
             <tr>
               <th>Nombre</th><th>Especie</th><th>Variedad</th><th>Año</th>
-              <th>Superficie</th><th>JC</th><th>Centro Costo</th><th>Eq/Sector</th>
+              <th>Superficie</th><th>JC</th><th>Centro Costo</th><th>Sectores</th>
               <th style={{ width: 120 }}>Acciones</th>
             </tr>
           </thead>
@@ -94,7 +99,7 @@ export default function AdminCuarteles() {
                 <td><strong>{c.nombre}</strong></td>
                 <td>{c.especie}</td><td>{c.variedad}</td><td>{c.anio_plantacion}</td>
                 <td>{c.superficie_ha ? `${c.superficie_ha} ha` : ""}</td><td>{c.jefe_campo}</td>
-                <td>{c.centro_costo}</td><td>{c.equipo_riego} / {c.sector_raw}</td>
+                <td>{c.centro_costo}</td><td>{(c.sector_ids || []).map(id => sectorCodeMap.get(id)).filter(Boolean).join(", ")}</td>
                 <td>
                   <button onClick={() => { setEditing(c); setShowForm(true); }} style={btnSm}>Editar</button>{" "}
                   <button onClick={() => { if (confirm(`Eliminar ${c.nombre}?`)) deleteCuartel(c.id); }}
