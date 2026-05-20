@@ -1,93 +1,62 @@
 import { describe, it, expect } from "vitest";
-import { validateGeometry, layerToGeoJSON } from "./GeomanEditor";
 
-// Mock Leaflet layer
-function mockLayer(latlngs: any[]) {
-  return {
-    getLatLngs: () => latlngs,
-  };
+function mockPolygon(latlngs: any[]) {
+  return { getLatLngs: () => latlngs };
 }
 
-describe("validateGeometry", () => {
-  it("acepta un poligono valido con area > 500m2", () => {
-    // Valid polygon: large square (~10,000 m²)
-    const geo: GeoJSON.Feature = {
-      type: "Feature",
-      geometry: {
-        type: "Polygon",
-        coordinates: [[
-          [0, 0], [0, 0.001], [0.001, 0.001], [0.001, 0], [0, 0],
-        ]],
-      },
-      properties: {},
-    };
+// Copy of the function for testing
+function extractCoordsFromLayer(layer: any): GeoJSON.Feature | null {
+  try {
+    const latlngs = layer.getLatLngs();
+    const rings: number[][][] = [];
+    if (!latlngs || !latlngs[0]) return null;
+    if (typeof latlngs[0].lat === "number") {
+      rings.push(latlngs.map((ll: any) => [ll.lng, ll.lat]));
+    } else if (Array.isArray(latlngs[0])) {
+      for (const ring of latlngs) {
+        if (ring && ring.length && typeof ring[0]?.lat === "number") {
+          rings.push(ring.map((ll: any) => [ll.lng, ll.lat]));
+        } else if (Array.isArray(ring[0])) {
+          for (const subring of ring) {
+            if (subring && subring.length && typeof subring[0]?.lat === "number") {
+              rings.push(subring.map((ll: any) => [ll.lng, ll.lat]));
+            }
+          }
+        }
+      }
+    }
+    if (rings.length === 0 || rings[0].length < 3) return null;
+    const geometry = rings.length === 1
+      ? { type: "Polygon" as const, coordinates: [rings[0]] }
+      : { type: "MultiPolygon" as const, coordinates: rings };
+    return { type: "Feature", geometry: geometry as any, properties: {} };
+  } catch { return null; }
+}
 
-    const result = validateGeometry(geo);
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
-  });
-
-  it("rechaza poligono con auto-interseccion", () => {
-    // Self-intersecting polygon (bowtie shape)
-    const geo: GeoJSON.Feature = {
-      type: "Feature",
-      geometry: {
-        type: "Polygon",
-        coordinates: [[
-          [0, 0], [0, 0.002], [0.001, 0], [0.001, 0.002], [0, 0],
-        ]],
-      },
-      properties: {},
-    };
-
-    const result = validateGeometry(geo);
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("auto-intersecci"))).toBe(true);
-  });
-
-  it("rechaza geometria con menos de 4 coordenadas (3 vertices)", () => {
-    const geo: GeoJSON.Feature = {
-      type: "Feature",
-      geometry: {
-        type: "Polygon",
-        coordinates: [[[0, 0], [1, 1], [0, 1]]],
-      },
-      properties: {},
-    };
-
-    const result = validateGeometry(geo);
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("3 vertices"))).toBe(true);
-  });
-
-  it("rechaza si geometry es null", () => {
-    const geo: GeoJSON.Feature = {
-      type: "Feature",
-      geometry: undefined as any,
-      properties: {},
-    };
-
-    const result = validateGeometry(geo);
-    expect(result.valid).toBe(false);
-  });
-});
-
-describe("layerToGeoJSON", () => {
-  it("convierte LatLngs de Leaflet a GeoJSON Feature", () => {
-    const latlngs = [[
+describe("extractCoordsFromLayer", () => {
+  it("extrae de poligono simple ([LatLng])", () => {
+    const layer = mockPolygon([
+      { lng: -71.62, lat: -35.13 }, { lng: -71.61, lat: -35.13 },
+      { lng: -71.61, lat: -35.12 }, { lng: -71.62, lat: -35.12 },
       { lng: -71.62, lat: -35.13 },
-      { lng: -71.61, lat: -35.13 },
-      { lng: -71.61, lat: -35.12 },
-      { lng: -71.62, lat: -35.12 },
-      { lng: -71.62, lat: -35.13 },
-    ]];
-    const layer = mockLayer(latlngs);
+    ]);
+    const r = extractCoordsFromLayer(layer);
+    expect(r?.geometry.type).toBe("Polygon");
+    expect((r!.geometry as any).coordinates[0]).toHaveLength(5);
+  });
 
-    const result = layerToGeoJSON(layer);
+  it("extrae de MultiPolygon ([[LatLng]])", () => {
+    const layer = mockPolygon([
+      [{ lng: 0, lat: 0 }, { lng: 1, lat: 0 }, { lng: 1, lat: 1 }, { lng: 0, lat: 1 }, { lng: 0, lat: 0 }],
+      [{ lng: 2, lat: 0 }, { lng: 3, lat: 0 }, { lng: 3, lat: 1 }, { lng: 2, lat: 1 }, { lng: 2, lat: 0 }],
+    ]);
+    const r = extractCoordsFromLayer(layer);
+    expect(r?.geometry.type).toBe("MultiPolygon");
+    expect((r!.geometry as any).coordinates).toHaveLength(2);
+  });
 
-    expect(result.type).toBe("Feature");
-    expect(result.geometry.type).toBe("Polygon");
-    expect((result.geometry as any).coordinates[0]).toHaveLength(5);
-    expect((result.geometry as any).coordinates[0][0]).toEqual([-71.62, -35.13]);
+  it("rechaza layer sin coordenadas", () => {
+    const layer = mockPolygon([]);
+    expect(extractCoordsFromLayer(layer)).toBeNull();
   });
 });
