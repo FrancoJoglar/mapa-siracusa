@@ -16,7 +16,7 @@ interface Props {
 
 export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly = false, onClose }: Props) {
   const map = useMap();
-  const featureLayerRef = useRef<any>(null);
+  const allLayersRef = useRef<any[]>([]);
   const setupDone = useRef(false);
   const [saving, setSaving] = useState(false);
 
@@ -50,10 +50,11 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
 
       if (initialGeoJSON?.geometry) {
         const layer = L.geoJSON(initialGeoJSON);
+        allLayersRef.current = [];
         layer.eachLayer((l: any) => {
           l.addTo(map);
           if (!readOnly) l.pm.enable();
-          featureLayerRef.current = l; // Store the FIRST feature layer
+          allLayersRef.current.push(l);
         });
         if (layer.getBounds().isValid()) {
           map.fitBounds(layer.getBounds().pad(0.2));
@@ -75,16 +76,31 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
 
   const handleSave = async () => {
     console.log("=== SAVE CLICKED ===");
-    let targetLayer = featureLayerRef.current;
+    const layers = allLayersRef.current;
 
-    if (!targetLayer) {
+    if (!layers || layers.length === 0) {
       if (initialGeoJSON?.geometry) { await doSave(initialGeoJSON); return; }
       alert("No hay poligono para guardar");
       return;
     }
 
-    const geo = layerToGeoJSON(targetLayer);
-    await doSave(geo);
+    // Extract coordinates from ALL layers
+    const allCoords = layers.map((layer: any) => {
+      const latlngs = layer.getLatLngs();
+      return (latlngs as any[]).map((ring: any[]) =>
+        ring.map((ll: { lng: number; lat: number }) => [ll.lng, ll.lat])
+      );
+    });
+
+    // Build the feature
+    const feature: GeoJSON.Feature = {
+      type: "Feature",
+      geometry: allCoords.length > 1
+        ? { type: "MultiPolygon" as const, coordinates: allCoords }
+        : { type: "Polygon" as const, coordinates: allCoords[0] },
+      properties: {},
+    };
+    await doSave(feature);
   };
 
   const doSave = async (feature: GeoJSON.Feature) => {
