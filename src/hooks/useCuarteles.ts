@@ -8,6 +8,7 @@ export function useCuarteles() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchCuarteles = async () => {
+    console.log("fetchCuarteles: iniciando");
     setLoading(true);
     setError(null);
     try {
@@ -95,7 +96,7 @@ export function useCuarteles() {
         const { error: insertErr } = await supabase.from("cuartel_sector").insert(inserts);
         if (insertErr) console.error("Error insertando sectores:", insertErr);
       }
-      console.log("updateCuartel: sectores actualizados");
+      console.log("updateCuartel: sectores actualizados, refrescando...");
     }
     await fetchCuarteles();
   };
