@@ -84,15 +84,18 @@ export function useCuarteles() {
     if (err) { console.error("updateCuartel error:", err); throw err; }
     console.log("updateCuartel OK");
 
-    if (cuartel.sector_ids) {
+    if (cuartel.sector_ids !== undefined) {
+      console.log("updateCuartel: actualizando sectores", cuartel.sector_ids);
       await supabase.from("cuartel_sector").delete().eq("cuartel_id", id);
       if (cuartel.sector_ids.length > 0) {
         const inserts = cuartel.sector_ids.map((sectorId) => ({
           cuartel_id: id,
           sector_id: sectorId,
         }));
-        await supabase.from("cuartel_sector").insert(inserts);
+        const { error: insertErr } = await supabase.from("cuartel_sector").insert(inserts);
+        if (insertErr) console.error("Error insertando sectores:", insertErr);
       }
+      console.log("updateCuartel: sectores actualizados");
     }
     await fetchCuarteles();
   };
