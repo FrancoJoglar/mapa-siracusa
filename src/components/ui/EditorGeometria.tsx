@@ -1,9 +1,12 @@
+import { useState, useEffect } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import "leaflet/dist/leaflet.css";
 import type { Feature } from "geojson";
 import GeomanEditor from "../map/GeomanEditor";
+
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
 
 interface Props {
   geojson: Feature | null;
@@ -13,8 +16,33 @@ interface Props {
 }
 
 export default function EditorGeometria({ geojson, table, entityId, onCancel }: Props) {
+  const [resolvedGeo, setResolvedGeo] = useState<Feature | null>(null);
+  const [fetching, setFetching] = useState(false);
+
+  useEffect(() => {
+    if (geojson) {
+      setResolvedGeo(geojson);
+      return;
+    }
+    setFetching(true);
+    fetch(
+      `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}&select=geometria`,
+      { headers: { "apikey": ANON_KEY, "Authorization": `Bearer ${ANON_KEY}` } }
+    )
+      .then(r => r.json())
+      .then(data => {
+        if (data?.length > 0 && data[0]?.geometria) {
+          setResolvedGeo({ type: "Feature", geometry: data[0].geometria, properties: {} });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setFetching(false));
+  }, [geojson, table, entityId]);
+
+  const initialGeo = resolvedGeo;
+
   const initialCenter: [number, number] = (() => {
-    const g = (geojson as any)?.geometry || geojson;
+    const g = (initialGeo as any)?.geometry || initialGeo;
     if (!g?.coordinates) return [-35.14, -71.625];
     let coords: number[][] = [];
     if (g.type === "Polygon") coords = g.coordinates[0] || [];
@@ -29,6 +57,7 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
     <div style={overlay}>
       <div style={modal}>
         <h3 style={{ marginTop: 0 }}>Editor de Poligono</h3>
+        {fetching && <p style={{ color: "#999", fontSize: 12, margin: "0 0 8px" }}>Cargando geometria...</p>}
         <div style={{ height: 440 }}>
           <MapContainer
             center={initialCenter}
@@ -39,12 +68,14 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
               attribution='&copy; OSM'
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             />
-            <GeomanEditor
-              initialGeoJSON={geojson}
-              table={table}
-              entityId={entityId}
-              onClose={onCancel}
-            />
+            {!fetching && (
+              <GeomanEditor
+                initialGeoJSON={initialGeo}
+                table={table}
+                entityId={entityId}
+                onClose={onCancel}
+              />
+            )}
           </MapContainer>
         </div>
       </div>
