@@ -76,32 +76,64 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
 
   const handleSave = async () => {
     console.log("=== SAVE CLICKED ===");
-    const layers = allLayersRef.current;
 
-    if (!layers || layers.length === 0) {
+    // Collect ALL polygon layers currently on the map
+    const polyCoords: number[][][] = [];
+    map.eachLayer((layer: any) => {
+      if (!layer.getLatLngs) return;
+      try {
+        const latlngs = layer.getLatLngs();
+        // Flatten nested arrays to get the coordinates
+        const coords = extractRingCoords(latlngs);
+        if (coords && coords.length >= 3) {
+          polyCoords.push(coords);
+        }
+      } catch {}
+    });
+
+    if (polyCoords.length === 0) {
       if (initialGeoJSON?.geometry) { await doSave(initialGeoJSON); return; }
       alert("No hay poligono para guardar");
       return;
     }
 
-    // Extract coordinates from ALL layers
-    const allCoords = layers.map((layer: any) => {
-      const latlngs = layer.getLatLngs();
-      return (latlngs as any[]).map((ring: any[]) =>
-        ring.map((ll: { lng: number; lat: number }) => [ll.lng, ll.lat])
-      );
-    });
-
-    // Build the feature
     const feature: GeoJSON.Feature = {
       type: "Feature",
-      geometry: allCoords.length > 1
-        ? { type: "MultiPolygon" as const, coordinates: allCoords }
-        : { type: "Polygon" as const, coordinates: allCoords[0] },
+      geometry: (polyCoords.length > 1
+        ? { type: "MultiPolygon", coordinates: [polyCoords] }
+        : { type: "Polygon", coordinates: polyCoords[0] }) as any,
       properties: {},
     };
+    console.log("Save with coords:", polyCoords.length, "polygons, pts per poly:", polyCoords.map(c => c.length));
     await doSave(feature);
   };
+
+// Helper: extract coordinate pairs from Leaflet getLatLngs() output
+function extractRingCoords(latlngs: any): number[][] | null {
+  // LatLngs can be: [LatLng] (single ring), [[LatLng]] (MultiPolygon ring), etc.
+  try {
+    // Try as flat array of LatLng objects
+    const first = latlngs[0];
+    if (first && typeof first.lat === "number") {
+      return latlngs.map((ll: any) => [ll.lng, ll.lat]);
+    }
+    // Try nested: [[LatLng, LatLng]]
+    if (Array.isArray(first)) {
+      const second = first[0];
+      if (second && typeof second.lat === "number") {
+        return first.map((ll: any) => [ll.lng, ll.lat]);
+      }
+      // Further nested: [[[LatLng, LatLng]]] - take the first ring
+      if (Array.isArray(second)) {
+        const third = second[0];
+        if (third && typeof third.lat === "number") {
+          return second.map((ll: any) => [ll.lng, ll.lat]);
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
 
   const doSave = async (feature: GeoJSON.Feature) => {
     if (!table || !entityId) { alert("Faltan datos de guardado"); return; }
