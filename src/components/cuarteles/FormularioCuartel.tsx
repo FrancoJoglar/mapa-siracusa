@@ -38,7 +38,7 @@ export default function FormularioCuartel({
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave({
+      const saveData = {
         nombre,
         especie,
         variedad,
@@ -49,7 +49,9 @@ export default function FormularioCuartel({
         jefe_campo: jefeCampo,
         centro_costo: centroCosto,
         sector_ids: sectorIds,
-      });
+      };
+      console.log("FormularioCuartel saveData:", saveData);
+      await onSave(saveData);
     } finally {
       setSaving(false);
     }

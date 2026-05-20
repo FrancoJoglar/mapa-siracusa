@@ -82,7 +82,7 @@ export function useCuarteles() {
       .update(updates)
       .eq("id", id);
     if (err) { console.error("updateCuartel error:", err); throw err; }
-    console.log("updateCuartel OK");
+    console.log("updateCuartel OK, sector_ids:", cuartel.sector_ids);
 
     if (cuartel.sector_ids !== undefined) {
       console.log("updateCuartel: actualizando sectores", cuartel.sector_ids);
