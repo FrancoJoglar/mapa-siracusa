@@ -37,6 +37,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
         drawCircle: false, drawCircleMarker: false, drawRectangle: false,
         drawPolyline: false, drawMarker: false, drawText: false,
         cutPolygon: false, rotateMode: false,
+        drawPolygon: !readOnly,
         dragMode: !readOnly, editMode: !readOnly, removalMode: !readOnly,
       });
 
