@@ -28,7 +28,7 @@ function extractCoordsFromLayer(layer: any): GeoJSON.Feature | null {
     if (rings.length === 0 || rings[0].length < 3) return null;
     const geometry = rings.length === 1
       ? { type: "Polygon" as const, coordinates: [rings[0]] }
-      : { type: "MultiPolygon" as const, coordinates: rings };
+      : { type: "MultiPolygon" as const, coordinates: rings.map((r: number[][]) => [r]) };
     return { type: "Feature", geometry: geometry as any, properties: {} };
   } catch { return null; }
 }
