@@ -36,6 +36,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   const [mostrarEdif, setMostrarEdif] = useState(true);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
   const [satelite, setSatelite] = useState(true);
+  const [medir, setMedir] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
@@ -232,6 +233,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
           <MapClickHandler onDeselect={() => setSelectedId(null)} />
           <ToggleVista vista={vista} onChange={cambiarVista} />
           <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
+          <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
+          {medir && <MedirControls />}
 
           {vista === "cuarteles" && (
             <GeoJSON
@@ -421,6 +424,57 @@ function ToggleEdificaciones({ visible, onToggle }: { visible: boolean; onToggle
       </div>
     </div>
   );
+}
+
+function ToggleMedir({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 160 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          background: visible ? "#2e7d32" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
+        }}>Medir</button>
+      </div>
+    </div>
+  );
+}
+
+function MedirControls() {
+  const map = useMap();
+
+  useEffect(() => {
+    // Set measurement styles
+    const pm = (map as any).pm;
+    pm.setGlobalOptions({
+      snappable: false,
+      allowSelfIntersection: true,
+      templineStyle: { color: "#2e7d32", weight: 2, dashArray: "5,5" },
+      hintlineStyle: { color: "#2e7d32", dashArray: "5,5" },
+      pathOptions: { color: "#2e7d32", weight: 3, fillColor: "#4caf50", fillOpacity: 0.2 },
+    });
+
+    pm.addControls({
+      position: "topleft",
+      drawPolygon: true,
+      drawPolyline: true,
+      drawCircle: false, drawCircleMarker: false, drawRectangle: false,
+      drawMarker: false, drawText: false,
+      cutPolygon: false, rotateMode: false,
+      dragMode: false, editMode: false, removalMode: false,
+    });
+
+    return () => {
+      try {
+        pm.removeControls();
+        // Remove all drawn layers
+        map.eachLayer((l: any) => {
+          if (l._measurementLayer || l._pmTempLayer) map.removeLayer(l);
+        });
+      } catch {}
+    };
+  }, [map]);
+
+  return null;
 }
 
 function MapClickHandler({ onDeselect }: { onDeselect: () => void }) {
