@@ -444,6 +444,16 @@ function MedirControls() {
 
   useEffect(() => {
     const pm = (map as any).pm;
+
+    // Disable interactivity on existing feature layers so clicks reach the measure tool
+    const restoredLayers: any[] = [];
+    map.eachLayer((l: any) => {
+      if (l.getLatLngs && l.setStyle && !l._drawnByGeoman) {
+        restoredLayers.push(l);
+        l.setStyle({ interactive: false });
+      }
+    });
+
     pm.setGlobalOptions({
       snappable: true,
       allowSelfIntersection: false,
@@ -465,7 +475,11 @@ function MedirControls() {
     return () => {
       try {
         pm.removeControls();
-        // Remove all measurement layers
+        // Restore interactivity
+        restoredLayers.forEach((l: any) => {
+          try { l.setStyle({ interactive: true }); } catch {}
+        });
+        // Remove measurement layers
         map.eachLayer((l: any) => {
           if (l._measurementLayer || l._pmTempLayer || l._drawnByGeoman) map.removeLayer(l);
         });
