@@ -452,11 +452,6 @@ function MedirControls() {
       pathOptions: { color: "#2e7d32", weight: 3, fillColor: "#4caf50", fillOpacity: 0.2 },
     });
 
-    // Disable Geoman editing on all existing layers so clicks pass through to measure tool
-    map.eachLayer((l: any) => {
-      try { l.pm?.disable(); } catch {}
-    });
-
     pm.addControls({
       position: "topleft",
       drawPolygon: true,
@@ -470,13 +465,9 @@ function MedirControls() {
     return () => {
       try {
         pm.removeControls();
-        // Re-enable editing on existing layers
-        map.eachLayer((l: any) => {
-          try { l.pm?.enable(); } catch {}
-        });
         // Remove all measurement layers
         map.eachLayer((l: any) => {
-          if (l._measurementLayer || l._pmTempLayer) map.removeLayer(l);
+          if (l._measurementLayer || l._pmTempLayer || l._drawnByGeoman) map.removeLayer(l);
         });
       } catch {}
     };
