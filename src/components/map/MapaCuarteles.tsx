@@ -445,14 +445,9 @@ function MedirControls() {
   useEffect(() => {
     const pm = (map as any).pm;
 
-    // Disable interactivity on existing feature layers so clicks reach the measure tool
-    const restoredLayers: any[] = [];
-    map.eachLayer((l: any) => {
-      if (l.getLatLngs && l.setStyle && !l._drawnByGeoman) {
-        restoredLayers.push(l);
-        l.setStyle({ interactive: false });
-      }
-    });
+    // Use CSS to bypass existing feature layers so clicks reach the measure tool
+    const container = map.getContainer();
+    container.classList.add("medir-active");
 
     pm.setGlobalOptions({
       snappable: true,
@@ -473,13 +468,9 @@ function MedirControls() {
     });
 
     return () => {
+      container.classList.remove("medir-active");
       try {
         pm.removeControls();
-        // Restore interactivity
-        restoredLayers.forEach((l: any) => {
-          try { l.setStyle({ interactive: true }); } catch {}
-        });
-        // Remove measurement layers
         map.eachLayer((l: any) => {
           if (l._measurementLayer || l._pmTempLayer || l._drawnByGeoman) map.removeLayer(l);
         });

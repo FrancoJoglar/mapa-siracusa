@@ -64,3 +64,8 @@ path.leaflet-interactive:focus,
 path.leaflet-interactive:focus-visible {
   outline: none;
 }
+
+/* Measurement mode: pass clicks through existing polygons */
+.medir-active path.leaflet-interactive {
+  pointer-events: none !important;
+}
