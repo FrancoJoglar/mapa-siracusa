@@ -467,6 +467,27 @@ function MedirControls() {
       dragMode: false, editMode: false, removalMode: false,
     });
 
+    // Show area/distance label on created measurement shapes
+    map.on("pm:create", (e: any) => {
+      const layer = e.layer;
+      const geo = layer.toGeoJSON?.() || layer;
+      try {
+        if (e.shape === "Polygon" || geo?.geometry?.type === "Polygon") {
+          const area = turf.area(geo) / 10000;
+          layer.bindTooltip(area.toFixed(2) + " ha", { permanent: true, direction: "center", className: "medir-tooltip" });
+        } else if (e.shape === "Line" || geo?.geometry?.type === "LineString") {
+          let dist = 0;
+          const coords = geo?.geometry?.coordinates || layer.getLatLngs?.()?.[0] || [];
+          for (let i = 1; i < coords.length; i++) {
+            const a = coords[i-1], b = coords[i];
+            dist += L.latLng(a[1] || a.lat, a[0] || a.lng).distanceTo(L.latLng(b[1] || b.lat, b[0] || b.lng));
+          }
+          const label = dist > 1000 ? (dist / 1000).toFixed(2) + " km" : dist.toFixed(1) + " m";
+          layer.bindTooltip(label, { permanent: true, direction: "center", className: "medir-tooltip" });
+        }
+      } catch {}
+    });
+
     return () => {
       container.classList.remove("medir-active");
       try {

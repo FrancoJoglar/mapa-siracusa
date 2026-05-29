@@ -69,3 +69,17 @@ path.leaflet-interactive:focus-visible {
 .medir-active path.leaflet-interactive {
   pointer-events: none !important;
 }
+
+.medir-tooltip {
+  background: rgba(46, 125, 50, 0.85) !important;
+  border: 2px solid #1b5e20 !important;
+  border-radius: 4px !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  padding: 4px 8px !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
+}
+.medir-tooltip::before {
+  display: none !important;
+}
