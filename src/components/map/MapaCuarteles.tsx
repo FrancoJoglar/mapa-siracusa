@@ -443,14 +443,18 @@ function MedirControls() {
   const map = useMap();
 
   useEffect(() => {
-    // Set measurement styles
     const pm = (map as any).pm;
     pm.setGlobalOptions({
-      snappable: false,
-      allowSelfIntersection: true,
+      snappable: true,
+      allowSelfIntersection: false,
       templineStyle: { color: "#2e7d32", weight: 2, dashArray: "5,5" },
       hintlineStyle: { color: "#2e7d32", dashArray: "5,5" },
       pathOptions: { color: "#2e7d32", weight: 3, fillColor: "#4caf50", fillOpacity: 0.2 },
+    });
+
+    // Disable Geoman editing on all existing layers so clicks pass through to measure tool
+    map.eachLayer((l: any) => {
+      try { l.pm?.disable(); } catch {}
     });
 
     pm.addControls({
@@ -466,7 +470,11 @@ function MedirControls() {
     return () => {
       try {
         pm.removeControls();
-        // Remove all drawn layers
+        // Re-enable editing on existing layers
+        map.eachLayer((l: any) => {
+          try { l.pm?.enable(); } catch {}
+        });
+        // Remove all measurement layers
         map.eachLayer((l: any) => {
           if (l._measurementLayer || l._pmTempLayer) map.removeLayer(l);
         });
