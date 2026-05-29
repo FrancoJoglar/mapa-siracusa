@@ -75,12 +75,31 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
   }, [map, initialGeoJSON, readOnly]);
 
   const handleSave = async () => {
-    // Use currentGeoRef (updated by pm:create/pm:update) or fallback to initialGeoJSON
-    const feature = currentGeoRef.current || initialGeoJSON;
-    if (!feature?.geometry) {
+    // Extract ALL polygon layers currently on the map (the most reliable way)
+    const allFeatures: GeoJSON.Feature[] = [];
+    map.eachLayer((l: any) => {
+      if (!l.getLatLngs || l._url) return; // skip tiles
+      const geo = extractCoordsFromLayer(l);
+      if (geo) allFeatures.push(geo);
+    });
+
+    if (allFeatures.length === 0) {
+      if (initialGeoJSON?.geometry) { await doSave(initialGeoJSON); return; }
       alert("No hay poligono para guardar");
       return;
     }
+
+    // Merge multiple polygons into one Feature
+    const feature: GeoJSON.Feature = allFeatures.length === 1
+      ? allFeatures[0]
+      : {
+          type: "Feature",
+          geometry: {
+            type: "MultiPolygon",
+            coordinates: allFeatures.map(f => (f.geometry as any).coordinates as any),
+          } as any,
+          properties: {},
+        };
     await doSave(feature);
   };
 
@@ -150,8 +169,8 @@ function extractCoordsFromLayer(layer: any): GeoJSON.Feature | null {
     if (rings.length === 0 || rings[0].length < 3) return null;
 
     const geometry = rings.length === 1
-      ? { type: "Polygon" as const, coordinates: rings[0] }
-      : { type: "MultiPolygon" as const, coordinates: rings };
+      ? { type: "Polygon" as const, coordinates: [rings[0]] }
+      : { type: "MultiPolygon" as const, coordinates: rings.map((r: number[][]) => [r]) };
 
     return { type: "Feature", geometry: geometry as any, properties: {} };
   } catch { return null; }

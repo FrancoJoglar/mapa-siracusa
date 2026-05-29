@@ -53,6 +53,8 @@ describe("extractCoordsFromLayer", () => {
     const r = extractCoordsFromLayer(layer);
     expect(r?.geometry.type).toBe("MultiPolygon");
     expect((r!.geometry as any).coordinates).toHaveLength(2);
+    // Each polygon must have at least 3 coordinates
+    expect((r!.geometry as any).coordinates[0][0]).toHaveLength(5);
   });
 
   it("rechaza layer sin coordenadas", () => {
