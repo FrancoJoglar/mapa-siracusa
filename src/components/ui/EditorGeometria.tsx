@@ -65,8 +65,8 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
             style={{ height: "100%", width: "100%" }}
           >
             <TileLayer
-              attribution='&copy; OpenStreetMap contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; Esri'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             />
             {!fetching && (
               <GeomanEditor
