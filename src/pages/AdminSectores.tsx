@@ -12,6 +12,7 @@ export default function AdminSectores() {
   const [editing, setEditing] = useState<Sector | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
+  const [clickLog, setClickLog] = useState<string>("");
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
   const [search, setSearch] = useState("");
 
@@ -66,7 +67,11 @@ export default function AdminSectores() {
     <div style={{ maxWidth: "95%", margin: "24px auto", padding: "0 16px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <h2 style={{ margin: 0 }}>Sectores de Riego ({sectores.length})</h2>
-        <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>+ Nuevo Sector</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <span style={{ fontSize: 12, color: "#666", alignSelf: "center" }}>Click: {clickLog || "ninguno"}</span>
+          <button onClick={() => { setSelectedSectorId("test"); setClickLog("test"); }} style={btnSm}>Test</button>
+          <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>+ Nuevo Sector</button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
@@ -99,6 +104,10 @@ export default function AdminSectores() {
         {selectedSectorId && <span style={{ marginLeft: 12, color: "#1565c0" }}>Seleccionado: {selectedSector?.codigo ?? "?"}</span>}
       </p>
 
+      <div style={{ marginBottom: 8, padding: 8, background: "#fff3e0", borderRadius: 4, fontSize: 12 }}>
+        DEBUG: selectedSectorId={selectedSectorId ?? "null"} | cuarteles={cuarteles.length} | loadingCuarteles={String(loadingCuarteles)}
+      </div>
+
       <div style={{ maxHeight: "calc(100vh - 240px)", overflow: "auto" }}>
         <table style={tableStyle}>
           <thead>
@@ -115,7 +124,7 @@ export default function AdminSectores() {
               return (
               <tr
                 key={s.id}
-                onClick={() => setSelectedSectorId(isSelected ? null : s.id)}
+                onClick={() => { setClickLog(s.codigo); setSelectedSectorId(isSelected ? null : s.id); }}
                 style={{ cursor: "pointer", backgroundColor: isSelected ? "#e3f2fd" : undefined }}
               >
                 <td><strong>{s.codigo}</strong></td>
@@ -139,13 +148,13 @@ export default function AdminSectores() {
         </table>
       </div>
 
-      {selectedSector && (
+      {selectedSectorId && (
         <div style={{
           marginTop: 12, padding: "12px 16px", borderRadius: 6,
           border: "1px solid #90caf9", backgroundColor: "#f5faff",
         }}>
           <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
-            Sector: {selectedSector.codigo}
+            Sector: {selectedSector?.codigo ?? "Cargando..."}
           </div>
           {loadingCuarteles ? (
             <p style={{ margin: 0, fontSize: 12, color: "#999" }}>Cargando cuarteles...</p>
