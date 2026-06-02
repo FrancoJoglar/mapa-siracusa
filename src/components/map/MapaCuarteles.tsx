@@ -27,7 +27,7 @@ const FILTROS_VACIOS: FiltrosCuartel = {
   equipo: "", sector: "", jefeCampo: "",
 };
 
-type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions; kind: 'cuartel' | 'sector' };
+type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions; kind: 'cuartel' | 'sector'; label?: string };
 type LayersMap = Map<string, LayerEntry>;
 
 export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Props) {
@@ -37,6 +37,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
   const [satelite, setSatelite] = useState(true);
   const [medir, setMedir] = useState(false);
+  const [mostrarLabels, setMostrarLabels] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
@@ -45,9 +46,22 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   useEffect(() => { selectedRef.current = selectedId; }, [selectedId]);
 
   // Register a layer with its base style
-  const registerLayer = useCallback((id: string, layer: L.Path, baseStyle: L.PathOptions, kind: 'cuartel' | 'sector' = 'cuartel') => {
-    layersRef.current.set(id, { layer, baseStyle, kind });
+  const registerLayer = useCallback((id: string, layer: L.Path, baseStyle: L.PathOptions, kind: 'cuartel' | 'sector' = 'cuartel', label?: string) => {
+    layersRef.current.set(id, { layer, baseStyle, kind, label });
   }, []);
+
+  // Toggle permanent labels on/off
+  useEffect(() => {
+    layersRef.current.forEach(({ layer, kind, label }) => {
+      if (kind === 'cuartel') {
+        if (mostrarLabels && label) {
+          layer.bindTooltip(label, { direction: "center", permanent: true, className: "cuartel-tooltip", opacity: 0.9, interactive: false });
+        } else {
+          layer.unbindTooltip();
+        }
+      }
+    });
+  }, [mostrarLabels]);
 
   // Unified painting: iterates all registered layers and applies correct style
   const pintarCapas = useCallback(() => {
@@ -243,6 +257,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
           <ToggleVista vista={vista} onChange={cambiarVista} />
           <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
           <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
+          <ToggleLabels visible={mostrarLabels} onToggle={() => setMostrarLabels(!mostrarLabels)} />
           {medir && <MedirControls />}
 
           {vista === "cuarteles" && (
@@ -261,12 +276,13 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
                   color: "#333", weight: 1, fillOpacity: 0.7, opacity: 0.6,
                 };
                 layer.setStyle(baseStyle);
-                registerLayer(fId, layer, baseStyle, 'cuartel');
                 if (c) {
                   const supLabel = c.superficie_ha ? `${c.superficie_ha} ha` : '';
                   const label = supLabel ? `${c.nombre} - ${supLabel}` : c.nombre;
-                  layer.bindTooltip(label, { direction: "center", permanent: true, className: "cuartel-tooltip", opacity: 0.9, interactive: false });
+                  registerLayer(fId, layer, baseStyle, 'cuartel', label);
                   layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
+                } else {
+                  registerLayer(fId, layer, baseStyle, 'cuartel');
                 }
                 layer.on("mouseover", () => setHighlightedId(fId));
                 layer.on("mouseout", () => setHighlightedId(null));
@@ -290,11 +306,12 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
                     color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5,
                     fillColor: "#fff", interactive: false,
                   });
-                  registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
                   if (c) {
                     const supLabel = c.superficie_ha ? `${c.superficie_ha} ha` : '';
                     const label = supLabel ? `${c.nombre} - ${supLabel}` : c.nombre;
-                    layer.bindTooltip(label, { direction: "center", permanent: true, className: "cuartel-tooltip", opacity: 0.9, interactive: false });
+                    registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel', label);
+                  } else {
+                    registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
                   }
                 }}
               />
@@ -472,6 +489,19 @@ function ToggleMedir({ visible, onToggle }: { visible: boolean; onToggle: () => 
           padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
           background: visible ? "#2e7d32" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
         }}>Medir</button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleLabels({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 200 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          background: visible ? "#e65100" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
+        }}>Labels</button>
       </div>
     </div>
   );
