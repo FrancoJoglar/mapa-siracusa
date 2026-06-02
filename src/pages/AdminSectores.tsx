@@ -1,16 +1,26 @@
 import { useState, useMemo } from "react";
 import { useSectores } from "../hooks/useSectores";
 import { useEquipos } from "../hooks/useEquipos";
+import { useCuarteles } from "../hooks/useCuarteles";
 import { Sector } from "../lib/types";
 import FormularioSector from "../components/sectores/FormularioSector";
 
 export default function AdminSectores() {
   const { sectores, loading, error, createSector, updateSector, deleteSector, fetchGeometriaSector } = useSectores();
   const { equipos } = useEquipos();
+  const { cuarteles } = useCuarteles();
   const [editing, setEditing] = useState<Sector | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
   const [search, setSearch] = useState("");
+
+  const selectedSector = selectedSectorId ? sectores.find(s => s.id === selectedSectorId) : null;
+
+  const cuartelesDelSector = useMemo(
+    () => cuarteles.filter(c => c.sector_ids?.includes(selectedSectorId ?? "_")),
+    [cuarteles, selectedSectorId]
+  );
 
   const getEquipoNombre = (equipoId: string) =>
     equipos.find(e => e.id === equipoId)?.nombre || "";
@@ -99,8 +109,14 @@ export default function AdminSectores() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map(s => (
-              <tr key={s.id}>
+            {filtered.map(s => {
+              const isSelected = selectedSectorId === s.id;
+              return (
+              <tr
+                key={s.id}
+                onClick={() => setSelectedSectorId(isSelected ? null : s.id)}
+                style={{ cursor: "pointer", backgroundColor: isSelected ? "#e3f2fd" : undefined }}
+              >
                 <td><strong>{s.codigo}</strong></td>
                 <td>{getEquipoNombre(s.equipo_id)}</td><td>{s.numero}</td>
                 <td>{s.hectareas ?? ""}</td><td>{s.especie}</td><td>{s.variedad}</td>
@@ -108,18 +124,49 @@ export default function AdminSectores() {
                 <td>{s.filtro}</td><td>{s.anio ?? ""}</td><td>{s.jefe_campo}</td>
                 <td>{s.m3_ha ?? ""}</td>
                 <td>
-                  <button onClick={() => { setEditing(s); setShowForm(true); }} style={btnSm}>Editar</button>{" "}
-                  <button onClick={() => { if (confirm(`Eliminar ${s.codigo}?`)) deleteSector(s.id); }}
+                  <button onClick={e => { e.stopPropagation(); setEditing(s); setShowForm(true); }} style={btnSm}>Editar</button>{" "}
+                  <button onClick={e => { e.stopPropagation(); if (confirm(`Eliminar ${s.codigo}?`)) deleteSector(s.id); }}
                     style={{ ...btnSm, color: "#c62828" }}>Eliminar</button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {filtered.length === 0 && (
               <tr><td colSpan={12} style={{ textAlign: "center", color: "#999" }}>Sin resultados.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {selectedSector && (
+        <div style={{
+          marginTop: 12, padding: "12px 16px", borderRadius: 6,
+          border: "1px solid #90caf9", backgroundColor: "#f5faff",
+        }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
+            Sector: {selectedSector.codigo}
+          </div>
+          {cuartelesDelSector.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 12, color: "#999" }}>Sin cuarteles vinculados.</p>
+          ) : (
+            <>
+              <p style={{ margin: "0 0 4px", fontSize: 12, color: "#555" }}>
+                Cuarteles vinculados ({cuartelesDelSector.length}):
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {cuartelesDelSector.map(c => (
+                  <span key={c.id} style={{
+                    padding: "3px 10px", borderRadius: 12, fontSize: 12,
+                    backgroundColor: "#e3f2fd", border: "1px solid #90caf9",
+                  }}>
+                    {c.nombre}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {showForm && (
         <FormularioSector
