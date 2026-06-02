@@ -280,6 +280,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
                   const supLabel = c.superficie_ha ? `${c.superficie_ha} ha` : '';
                   const label = supLabel ? `${c.nombre} - ${supLabel}` : c.nombre;
                   registerLayer(fId, layer, baseStyle, 'cuartel', label);
+                  if (mostrarLabels) {
+                    layer.bindTooltip(label, { direction: "center", permanent: true, className: "cuartel-tooltip", opacity: 0.9, interactive: false });
+                  }
                   layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
                 } else {
                   registerLayer(fId, layer, baseStyle, 'cuartel');
@@ -310,6 +313,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
                     const supLabel = c.superficie_ha ? `${c.superficie_ha} ha` : '';
                     const label = supLabel ? `${c.nombre} - ${supLabel}` : c.nombre;
                     registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel', label);
+                    if (mostrarLabels) {
+                      layer.bindTooltip(label, { direction: "center", permanent: true, className: "cuartel-tooltip", opacity: 0.9, interactive: false });
+                    }
                   } else {
                     registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
                   }
