@@ -27,7 +27,7 @@ const FILTROS_VACIOS: FiltrosCuartel = {
   equipo: "", sector: "", jefeCampo: "",
 };
 
-type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions };
+type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions; kind: 'cuartel' | 'sector' };
 type LayersMap = Map<string, LayerEntry>;
 
 export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Props) {
@@ -45,23 +45,32 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
   useEffect(() => { selectedRef.current = selectedId; }, [selectedId]);
 
   // Register a layer with its base style
-  const registerLayer = useCallback((id: string, layer: L.Path, baseStyle: L.PathOptions) => {
-    layersRef.current.set(id, { layer, baseStyle });
+  const registerLayer = useCallback((id: string, layer: L.Path, baseStyle: L.PathOptions, kind: 'cuartel' | 'sector' = 'cuartel') => {
+    layersRef.current.set(id, { layer, baseStyle, kind });
   }, []);
 
   // Unified painting: iterates all registered layers and applies correct style
   const pintarCapas = useCallback(() => {
-    layersRef.current.forEach(({ layer, baseStyle }, id) => {
+    const isSectorSelected = selectedId && sectores.some(s => s.id === selectedId);
+
+    layersRef.current.forEach(({ layer, baseStyle, kind }, id) => {
       if (id === selectedId) {
         layer.setStyle({ ...baseStyle, weight: 4, color: "#e65100", fillOpacity: 0.85, opacity: 0.9 });
         layer.bringToFront();
+      } else if (isSectorSelected && kind === 'cuartel') {
+        const cuartel = cuarteles.find(c => c.id === id);
+        if (cuartel?.sector_ids?.includes(selectedId)) {
+          layer.setStyle({ ...baseStyle, weight: 2, color: "#e65100", opacity: 1, fillOpacity: 0.75 });
+        } else {
+          layer.setStyle({ ...baseStyle, fillOpacity: 0.08, opacity: 0.2, weight: 0.5, color: "#ccc" });
+        }
       } else if (id === highlightedId) {
         layer.setStyle({ ...baseStyle, weight: 3, color: "#ff9800", fillOpacity: 0.8, opacity: 0.9 });
       } else {
         layer.setStyle(baseStyle);
       }
     });
-  }, [selectedId, highlightedId]);
+  }, [selectedId, highlightedId, sectores, cuarteles]);
 
   useEffect(() => { pintarCapas(); }, [pintarCapas]);
 
@@ -252,9 +261,11 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
                   color: "#333", weight: 1, fillOpacity: 0.7, opacity: 0.6,
                 };
                 layer.setStyle(baseStyle);
-                registerLayer(fId, layer, baseStyle);
+                registerLayer(fId, layer, baseStyle, 'cuartel');
                 if (c) {
-                  layer.bindTooltip(c.nombre || "", { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
+                  const supLabel = c.superficie_ha ? `${c.superficie_ha} ha` : '';
+                  const label = supLabel ? `${c.nombre} - ${supLabel}` : c.nombre;
+                  layer.bindTooltip(label, { direction: "center", permanent: true, className: "cuartel-tooltip", opacity: 0.9, interactive: false });
                   layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
                 }
                 layer.on("mouseover", () => setHighlightedId(fId));
@@ -268,17 +279,38 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
           )}
 
           {vista === "sectores" && (
-            <SectoresLayer
-              key={filteredSectores.map(s => s.id).join('-') || 'empty'}
-              data={geoJsonSectores}
-              sectores={sectores}
-              onFitBounds={setFitBounds}
-              registerLayer={registerLayer}
-              selectedRef={selectedRef}
-              setSelected={setSelectedId}
-              setHighlighted={setHighlightedId}
-              clearLayers={() => layersRef.current.clear()}
-            />
+            <>
+              <GeoJSON
+                key={`cuarteles-bg-${filteredCuarteles.length}`}
+                data={geoJsonCuarteles}
+                onEachFeature={(feature: any, layer: any) => {
+                  const c = cuarteles.find(x => x.id === feature.properties.cuartel_id);
+                  const fId = feature.properties.cuartel_id;
+                  layer.setStyle({
+                    color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5,
+                    fillColor: "#fff", interactive: false,
+                  });
+                  registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
+                  if (c) {
+                    const supLabel = c.superficie_ha ? `${c.superficie_ha} ha` : '';
+                    const label = supLabel ? `${c.nombre} - ${supLabel}` : c.nombre;
+                    layer.bindTooltip(label, { direction: "center", permanent: true, className: "cuartel-tooltip", opacity: 0.9, interactive: false });
+                  }
+                }}
+              />
+              <SectoresLayer
+                key={filteredSectores.map(s => s.id).join('-') || 'empty'}
+                data={geoJsonSectores}
+                sectores={sectores}
+                cuarteles={cuarteles}
+                onFitBounds={setFitBounds}
+                registerLayer={registerLayer}
+                selectedRef={selectedRef}
+                setSelected={setSelectedId}
+                setHighlighted={setHighlightedId}
+                clearLayers={() => layersRef.current.clear()}
+              />
+            </>
           )}
 
           {mostrarEdif && edificaciones.length > 0 && (
@@ -298,11 +330,12 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
 }
 
 // ====== SECTORES LAYER ======
-function SectoresLayer({ data, sectores, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
+function SectoresLayer({ data, sectores, cuarteles, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
   data: GeoJSON.FeatureCollection;
   sectores: SectorGeo[];
+  cuarteles?: Cuartel[];
   onFitBounds: (b: L.LatLngBounds | null) => void;
-  registerLayer: (id: string, layer: L.Path, baseStyle: L.PathOptions) => void;
+  registerLayer: (id: string, layer: L.Path, baseStyle: L.PathOptions, kind?: 'cuartel' | 'sector') => void;
   selectedRef: React.MutableRefObject<string | null>;
   setSelected: (id: string | null) => void;
   setHighlighted: (id: string | null) => void;
@@ -335,10 +368,10 @@ function SectoresLayer({ data, sectores, onFitBounds, registerLayer, selectedRef
           color: "#1565c0", weight: 3, fillOpacity: 0.5, opacity: 0.8,
         };
         layer.setStyle(baseStyle);
-        registerLayer(fId, layer, baseStyle);
+        registerLayer(fId, layer, baseStyle, 'sector');
         if (s) {
           layer.bindTooltip(s.codigo, { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
-          layer.bindPopup(popupSectorHtml(s), { maxWidth: 300 });
+          layer.bindPopup(popupSectorHtml(s, cuarteles || []), { maxWidth: 300 });
         }
         layer.on("mouseover", () => setHighlighted(fId));
         layer.on("mouseout", () => setHighlighted(null));
@@ -377,7 +410,7 @@ function popupCuartelHtml(c: Cuartel): string {
   return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${c.nombre}</h3><table style="width:100%">${r("Especie",c.especie)}${r("Variedad",c.variedad)}${r("Anio plantacion",c.anio_plantacion)}${supRow}${r("Plantas",c.plantas)}${r("Jefe de campo",c.jefe_campo)}${r("Centro costo",c.centro_costo)}${r("Equipo riego",c.equipo_riego)}${r("Sectores",c.sector_raw)}</table></div>`;
 }
 
-function popupSectorHtml(s: SectorGeo): string {
+function popupSectorHtml(s: SectorGeo, cuarteles: Cuartel[]): string {
   const r = (l: string, v: any) => v ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">${l}:</td><td style="padding:3px 0">${v}</td></tr>` : "";
 
   let haText = "";
@@ -390,7 +423,12 @@ function popupSectorHtml(s: SectorGeo): string {
   }
   const haRow = haText ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Hectareas:</td><td style="padding:3px 0">${haText}</td></tr>` : "";
 
-  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${r("Variedad",s.variedad)}${haRow}${r("Anio",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}</table></div>`;
+  const cuartelesDelSector = cuarteles.filter(c => c.sector_ids?.includes(s.id));
+  const cuartelesRow = cuartelesDelSector.length > 0
+    ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500;vertical-align:top">Cuarteles:</td><td style="padding:3px 0">${cuartelesDelSector.map(c => `<span style="display:inline-block;padding:1px 6px;margin:1px 2px;border-radius:8px;background:#e3f2fd;border:1px solid #90caf9;font-size:11px">${c.nombre}</span>`).join(' ')}</td></tr>`
+    : "";
+
+  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${r("Variedad",s.variedad)}${haRow}${r("Anio",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}${cuartelesRow}</table></div>`;
 }
 
 // ====== CONTROLS ======

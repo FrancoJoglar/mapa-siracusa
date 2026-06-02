@@ -29,6 +29,27 @@ body {
   border-top-color: rgba(0, 0, 0, 0.75);
 }
 
+/* Permanent labels inside polygons — subtle white bg, dark text, no arrow */
+.cuartel-tooltip.leaflet-tooltip-top::before,
+.cuartel-tooltip.leaflet-tooltip-bottom::before,
+.cuartel-tooltip.leaflet-tooltip-left::before,
+.cuartel-tooltip.leaflet-tooltip-right::before {
+  display: none;
+}
+.cuartel-tooltip[permanent],
+.cuartel-tooltip.leaflet-permanent {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  border-radius: 3px !important;
+  color: #333 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  padding: 1px 5px !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+  white-space: nowrap;
+}
+
 table {
   border-collapse: collapse;
 }
