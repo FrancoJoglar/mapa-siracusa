@@ -1,54 +1,26 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useSectores } from "../hooks/useSectores";
 import { useEquipos } from "../hooks/useEquipos";
-import { supabase } from "../lib/supabase";
+import { useCuarteles } from "../hooks/useCuarteles";
 import { Sector } from "../lib/types";
 import FormularioSector from "../components/sectores/FormularioSector";
 
 export default function AdminSectores() {
   const { sectores, loading, error, createSector, updateSector, deleteSector, fetchGeometriaSector } = useSectores();
   const { equipos } = useEquipos();
+  const { cuarteles, loading: loadingCuarteles } = useCuarteles();
   const [editing, setEditing] = useState<Sector | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
-  const [cuartelesDelSector, setCuartelesDelSector] = useState<{ id: string; nombre: string }[]>([]);
-  const [loadingCuarteles, setLoadingCuarteles] = useState(false);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
   const [search, setSearch] = useState("");
 
   const selectedSector = selectedSectorId ? sectores.find(s => s.id === selectedSectorId) : null;
 
-  useEffect(() => {
-    if (!selectedSectorId) {
-      setCuartelesDelSector([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setLoadingCuarteles(true);
-      const { data: relations, error: relErr } = await supabase
-        .from("cuartel_sector")
-        .select("cuartel_id")
-        .eq("sector_id", selectedSectorId);
-      if (cancelled) return;
-      if (relErr || !relations || relations.length === 0) {
-        setCuartelesDelSector([]);
-        setLoadingCuarteles(false);
-        return;
-      }
-      const ids = relations.map(r => r.cuartel_id);
-      const { data: cuarteles } = await supabase
-        .from("cuarteles")
-        .select("id, nombre")
-        .in("id", ids)
-        .order("nombre");
-      if (!cancelled) {
-        setCuartelesDelSector(cuarteles || []);
-        setLoadingCuarteles(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [selectedSectorId]);
+  const cuartelesDelSector = useMemo(
+    () => cuarteles.filter(c => c.sector_ids?.includes(selectedSectorId ?? "_")),
+    [cuarteles, selectedSectorId]
+  );
 
   const getEquipoNombre = (equipoId: string) =>
     equipos.find(e => e.id === equipoId)?.nombre || "";
@@ -176,8 +148,14 @@ export default function AdminSectores() {
           </div>
           {loadingCuarteles ? (
             <p style={{ margin: 0, fontSize: 12, color: "#999" }}>Cargando cuarteles...</p>
+          ) : cuarteles.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 12, color: "#c62828" }}>
+              No se pudieron cargar los cuarteles.
+            </p>
           ) : cuartelesDelSector.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 12, color: "#999" }}>Sin cuarteles vinculados.</p>
+            <p style={{ margin: 0, fontSize: 12, color: "#999" }}>
+              Sin cuarteles vinculados ({cuarteles.length} cuarteles cargados).
+            </p>
           ) : (
             <>
               <p style={{ margin: "0 0 4px", fontSize: 12, color: "#555" }}>
