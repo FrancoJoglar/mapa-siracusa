@@ -96,6 +96,7 @@ export default function AdminSectores() {
 
       <p style={{ color: "#666", fontSize: 13, marginBottom: 8 }}>
         Mostrando {filtered.length} de {sectores.length} sectores.
+        {selectedSectorId && <span style={{ marginLeft: 12, color: "#1565c0" }}>Seleccionado: {selectedSector?.codigo ?? "?"}</span>}
       </p>
 
       <div style={{ maxHeight: "calc(100vh - 240px)", overflow: "auto" }}>
