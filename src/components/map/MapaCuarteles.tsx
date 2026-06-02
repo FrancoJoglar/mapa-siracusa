@@ -57,6 +57,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
       if (id === selectedId) {
         layer.setStyle({ ...baseStyle, weight: 4, color: "#e65100", fillOpacity: 0.85, opacity: 0.9 });
         layer.bringToFront();
+      } else if (id === highlightedId) {
+        layer.setStyle({ ...baseStyle, weight: 3, color: "#ff9800", fillOpacity: 0.8, opacity: 0.9 });
       } else if (isSectorSelected && kind === 'cuartel') {
         const cuartel = cuarteles.find(c => c.id === id);
         if (cuartel?.sector_ids?.includes(selectedId)) {
@@ -64,8 +66,6 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
         } else {
           layer.setStyle({ ...baseStyle, fillOpacity: 0.08, opacity: 0.2, weight: 0.5, color: "#ccc" });
         }
-      } else if (id === highlightedId) {
-        layer.setStyle({ ...baseStyle, weight: 3, color: "#ff9800", fillOpacity: 0.8, opacity: 0.9 });
       } else {
         layer.setStyle(baseStyle);
       }
@@ -291,6 +291,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
                   });
                   if (c) {
                     registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
+                    layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
                   } else {
                     registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
                   }
@@ -319,6 +320,14 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
           )}
 
           {fitBounds && <FlyToBounds bounds={fitBounds} />}
+          {vista === "sectores" && selectedId && (
+            <PanelCuartelesSector
+              cuarteles={cuarteles}
+              sectores={sectores}
+              selectedSectorId={selectedId}
+              layersRef={layersRef}
+            />
+          )}
           <Leyenda />
           {vista === "cuarteles" && <BuscadorCuartel cuarteles={cuarteles} />}
         </MapContainer>
@@ -471,6 +480,57 @@ function ToggleMedir({ visible, onToggle }: { visible: boolean; onToggle: () => 
           background: visible ? "#2e7d32" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
         }}>Medir</button>
       </div>
+    </div>
+  );
+}
+
+function PanelCuartelesSector({ cuarteles, sectores, selectedSectorId, layersRef }: {
+  cuarteles: Cuartel[];
+  sectores: SectorGeo[];
+  selectedSectorId: string;
+  layersRef: React.MutableRefObject<LayersMap>;
+}) {
+  const map = useMap();
+
+  const sector = sectores.find(s => s.id === selectedSectorId);
+  const cuartelesDelSector = cuarteles.filter(c => c.sector_ids?.includes(selectedSectorId));
+
+  const focusCuartel = (cuartelId: string) => {
+    const entry = layersRef.current.get(cuartelId);
+    if (!entry) return;
+    try {
+      const bounds = (entry.layer as any).getBounds();
+      if (bounds?.isValid()) map.flyToBounds(bounds, { padding: [80, 80], maxZoom: 16 });
+    } catch {}
+    try { entry.layer.openPopup(); } catch {}
+  };
+
+  if (!sector || cuartelesDelSector.length === 0) return null;
+
+  return (
+    <div style={{
+      position: "absolute", bottom: 30, left: 10, zIndex: 1000,
+      background: "white", padding: "8px 12px", borderRadius: 6,
+      boxShadow: "0 1px 5px rgba(0,0,0,0.2)", fontSize: 12,
+      maxHeight: 300, overflowY: "auto", minWidth: 180,
+    }}>
+      <strong style={{ display: "block", marginBottom: 6 }}>{sector.codigo}</strong>
+      {cuartelesDelSector.map(c => (
+        <div
+          key={c.id}
+          onClick={() => focusCuartel(c.id)}
+          style={{
+            display: "flex", alignItems: "center", gap: 6, marginBottom: 3,
+            padding: "3px 6px", borderRadius: 4, cursor: "pointer",
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = "#e3f2fd")}
+          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+        >
+          <span style={{ width: 10, height: 10, backgroundColor: colorPorEspecie(c.especie), borderRadius: "50%", flexShrink: 0 }} />
+          {c.nombre}
+        </div>
+      ))}
     </div>
   );
 }
