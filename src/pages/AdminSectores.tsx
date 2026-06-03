@@ -12,7 +12,6 @@ export default function AdminSectores() {
   const [editing, setEditing] = useState<Sector | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
-  const [clickLog, setClickLog] = useState<string>("");
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
   const [search, setSearch] = useState("");
 
@@ -68,8 +67,6 @@ export default function AdminSectores() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <h2 style={{ margin: 0 }}>Sectores de Riego ({sectores.length})</h2>
         <div style={{ display: "flex", gap: 8 }}>
-          <span style={{ fontSize: 12, color: "#666", alignSelf: "center" }}>Click: {clickLog || "ninguno"}</span>
-          <button onClick={() => { setSelectedSectorId("test"); setClickLog("test"); }} style={btnSm}>Test</button>
           <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>+ Nuevo Sector</button>
         </div>
       </div>
@@ -104,10 +101,6 @@ export default function AdminSectores() {
         {selectedSectorId && <span style={{ marginLeft: 12, color: "#1565c0" }}>Seleccionado: {selectedSector?.codigo ?? "?"}</span>}
       </p>
 
-      <div style={{ marginBottom: 8, padding: 8, background: "#fff3e0", borderRadius: 4, fontSize: 12 }}>
-        DEBUG: selectedSectorId={selectedSectorId ?? "null"} | cuarteles={cuarteles.length} | loadingCuarteles={String(loadingCuarteles)}
-      </div>
-
       <div style={{ maxHeight: "calc(100vh - 240px)", overflow: "auto" }}>
         <table style={tableStyle}>
           <thead>
@@ -124,7 +117,7 @@ export default function AdminSectores() {
               return (
               <tr
                 key={s.id}
-                onClick={() => { setClickLog(s.codigo); setSelectedSectorId(isSelected ? null : s.id); }}
+                onClick={() => { setSelectedSectorId(isSelected ? null : s.id); }}
                 style={{ cursor: "pointer", backgroundColor: isSelected ? "#e3f2fd" : undefined }}
               >
                 <td><strong>{s.codigo}</strong></td>
