@@ -409,7 +409,7 @@ function popupCuartelHtml(c: Cuartel): string {
   return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${c.nombre}</h3><table style="width:100%">${r("Especie",c.especie)}${r("Variedad",c.variedad)}${r("Anio plantacion",c.anio_plantacion)}${supRow}${r("Plantas",c.plantas)}${r("Jefe de campo",c.jefe_campo)}${r("Centro costo",c.centro_costo)}${r("Equipo riego",c.equipo_riego)}${r("Sectores",c.sector_raw)}</table></div>`;
 }
 
-function popupSectorHtml(s: SectorGeo, cuarteles: Cuartel[]): string {
+function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[]): string {
   const r = (l: string, v: any) => v ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">${l}:</td><td style="padding:3px 0">${v}</td></tr>` : "";
 
   let haText = "";
@@ -422,12 +422,7 @@ function popupSectorHtml(s: SectorGeo, cuarteles: Cuartel[]): string {
   }
   const haRow = haText ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Hectareas:</td><td style="padding:3px 0">${haText}</td></tr>` : "";
 
-  const cuartelesDelSector = cuarteles.filter(c => c.sector_ids?.includes(s.id));
-  const cuartelesRow = cuartelesDelSector.length > 0
-    ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500;vertical-align:top">Cuarteles:</td><td style="padding:3px 0">${cuartelesDelSector.map(c => `<span style="display:inline-block;padding:1px 6px;margin:1px 2px;border-radius:8px;background:#e3f2fd;border:1px solid #90caf9;font-size:11px">${c.nombre}</span>`).join(' ')}</td></tr>`
-    : "";
-
-  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${r("Variedad",s.variedad)}${haRow}${r("Anio",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}${cuartelesRow}</table></div>`;
+  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${r("Variedad",s.variedad)}${haRow}${r("Anio",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}</table></div>`;
 }
 
 // ====== CONTROLS ======
