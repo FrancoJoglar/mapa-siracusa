@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useSectores } from "../hooks/useSectores";
 import { useEquipos } from "../hooks/useEquipos";
 import { useUnidadesRiego } from "../hooks/useUnidadesRiego";
@@ -74,7 +74,6 @@ export default function AdminSectores() {
         <h2 style={{ margin: 0 }}>Sectores de Riego ({sectores.length})</h2>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={refetchUnidades} style={btnClear} title="Refrescar unidades de riego">↻</button>
-          <span style={{ fontSize: 11, color: "#999", alignSelf: "center" }}>expandedId: {expandedId ? expandedId.slice(0, 8) + "…" : "null"}</span>
           <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>+ Nuevo Sector</button>
         </div>
       </div>
@@ -123,24 +122,62 @@ export default function AdminSectores() {
             {filtered.map(s => {
               const isExpanded = expandedId === s.id;
               return (
-              <tr key={s.id} style={{ backgroundColor: isExpanded ? "#e3f2fd" : undefined }}>
-                <td>
-                  <button onClick={() => { console.log("Toggle sector", s.id, s.codigo, "expanded:", !isExpanded); setExpandedId(isExpanded ? null : s.id); }} style={btnExpand}>
-                    {isExpanded ? "▼" : "▶"}
-                  </button>
-                </td>
-                <td><strong>{s.codigo}</strong></td>
-                <td>{getEquipoNombre(s.equipo_id)}</td><td>{s.numero}</td>
-                <td>{s.hectareas ?? ""}</td><td>{s.especie}</td><td>{s.variedad}</td>
-                <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{s.bomba}</td>
-                <td>{s.filtro}</td><td>{s.anio ?? ""}</td><td>{s.jefe_campo}</td>
-                <td>{s.m3_ha ?? ""}</td>
-                <td>
-                  <button onClick={e => { e.stopPropagation(); setEditing(s); setShowForm(true); }} style={btnSm}>Editar</button>{" "}
-                  <button onClick={e => { e.stopPropagation(); if (confirm(`Eliminar ${s.codigo}?`)) deleteSector(s.id); }}
-                    style={{ ...btnSm, color: "#c62828" }}>Eliminar</button>
-                </td>
-              </tr>
+              <React.Fragment key={s.id}>
+                <tr style={{ backgroundColor: isExpanded ? "#e3f2fd" : undefined }}>
+                  <td>
+                    <button onClick={() => setExpandedId(isExpanded ? null : s.id)} style={btnExpand}>
+                      {isExpanded ? "▼" : "▶"}
+                    </button>
+                  </td>
+                  <td><strong>{s.codigo}</strong></td>
+                  <td>{getEquipoNombre(s.equipo_id)}</td><td>{s.numero}</td>
+                  <td>{s.hectareas ?? ""}</td><td>{s.especie}</td><td>{s.variedad}</td>
+                  <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{s.bomba}</td>
+                  <td>{s.filtro}</td><td>{s.anio ?? ""}</td><td>{s.jefe_campo}</td>
+                  <td>{s.m3_ha ?? ""}</td>
+                  <td>
+                    <button onClick={e => { e.stopPropagation(); setEditing(s); setShowForm(true); }} style={btnSm}>Editar</button>{" "}
+                    <button onClick={e => { e.stopPropagation(); if (confirm(`Eliminar ${s.codigo}?`)) deleteSector(s.id); }}
+                      style={{ ...btnSm, color: "#c62828" }}>Eliminar</button>
+                  </td>
+                </tr>
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={13} style={{ padding: "8px 16px 12px 40px", background: "#fafafa", borderBottom: "1px solid #eee" }}>
+                      <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "#555" }}>
+                        Cuarteles que riega ({s.codigo})
+                      </div>
+                      {(() => {
+                        const sectorUnidades = unidadesPorSector.get(s.id) || [];
+                        if (sectorUnidades.length === 0) {
+                          return <p style={{ margin: 0, fontSize: 12, color: "#999" }}>Sin cuarteles asignados.</p>;
+                        }
+                        return (
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                            <thead>
+                              <tr>
+                                <th style={thSub}>Código</th><th style={thSub}>Cuartel</th><th style={thSub}>% Agua</th><th style={thSub}>Polígono</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sectorUnidades.map(u => (
+                                <tr key={u.id}>
+                                  <td style={tdSub}><strong>{u.codigo}</strong></td>
+                                  <td style={tdSub}>{u.cuartel_nombre}</td>
+                                  <td style={tdSub}>{u.porcentaje_agua ?? ""}</td>
+                                  <td style={tdSub}>
+                                    <button onClick={() => setEditUnidad(u)} style={btnSm}>Editar</button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        );
+                      })()}
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
               );
             })}
             {filtered.length === 0 && (
@@ -148,44 +185,6 @@ export default function AdminSectores() {
             )}
           </tbody>
         </table>
-        {filtered.map(s => expandedId === s.id && (
-          <div key={`sub-${s.id}`} style={subtableContainer}>
-            <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "#555" }}>
-              Cuarteles que riega ({s.codigo})
-            </div>
-            {(() => {
-              try {
-                const sectorUnidades = unidadesPorSector.get(s.id) || [];
-                if (sectorUnidades.length === 0) {
-                  return <p style={{ margin: 0, fontSize: 12, color: "#999" }}>Sin cuarteles asignados.</p>;
-                }
-                return (
-                  <table style={{ ...tableStyle, fontSize: 11 }}>
-                    <thead>
-                      <tr>
-                        <th>Código</th><th>Cuartel</th><th>% Agua</th><th>Polígono</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sectorUnidades.map(u => (
-                        <tr key={u.id}>
-                          <td><strong>{u.codigo}</strong></td>
-                          <td>{u.cuartel_nombre}</td>
-                          <td>{u.porcentaje_agua ?? ""}</td>
-                          <td>
-                            <button onClick={() => setEditUnidad(u)} style={btnSm}>Editar</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                );
-              } catch (e: any) {
-                return <p style={{ color: "red", fontSize: 12 }}>Error: {e.message}</p>;
-              }
-            })()}
-          </div>
-        ))}
       </div>
 
       {editUnidad && (
@@ -224,4 +223,5 @@ const btnSm: React.CSSProperties = { padding: "4px 10px", background: "none", bo
 const btnPrimary: React.CSSProperties = { padding: "8px 16px", background: "#1565c0", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 500 };
 const btnClear: React.CSSProperties = { padding: "5px 10px", border: "1px solid #ccc", borderRadius: 4, background: "#f5f5f5", cursor: "pointer", fontSize: 12 };
 const btnExpand: React.CSSProperties = { padding: "2px 6px", border: "none", background: "none", cursor: "pointer", fontSize: 11, color: "#666" };
-const subtableContainer: React.CSSProperties = { padding: "8px 16px 12px 40px", borderBottom: "1px solid #eee", background: "#fafafa" };
+const thSub: React.CSSProperties = { padding: "4px 6px", borderBottom: "1px solid #ddd", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#555" };
+const tdSub: React.CSSProperties = { padding: "4px 6px", borderBottom: "1px solid #eee", fontSize: 11 };
