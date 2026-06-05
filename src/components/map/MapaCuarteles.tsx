@@ -326,6 +326,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                 fillColor: "#ffffff",
                 color: "#d32f2f", weight: 3, fillOpacity: 0.05, opacity: 1, dashArray: "4,4",
               });
+              layer.bringToFront();
               layer.bindTooltip(feature.properties.codigo, { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
               layer.bindPopup(`<div style="font-size:13px"><strong>${feature.properties.codigo}</strong><br/>Cuartel: ${feature.properties.cuartel}<br/>Sector: ${feature.properties.sector}</div>`, { maxWidth: 250 });
             }} />
