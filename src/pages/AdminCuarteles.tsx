@@ -216,7 +216,7 @@ export default function AdminCuarteles() {
         <FormularioCuartel
           cuartel={editing}
           sectores={sectores}
-          onSave={async (data) => { await updateCuartel(editing.id, data); setShowForm(false); setEditing(null); window.location.reload(); }}
+          onSave={async (data) => { await updateCuartel(editing.id, data); setShowForm(false); setEditing(null); refetch(); }}
           onCancel={() => { setShowForm(false); setEditing(null); }}
         />
       )}

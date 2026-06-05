@@ -86,22 +86,22 @@ export function useCuarteles() {
     console.log("updateCuartel OK, sector_ids:", cuartel.sector_ids);
 
     if (cuartel.sector_ids !== undefined) {
-      console.log("updateCuartel: actualizando sectores", cuartel.sector_ids);
-      await supabase.from("cuartel_sector").delete().eq("cuartel_id", id);
+      const { error: deleteErr } = await supabase.from("cuartel_sector").delete().eq("cuartel_id", id);
+      if (deleteErr) throw deleteErr;
+
       if (cuartel.sector_ids.length > 0) {
         const inserts = cuartel.sector_ids.map((sectorId) => ({
           cuartel_id: id,
           sector_id: sectorId,
         }));
         const { error: insertErr } = await supabase.from("cuartel_sector").insert(inserts);
-        if (insertErr) console.error("Error insertando sectores:", insertErr);
+        if (insertErr) throw insertErr;
 
-        // Init unidad de riego for each new sector (copy cuartel geometry)
         for (const sectorId of cuartel.sector_ids) {
-          await supabase.rpc("init_unidad_riego", { p_cuartel_id: id, p_sector_id: sectorId });
+          const { error: rpcErr } = await supabase.rpc("init_unidad_riego", { p_cuartel_id: id, p_sector_id: sectorId });
+          if (rpcErr) console.error("Error init_unidad_riego:", rpcErr);
         }
 
-        // Re-compute equipo_riego and sector_raw from the assigned sectors
         const { data: sectoresData } = await supabase
           .from("sectores")
           .select("codigo, equipo:equipos(codigo)")
@@ -124,10 +124,9 @@ export function useCuarteles() {
           if (updateFieldErr) console.error("Error actualizando campos texto:", updateFieldErr);
         }
       } else {
-        // No sectors: clear the text fields
-        await supabase.from("cuarteles").update({ equipo_riego: null, sector_raw: null }).eq("id", id);
+        const { error: clearErr } = await supabase.from("cuarteles").update({ equipo_riego: null, sector_raw: null }).eq("id", id);
+        if (clearErr) console.error("Error limpiando campos texto:", clearErr);
       }
-      console.log("updateCuartel: sectores actualizados, refrescando...");
     }
     await fetchCuarteles();
   };

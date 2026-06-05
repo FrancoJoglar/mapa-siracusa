@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Cuartel, Sector } from "../../lib/types";
 import EditorGeometria from "../ui/EditorGeometria";
 
@@ -25,13 +25,34 @@ export default function FormularioCuartel({
   const [jefeCampo, setJefeCampo] = useState(cuartel.jefe_campo || "");
   const [centroCosto, setCentroCosto] = useState(cuartel.centro_costo || "");
   const [sectorIds, setSectorIds] = useState<string[]>(cuartel.sector_ids || []);
+  const [searchText, setSearchText] = useState("");
   const [saving, setSaving] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
 
-  const toggleSector = (id: string) => {
-    setSectorIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+  const sectoresDisponibles = useMemo(() => {
+    return sectores.filter(s => !sectorIds.includes(s.id));
+  }, [sectores, sectorIds]);
+
+  const sectoresAsignados = useMemo(() => {
+    return sectorIds.map(id => sectores.find(s => s.id === id)).filter(Boolean) as Sector[];
+  }, [sectores, sectorIds]);
+
+  const filteredDisponibles = useMemo(() => {
+    if (!searchText) return sectoresDisponibles;
+    const q = searchText.toLowerCase();
+    return sectoresDisponibles.filter(s =>
+      s.codigo.toLowerCase().includes(q) ||
+      (s.descripcion && s.descripcion.toLowerCase().includes(q))
     );
+  }, [sectoresDisponibles, searchText]);
+
+  const agregarSector = (id: string) => {
+    setSectorIds(prev => [...prev, id]);
+    setSearchText("");
+  };
+
+  const removerSector = (id: string) => {
+    setSectorIds(prev => prev.filter(x => x !== id));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -152,42 +173,70 @@ export default function FormularioCuartel({
           </Campo>
 
           <Campo label="Sectores de Riego">
-            <div
-              style={{
-                maxHeight: 150,
-                overflowY: "auto",
-                border: "1px solid #ccc",
-                borderRadius: 4,
-                padding: "6px 10px",
-              }}
-            >
-              {sectores.map((s) => (
-                <label
-                  key={s.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "4px 0",
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={sectorIds.includes(s.id)}
-                    onChange={() => toggleSector(s.id)}
-                  />
-                  <strong>{s.codigo}</strong>
-                  {s.descripcion ? ` — ${s.descripcion}` : ""}
-                </label>
-              ))}
-              {sectores.length === 0 && (
-                <p style={{ color: "#999", fontSize: 13 }}>
-                  No hay sectores creados. Andá a la sección Sectores primero.
-                </p>
-              )}
+            <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+              <input
+                type="text"
+                placeholder="Buscar sector por código o descripción..."
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+                style={{ flex: 1, ...inputStyle }}
+              />
             </div>
+            {searchText && filteredDisponibles.length > 0 && (
+              <div style={{
+                maxHeight: 150, overflowY: "auto",
+                border: "1px solid #90caf9", borderRadius: 4,
+                marginBottom: 8, background: "#f5f9ff",
+              }}>
+                {filteredDisponibles.map(s => (
+                  <div key={s.id} onClick={() => agregarSector(s.id)}
+                    style={{
+                      padding: "5px 10px", fontSize: 13, cursor: "pointer",
+                      borderBottom: "1px solid #e3f2fd",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#e3f2fd")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <strong>{s.codigo}</strong>
+                    {s.descripcion ? ` — ${s.descripcion}` : ""}
+                  </div>
+                ))}
+              </div>
+            )}
+            {searchText && filteredDisponibles.length === 0 && sectoresDisponibles.length > 0 && (
+              <p style={{ color: "#999", fontSize: 12, margin: "0 0 8px" }}>
+                Sin resultados.
+              </p>
+            )}
+            {sectores.length === 0 && (
+              <p style={{ color: "#999", fontSize: 13 }}>
+                No hay sectores creados. Andá a la sección Sectores primero.
+              </p>
+            )}
+            {sectoresAsignados.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {sectoresAsignados.map(s => (
+                  <div key={s.id} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "5px 10px", background: "#e8f5e9", borderRadius: 4, fontSize: 13,
+                  }}>
+                    <span><strong>{s.codigo}</strong>{s.descripcion ? ` — ${s.descripcion}` : ""}</span>
+                    <button type="button" onClick={() => removerSector(s.id)}
+                      style={{
+                        background: "none", border: "none", color: "#c62828",
+                        cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 4px",
+                      }}
+                      title="Quitar sector"
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {sectorIds.length === 0 && (
+              <p style={{ color: "#999", fontSize: 12, margin: 0 }}>
+                Ningún sector asignado. Buscá arriba y agregalos.
+              </p>
+            )}
           </Campo>
 
           <div
