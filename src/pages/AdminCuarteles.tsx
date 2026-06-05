@@ -23,11 +23,11 @@ export default function AdminCuarteles() {
   const handleNuevoCuartel = async () => {
     try {
       const { data, error: err } = await supabase
-        .rpc("create_cuartel_placeholder", { c_nombre: "Nuevo Cuartel" });
+        .rpc("create_cuartel_placeholder", { c_nombre: "Nuevo Cuartel " + Date.now() });
       if (err) throw err;
       if (data) {
         const nuevo: Cuartel = {
-          id: data, nombre: "Nuevo Cuartel",
+          id: data, nombre: "Nuevo Cuartel " + Date.now(),
           especie: "", variedad: "", anio_plantacion: null,
           superficie_ha: null, plantas: null, polinizante: "",
           jefe_campo: "", centro_costo: "",
