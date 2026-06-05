@@ -124,7 +124,7 @@ export default function AdminSectores() {
               return (
               <tr key={s.id} style={{ backgroundColor: isExpanded ? "#e3f2fd" : undefined }}>
                 <td>
-                  <button onClick={() => setExpandedId(isExpanded ? null : s.id)} style={btnExpand}>
+                  <button onClick={() => { console.log("Toggle sector", s.id, s.codigo, "expanded:", !isExpanded); setExpandedId(isExpanded ? null : s.id); }} style={btnExpand}>
                     {isExpanded ? "▼" : "▶"}
                   </button>
                 </td>
@@ -153,31 +153,35 @@ export default function AdminSectores() {
               Cuarteles que riega ({s.codigo})
             </div>
             {(() => {
-              const sectorUnidades = unidadesPorSector.get(s.id) || [];
-              if (sectorUnidades.length === 0) {
-                return <p style={{ margin: 0, fontSize: 12, color: "#999" }}>Sin cuarteles asignados.</p>;
-              }
-              return (
-                <table style={{ ...tableStyle, fontSize: 11 }}>
-                  <thead>
-                    <tr>
-                      <th>Código</th><th>Cuartel</th><th>% Agua</th><th>Polígono</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sectorUnidades.map(u => (
-                      <tr key={u.id}>
-                        <td><strong>{u.codigo}</strong></td>
-                        <td>{u.cuartel_nombre}</td>
-                        <td>{u.porcentaje_agua ?? ""}</td>
-                        <td>
-                          <button onClick={() => setEditUnidad(u)} style={btnSm}>Editar</button>
-                        </td>
+              try {
+                const sectorUnidades = unidadesPorSector.get(s.id) || [];
+                if (sectorUnidades.length === 0) {
+                  return <p style={{ margin: 0, fontSize: 12, color: "#999" }}>Sin cuarteles asignados.</p>;
+                }
+                return (
+                  <table style={{ ...tableStyle, fontSize: 11 }}>
+                    <thead>
+                      <tr>
+                        <th>Código</th><th>Cuartel</th><th>% Agua</th><th>Polígono</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              );
+                    </thead>
+                    <tbody>
+                      {sectorUnidades.map(u => (
+                        <tr key={u.id}>
+                          <td><strong>{u.codigo}</strong></td>
+                          <td>{u.cuartel_nombre}</td>
+                          <td>{u.porcentaje_agua ?? ""}</td>
+                          <td>
+                            <button onClick={() => setEditUnidad(u)} style={btnSm}>Editar</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              } catch (e: any) {
+                return <p style={{ color: "red", fontSize: 12 }}>Error: {e.message}</p>;
+              }
             })()}
           </div>
         ))}
