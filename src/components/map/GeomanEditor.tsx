@@ -7,13 +7,14 @@ const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 interface Props {
   initialGeoJSON?: GeoJSON.Feature | null;
-  table?: "cuarteles" | "sectores";
+  table?: "cuarteles" | "sectores" | "cuartel_sector";
   entityId?: string;
+  where?: string;
   readOnly?: boolean;
   onClose?: () => void;
 }
 
-export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly = false, onClose }: Props) {
+export default function GeomanEditor({ initialGeoJSON, table, entityId, where, readOnly = false, onClose }: Props) {
   const map = useMap();
   const setupDone = useRef(false);
   const [saving, setSaving] = useState(false);
@@ -104,11 +105,14 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, readOnly
   };
 
   const doSave = async (feature: GeoJSON.Feature) => {
-    if (!table || !entityId) { alert("Faltan datos de guardado"); return; }
+    if (!table) { alert("Faltan datos de guardado"); return; }
+    if (!entityId && !where) { alert("Falta identificador del poligono"); return; }
     const geometry = (feature as any)?.geometry || feature;
     if (!geometry?.type || !geometry?.coordinates) { alert("Geometria invalida"); return; }
 
-    const url = `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}`;
+    const url = where
+      ? `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?${where}`
+      : `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}`;
     setSaving(true);
     try {
       const resp = await fetch(url, {

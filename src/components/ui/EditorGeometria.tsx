@@ -9,12 +9,13 @@ import { supabase } from "../../lib/supabase";
 
 interface Props {
   geojson: Feature | null;
-  table: "cuarteles" | "sectores";
-  entityId: string;
+  table: "cuarteles" | "sectores" | "cuartel_sector";
+  entityId?: string;
+  where?: string;
   onCancel: () => void;
 }
 
-export default function EditorGeometria({ geojson, table, entityId, onCancel }: Props) {
+export default function EditorGeometria({ geojson, table, entityId, where, onCancel }: Props) {
   const [resolvedGeo, setResolvedGeo] = useState<Feature | null>(null);
   const [fetching, setFetching] = useState(false);
 
@@ -26,18 +27,33 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
     setFetching(true);
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from(table)
-          .select("geometria")
-          .eq("id", entityId)
-          .single();
-        if (!error && data?.geometria) {
-          setResolvedGeo({ type: "Feature", geometry: data.geometria, properties: {} });
+        if (table === "cuartel_sector" && where) {
+          const params = Object.fromEntries(where.split("&").map(p => {
+            const [k, v] = p.split("=eq.");
+            return [k, v];
+          }));
+          let q = supabase.from(table).select("geometria");
+          for (const [col, val] of Object.entries(params)) {
+            q = q.eq(col as any, val);
+          }
+          const { data, error } = await q.single();
+          if (!error && data?.geometria) {
+            setResolvedGeo({ type: "Feature", geometry: data.geometria, properties: {} });
+          }
+        } else if (entityId) {
+          const { data, error } = await supabase
+            .from(table)
+            .select("geometria")
+            .eq("id", entityId)
+            .single();
+          if (!error && data?.geometria) {
+            setResolvedGeo({ type: "Feature", geometry: data.geometria, properties: {} });
+          }
         }
       } catch {}
       finally { setFetching(false); }
     })();
-  }, [geojson, table, entityId]);
+  }, [geojson, table, entityId, where]);
 
   const initialGeo = resolvedGeo;
 
@@ -73,6 +89,7 @@ export default function EditorGeometria({ geojson, table, entityId, onCancel }: 
                 initialGeoJSON={initialGeo}
                 table={table}
                 entityId={entityId}
+                where={where}
                 onClose={onCancel}
               />
             )}

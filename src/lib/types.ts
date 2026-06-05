@@ -71,6 +71,18 @@ export interface SectorGeo {
   geojson?: Feature;
 }
 
+export interface UnidadRiego {
+  id: string;
+  codigo: string;
+  cuartel_id: string;
+  cuartel_nombre: string;
+  sector_id: string;
+  sector_codigo: string;
+  especie: string;
+  porcentaje_agua: number | null;
+  geojson?: Feature;
+}
+
 export interface Edificacion {
   id: string;
   nombre: string;

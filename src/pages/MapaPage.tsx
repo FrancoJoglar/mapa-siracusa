@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Cuartel, Edificacion, SectorGeo } from "../lib/types";
+import { Cuartel, Edificacion, SectorGeo, UnidadRiego } from "../lib/types";
 import MapaCuarteles from "../components/map/MapaCuarteles";
 
 export default function MapaPage() {
   const [cuarteles, setCuarteles] = useState<Cuartel[]>([]);
   const [sectores, setSectores] = useState<SectorGeo[]>([]);
   const [edificaciones, setEdificaciones] = useState<Edificacion[]>([]);
+  const [unidades, setUnidades] = useState<UnidadRiego[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,15 +16,17 @@ export default function MapaPage() {
       setLoading(true);
       setError(null);
       try {
-        const [cuartelesRes, edificacionesRes, sectoresRes] = await Promise.all([
+        const [cuartelesRes, edificacionesRes, sectoresRes, unidadesRes] = await Promise.all([
           supabase.rpc("get_cuarteles_con_sectores"),
           supabase.rpc("get_edificaciones_geojson"),
           supabase.rpc("get_sectores_geojson"),
+          supabase.rpc("get_unidades_riego_geojson"),
         ]);
 
         if (cuartelesRes.error) throw cuartelesRes.error;
         if (edificacionesRes.error) throw edificacionesRes.error;
         if (sectoresRes.error) throw sectoresRes.error;
+        if (unidadesRes.error) throw unidadesRes.error;
 
         const parsedCuarteles: Cuartel[] = (cuartelesRes.data || []).map(
           (r: any) => ({
@@ -55,9 +58,19 @@ export default function MapaPage() {
           })
         );
 
+        const parsedUnidades: UnidadRiego[] = (unidadesRes.data || []).map(
+          (r: any) => ({
+            ...r,
+            geojson: r.geojson
+              ? { type: "Feature", geometry: r.geojson, properties: {} }
+              : undefined,
+          })
+        );
+
         setCuarteles(parsedCuarteles);
         setEdificaciones(parsedEdificaciones);
         setSectores(parsedSectores);
+        setUnidades(parsedUnidades);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -85,7 +98,7 @@ export default function MapaPage() {
     );
   }
 
-  return <MapaCuarteles cuarteles={cuarteles} edificaciones={edificaciones} sectores={sectores} />;
+  return <MapaCuarteles cuarteles={cuarteles} edificaciones={edificaciones} sectores={sectores} unidades={unidades} />;
 }
 
 const centerStyle: React.CSSProperties = {

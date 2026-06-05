@@ -1,26 +1,34 @@
 import { useState, useMemo } from "react";
 import { useSectores } from "../hooks/useSectores";
 import { useEquipos } from "../hooks/useEquipos";
-import { useCuarteles } from "../hooks/useCuarteles";
-import { Sector } from "../lib/types";
+import { useUnidadesRiego } from "../hooks/useUnidadesRiego";
+import { Sector, UnidadRiego } from "../lib/types";
 import FormularioSector from "../components/sectores/FormularioSector";
+import EditorGeometria from "../components/ui/EditorGeometria";
+import type { Feature } from "geojson";
 
 export default function AdminSectores() {
   const { sectores, loading, error, createSector, updateSector, deleteSector, fetchGeometriaSector } = useSectores();
   const { equipos } = useEquipos();
-  const { cuarteles, loading: loadingCuarteles } = useCuarteles();
+  const { unidades } = useUnidadesRiego();
   const [editing, setEditing] = useState<Sector | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
   const [search, setSearch] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editUnidad, setEditUnidad] = useState<UnidadRiego | null>(null);
 
-  const selectedSector = selectedSectorId ? sectores.find(s => s.id === selectedSectorId) : null;
+  const selectedSector = expandedId ? sectores.find(s => s.id === expandedId) : null;
 
-  const cuartelesDelSector = useMemo(
-    () => cuarteles.filter(c => c.sector_ids?.includes(selectedSectorId ?? "_")),
-    [cuarteles, selectedSectorId]
-  );
+  const unidadesPorSector = useMemo(() => {
+    const map = new Map<string, UnidadRiego[]>();
+    for (const u of unidades) {
+      const arr = map.get(u.sector_id) || [];
+      arr.push(u);
+      map.set(u.sector_id, arr);
+    }
+    return map;
+  }, [unidades]);
 
   const getEquipoNombre = (equipoId: string) =>
     equipos.find(e => e.id === equipoId)?.nombre || "";
@@ -98,13 +106,13 @@ export default function AdminSectores() {
 
       <p style={{ color: "#666", fontSize: 13, marginBottom: 8 }}>
         Mostrando {filtered.length} de {sectores.length} sectores.
-        {selectedSectorId && <span style={{ marginLeft: 12, color: "#1565c0" }}>Seleccionado: {selectedSector?.codigo ?? "?"}</span>}
       </p>
 
       <div style={{ maxHeight: "calc(100vh - 240px)", overflow: "auto" }}>
         <table style={tableStyle}>
           <thead>
             <tr>
+              <th style={{ width: 30 }}></th>
               <th>Código</th><th>Equipo</th><th>N°</th><th>Has</th>
               <th>Especie</th><th>Variedad</th><th>Bomba</th><th>Filtro</th>
               <th>Año</th><th>JC</th><th>m³/ha</th>
@@ -113,13 +121,14 @@ export default function AdminSectores() {
           </thead>
           <tbody>
             {filtered.map(s => {
-              const isSelected = selectedSectorId === s.id;
+              const isExpanded = expandedId === s.id;
               return (
-              <tr
-                key={s.id}
-                onClick={() => { setSelectedSectorId(isSelected ? null : s.id); }}
-                style={{ cursor: "pointer", backgroundColor: isSelected ? "#e3f2fd" : undefined }}
-              >
+              <tr key={s.id} style={{ backgroundColor: isExpanded ? "#e3f2fd" : undefined }}>
+                <td>
+                  <button onClick={() => setExpandedId(isExpanded ? null : s.id)} style={btnExpand}>
+                    {isExpanded ? "▼" : "▶"}
+                  </button>
+                </td>
                 <td><strong>{s.codigo}</strong></td>
                 <td>{getEquipoNombre(s.equipo_id)}</td><td>{s.numero}</td>
                 <td>{s.hectareas ?? ""}</td><td>{s.especie}</td><td>{s.variedad}</td>
@@ -135,48 +144,53 @@ export default function AdminSectores() {
               );
             })}
             {filtered.length === 0 && (
-              <tr><td colSpan={12} style={{ textAlign: "center", color: "#999" }}>Sin resultados.</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: "center", color: "#999" }}>Sin resultados.</td></tr>
             )}
           </tbody>
         </table>
+        {filtered.map(s => expandedId === s.id && (
+          <div key={`sub-${s.id}`} style={subtableContainer}>
+            <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "#555" }}>
+              Cuarteles que riega ({s.codigo})
+            </div>
+            {(() => {
+              const sectorUnidades = unidadesPorSector.get(s.id) || [];
+              if (sectorUnidades.length === 0) {
+                return <p style={{ margin: 0, fontSize: 12, color: "#999" }}>Sin cuarteles asignados.</p>;
+              }
+              return (
+                <table style={{ ...tableStyle, fontSize: 11 }}>
+                  <thead>
+                    <tr>
+                      <th>Código</th><th>Cuartel</th><th>% Agua</th><th>Polígono</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sectorUnidades.map(u => (
+                      <tr key={u.id}>
+                        <td><strong>{u.codigo}</strong></td>
+                        <td>{u.cuartel_nombre}</td>
+                        <td>{u.porcentaje_agua ?? ""}</td>
+                        <td>
+                          <button onClick={() => setEditUnidad(u)} style={btnSm}>Editar</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              );
+            })()}
+          </div>
+        ))}
       </div>
 
-      {selectedSectorId && (
-        <div style={{
-          marginTop: 12, padding: "12px 16px", borderRadius: 6,
-          border: "1px solid #90caf9", backgroundColor: "#f5faff",
-        }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
-            Sector: {selectedSector?.codigo ?? "Cargando..."}
-          </div>
-          {loadingCuarteles ? (
-            <p style={{ margin: 0, fontSize: 12, color: "#999" }}>Cargando cuarteles...</p>
-          ) : cuarteles.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 12, color: "#c62828" }}>
-              No se pudieron cargar los cuarteles.
-            </p>
-          ) : cuartelesDelSector.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 12, color: "#999" }}>
-              Sin cuarteles vinculados ({cuarteles.length} cuarteles cargados).
-            </p>
-          ) : (
-            <>
-              <p style={{ margin: "0 0 4px", fontSize: 12, color: "#555" }}>
-                Cuarteles vinculados ({cuartelesDelSector.length}):
-              </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                {cuartelesDelSector.map(c => (
-                  <span key={c.id} style={{
-                    padding: "3px 10px", borderRadius: 12, fontSize: 12,
-                    backgroundColor: "#e3f2fd", border: "1px solid #90caf9",
-                  }}>
-                    {c.nombre}
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+      {editUnidad && (
+        <EditorGeometria
+          geojson={(editUnidad.geojson as Feature) || null}
+          table="cuartel_sector"
+          where={`cuartel_id=eq.${editUnidad.cuartel_id}&sector_id=eq.${editUnidad.sector_id}`}
+          onCancel={() => setEditUnidad(null)}
+        />
       )}
 
       {showForm && (
@@ -205,3 +219,5 @@ const selectStyle: React.CSSProperties = { padding: "5px 8px", border: "1px soli
 const btnSm: React.CSSProperties = { padding: "4px 10px", background: "none", border: "1px solid #ccc", borderRadius: 4, cursor: "pointer", fontSize: 12 };
 const btnPrimary: React.CSSProperties = { padding: "8px 16px", background: "#1565c0", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 500 };
 const btnClear: React.CSSProperties = { padding: "5px 10px", border: "1px solid #ccc", borderRadius: 4, background: "#f5f5f5", cursor: "pointer", fontSize: 12 };
+const btnExpand: React.CSSProperties = { padding: "2px 6px", border: "none", background: "none", cursor: "pointer", fontSize: 11, color: "#666" };
+const subtableContainer: React.CSSProperties = { padding: "8px 16px 12px 40px", borderBottom: "1px solid #eee", background: "#fafafa" };

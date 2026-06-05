@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { Cuartel, Edificacion, SectorGeo, FiltrosCuartel } from "../../lib/types";
+import { Cuartel, Edificacion, SectorGeo, FiltrosCuartel, UnidadRiego } from "../../lib/types";
 import {
   COLOR_EDIFICACION, colorPorEspecie, COLOR_POR_ESPECIE,
 } from "../../lib/colors";
@@ -20,6 +20,7 @@ interface Props {
   cuarteles: Cuartel[];
   edificaciones: Edificacion[];
   sectores: SectorGeo[];
+  unidades: UnidadRiego[];
 }
 
 const FILTROS_VACIOS: FiltrosCuartel = {
@@ -27,13 +28,14 @@ const FILTROS_VACIOS: FiltrosCuartel = {
   equipo: "", sector: "", jefeCampo: "",
 };
 
-type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions; kind: 'cuartel' | 'sector' };
+type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions; kind: 'cuartel' | 'sector' | 'unidad' };
 type LayersMap = Map<string, LayerEntry>;
 
-export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Props) {
+export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unidades }: Props) {
   const [filtros, setFiltros] = useState<FiltrosCuartel>(FILTROS_VACIOS);
   const [vista, setVista] = useState<Vista>("sectores");
   const [mostrarEdif, setMostrarEdif] = useState(true);
+  const [mostrarUnidades, setMostrarUnidades] = useState(false);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
   const [satelite, setSatelite] = useState(true);
   const [medir, setMedir] = useState(false);
@@ -242,6 +244,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
           <MapClickHandler onDeselect={() => setSelectedId(null)} />
           <ToggleVista vista={vista} onChange={cambiarVista} />
           <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
+          <ToggleUnidades visible={mostrarUnidades} onToggle={() => setMostrarUnidades(!mostrarUnidades)} />
           <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
           {medir && <MedirControls />}
 
@@ -310,6 +313,22 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores }: Pr
                 clearLayers={() => layersRef.current.clear()}
               />
             </>
+          )}
+
+          {mostrarUnidades && unidades.length > 0 && (
+            <GeoJSON key="unidades-riego" data={{
+              type: "FeatureCollection",
+              features: unidades.filter(u => !!u.geojson).map(u => ({
+                ...u.geojson!, properties: { unidad_id: u.id, codigo: u.codigo, especie: u.especie, cuartel: u.cuartel_nombre, sector: u.sector_codigo },
+              })),
+            }} onEachFeature={(feature: any, layer: any) => {
+              layer.setStyle({
+                fillColor: colorPorEspecie(feature.properties.especie || ""),
+                color: "#333", weight: 1.5, fillOpacity: 0.45, opacity: 0.7, dashArray: "4,4",
+              });
+              layer.bindTooltip(feature.properties.codigo, { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
+              layer.bindPopup(`<div style="font-size:13px"><strong>${feature.properties.codigo}</strong><br/>Cuartel: ${feature.properties.cuartel}<br/>Sector: ${feature.properties.sector}</div>`, { maxWidth: 250 });
+            }} />
           )}
 
           {mostrarEdif && edificaciones.length > 0 && (
@@ -458,9 +477,22 @@ function ToggleEdificaciones({ visible, onToggle }: { visible: boolean; onToggle
   );
 }
 
+function ToggleUnidades({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 120 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          background: visible ? "#2e7d32" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
+        }}>Unidades</button>
+      </div>
+    </div>
+  );
+}
+
 function ToggleMedir({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 160 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 200 }}>
       <div className="leaflet-control">
         <button onClick={onToggle} style={{
           padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
@@ -541,7 +573,7 @@ function MapClickHandler({ onDeselect }: { onDeselect: () => void }) {
 
 function ControlSatelite({ satelite, onToggle }: { satelite: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 120 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 160 }}>
       <div className="leaflet-control">
         <button onClick={onToggle} style={{
           padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,

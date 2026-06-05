@@ -1,13 +1,17 @@
 import { useState, useMemo } from "react";
 import { useCuarteles } from "../hooks/useCuarteles";
 import { useSectores } from "../hooks/useSectores";
-import { Cuartel } from "../lib/types";
+import { useUnidadesRiego } from "../hooks/useUnidadesRiego";
+import { Cuartel, UnidadRiego } from "../lib/types";
 import { supabase } from "../lib/supabase";
 import FormularioCuartel from "../components/cuarteles/FormularioCuartel";
+import EditorGeometria from "../components/ui/EditorGeometria";
+import type { Feature } from "geojson";
 
 export default function AdminCuarteles() {
   const { cuarteles, loading, error, refetch, updateCuartel, deleteCuartel } = useCuarteles();
   const { sectores } = useSectores();
+  const { unidades } = useUnidadesRiego();
   const sectorCodeMap = useMemo(() => {
     const map = new Map<string, string>();
     sectores.forEach(s => map.set(s.id, s.codigo));
@@ -17,6 +21,8 @@ export default function AdminCuarteles() {
   const [showForm, setShowForm] = useState(false);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
   const [search, setSearch] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editUnidad, setEditUnidad] = useState<UnidadRiego | null>(null);
 
   const parts = (raw: string) => raw.split('-').map(x => x.trim()).filter(Boolean);
 
@@ -63,14 +69,26 @@ export default function AdminCuarteles() {
     };
   }, [cuarteles]);
 
-  const filtered = useMemo(() => cuarteles.filter(c => {
+  const filtered = useMemo(() => {
+    return cuarteles.filter(c => {
     if (search && !c.nombre.toLowerCase().includes(search.toLowerCase())) return false;
     if (filtros.especie && c.especie !== filtros.especie) return false;
     if (filtros.variedad && c.variedad !== filtros.variedad) return false;
     if (filtros.jc && c.jefe_campo !== filtros.jc) return false;
     if (filtros.equipo && (!c.equipo_riego || !parts(c.equipo_riego).includes(filtros.equipo))) return false;
     return true;
-  }), [cuarteles, filtros, search]);
+    });
+  }, [cuarteles, filtros, search]);
+
+  const unidadesPorCuartel = useMemo(() => {
+    const map = new Map<string, UnidadRiego[]>();
+    for (const u of unidades) {
+      const arr = map.get(u.cuartel_id) || [];
+      arr.push(u);
+      map.set(u.cuartel_id, arr);
+    }
+    return map;
+  }, [unidades]);
 
   if (loading) return <CenterMsg msg="Cargando cuarteles..." />;
   if (error) return <CenterMsg msg={`Error: ${error}`} />;
@@ -116,31 +134,84 @@ export default function AdminCuarteles() {
         <table style={tableStyle}>
           <thead>
             <tr>
+              <th style={{ width: 30 }}></th>
               <th>Nombre</th><th>Especie</th><th>Variedad</th><th>Año</th>
               <th>Superficie</th><th>JC</th><th>Centro Costo</th><th>Sectores</th>
               <th style={{ width: 120 }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map(c => (
-              <tr key={c.id}>
-                <td><strong>{c.nombre}</strong></td>
-                <td>{c.especie}</td><td>{c.variedad}</td><td>{c.anio_plantacion}</td>
-                <td>{c.superficie_ha ? `${c.superficie_ha} ha` : ""}</td><td>{c.jefe_campo}</td>
-                <td>{c.centro_costo}</td><td>{(c.sector_ids || []).map(id => sectorCodeMap.get(id)).filter(Boolean).join(", ")}</td>
-                <td>
-                  <button onClick={() => { setEditing(c); setShowForm(true); }} style={btnSm}>Editar</button>{" "}
-                  <button onClick={() => { if (confirm(`Eliminar ${c.nombre}?`)) deleteCuartel(c.id); }}
-                    style={{ ...btnSm, color: "#c62828" }}>Eliminar</button>
-                </td>
-              </tr>
-            ))}
+            {filtered.map(c => {
+              const isExpanded = expandedId === c.id;
+              const cuartelUnidades = unidadesPorCuartel.get(c.id) || [];
+              return (
+                <tr key={c.id}>
+                  <td>
+                    <button onClick={() => setExpandedId(isExpanded ? null : c.id)} style={btnExpand}>
+                      {isExpanded ? "▼" : "▶"}
+                    </button>
+                  </td>
+                  <td><strong>{c.nombre}</strong></td>
+                  <td>{c.especie}</td><td>{c.variedad}</td><td>{c.anio_plantacion}</td>
+                  <td>{c.superficie_ha ? `${c.superficie_ha} ha` : ""}</td><td>{c.jefe_campo}</td>
+                  <td>{c.centro_costo}</td><td>{(c.sector_ids || []).map(id => sectorCodeMap.get(id)).filter(Boolean).join(", ")}</td>
+                  <td>
+                    <button onClick={() => { setEditing(c); setShowForm(true); }} style={btnSm}>Editar</button>{" "}
+                    <button onClick={() => { if (confirm(`Eliminar ${c.nombre}?`)) deleteCuartel(c.id); }}
+                      style={{ ...btnSm, color: "#c62828" }}>Eliminar</button>
+                  </td>
+                </tr>
+              );
+            })}
             {filtered.length === 0 && (
-              <tr><td colSpan={9} style={{ textAlign: "center", color: "#999" }}>Sin resultados.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: "center", color: "#999" }}>Sin resultados.</td></tr>
             )}
           </tbody>
         </table>
+        {filtered.map(c => expandedId === c.id && (
+          <div key={`sub-${c.id}`} style={subtableContainer}>
+            <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "#555" }}>
+              Unidades de riego ({c.nombre})
+            </div>
+            {(() => {
+              const cuartelUnidades = unidadesPorCuartel.get(c.id) || [];
+              if (cuartelUnidades.length === 0) {
+                return <p style={{ margin: 0, fontSize: 12, color: "#999" }}>Sin sectores asignados.</p>;
+              }
+              return (
+                <table style={{ ...tableStyle, fontSize: 11 }}>
+                  <thead>
+                    <tr>
+                      <th>Código</th><th>Sector</th><th>% Agua</th><th>Polígono</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cuartelUnidades.map(u => (
+                      <tr key={u.id}>
+                        <td><strong>{u.codigo}</strong></td>
+                        <td>{u.sector_codigo}</td>
+                        <td>{u.porcentaje_agua ?? ""}</td>
+                        <td>
+                          <button onClick={() => setEditUnidad(u)} style={btnSm}>Editar</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              );
+            })()}
+          </div>
+        ))}
       </div>
+
+      {editUnidad && (
+        <EditorGeometria
+          geojson={(editUnidad.geojson as Feature) || null}
+          table="cuartel_sector"
+          where={`cuartel_id=eq.${editUnidad.cuartel_id}&sector_id=eq.${editUnidad.sector_id}`}
+          onCancel={() => setEditUnidad(null)}
+        />
+      )}
 
       {showForm && editing && (
         <FormularioCuartel
@@ -163,3 +234,5 @@ const selectStyle: React.CSSProperties = { padding: "5px 8px", border: "1px soli
 const btnSm: React.CSSProperties = { padding: "4px 10px", background: "none", border: "1px solid #ccc", borderRadius: 4, cursor: "pointer", fontSize: 12 };
 const btnClear: React.CSSProperties = { padding: "5px 10px", border: "1px solid #ccc", borderRadius: 4, background: "#f5f5f5", cursor: "pointer", fontSize: 12 };
 const btnPrimary: React.CSSProperties = { padding: "6px 14px", border: "none", borderRadius: 4, background: "#1b5e20", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600 };
+const btnExpand: React.CSSProperties = { padding: "2px 6px", border: "none", background: "none", cursor: "pointer", fontSize: 11, color: "#666" };
+const subtableContainer: React.CSSProperties = { padding: "8px 16px 12px 40px", borderBottom: "1px solid #eee", background: "#fafafa" };

@@ -96,6 +96,11 @@ export function useCuarteles() {
         const { error: insertErr } = await supabase.from("cuartel_sector").insert(inserts);
         if (insertErr) console.error("Error insertando sectores:", insertErr);
 
+        // Init unidad de riego for each new sector (copy cuartel geometry)
+        for (const sectorId of cuartel.sector_ids) {
+          await supabase.rpc("init_unidad_riego", { p_cuartel_id: id, p_sector_id: sectorId });
+        }
+
         // Re-compute equipo_riego and sector_raw from the assigned sectors
         const { data: sectoresData } = await supabase
           .from("sectores")
