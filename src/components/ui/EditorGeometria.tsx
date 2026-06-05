@@ -33,11 +33,11 @@ export default function EditorGeometria({ geojson, table, entityId, where, onCan
             const [k, v] = p.split("=eq.");
             if (k && v) params[k] = v;
           });
-          let q = supabase.from(table).select("geometria");
-          for (const [col, val] of Object.entries(params)) {
-            q = q.eq(col as any, val);
-          }
-          const { data, error } = await q.single();
+          const { data, error } = await supabase
+            .from(table)
+            .select("geometria")
+            .match(params)
+            .single();
           if (!error && data?.geometria) {
             setResolvedGeo({ type: "Feature", geometry: data.geometria, properties: {} });
           }
