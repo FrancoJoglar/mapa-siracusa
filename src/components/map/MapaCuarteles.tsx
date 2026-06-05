@@ -323,8 +323,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
               })),
             } as GeoJSON.FeatureCollection} onEachFeature={(feature: any, layer: any) => {
               layer.setStyle({
-                fillColor: colorPorEspecie(feature.properties.especie || ""),
-                color: "#333", weight: 1.5, fillOpacity: 0.45, opacity: 0.7, dashArray: "4,4",
+                fillColor: "#ffffff",
+                color: "#d32f2f", weight: 3, fillOpacity: 0.05, opacity: 1, dashArray: "4,4",
               });
               layer.bindTooltip(feature.properties.codigo, { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
               layer.bindPopup(`<div style="font-size:13px"><strong>${feature.properties.codigo}</strong><br/>Cuartel: ${feature.properties.cuartel}<br/>Sector: ${feature.properties.sector}</div>`, { maxWidth: 250 });
