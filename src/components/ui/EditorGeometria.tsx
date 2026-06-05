@@ -28,10 +28,11 @@ export default function EditorGeometria({ geojson, table, entityId, where, onCan
     (async () => {
       try {
         if (table === "cuartel_sector" && where) {
-          const params = Object.fromEntries(where.split("&").map(p => {
+          const params: Record<string, string> = {};
+          where.split("&").forEach(p => {
             const [k, v] = p.split("=eq.");
-            return [k, v];
-          }));
+            if (k && v) params[k] = v;
+          });
           let q = supabase.from(table).select("geometria");
           for (const [col, val] of Object.entries(params)) {
             q = q.eq(col as any, val);

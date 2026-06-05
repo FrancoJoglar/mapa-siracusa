@@ -143,7 +143,6 @@ export default function AdminCuarteles() {
           <tbody>
             {filtered.map(c => {
               const isExpanded = expandedId === c.id;
-              const cuartelUnidades = unidadesPorCuartel.get(c.id) || [];
               return (
                 <tr key={c.id}>
                   <td>

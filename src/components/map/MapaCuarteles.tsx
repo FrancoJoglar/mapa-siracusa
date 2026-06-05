@@ -317,11 +317,11 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
 
           {mostrarUnidades && unidades.length > 0 && (
             <GeoJSON key="unidades-riego" data={{
-              type: "FeatureCollection",
+              type: "FeatureCollection" as const,
               features: unidades.filter(u => !!u.geojson).map(u => ({
                 ...u.geojson!, properties: { unidad_id: u.id, codigo: u.codigo, especie: u.especie, cuartel: u.cuartel_nombre, sector: u.sector_codigo },
               })),
-            }} onEachFeature={(feature: any, layer: any) => {
+            } as GeoJSON.FeatureCollection} onEachFeature={(feature: any, layer: any) => {
               layer.setStyle({
                 fillColor: colorPorEspecie(feature.properties.especie || ""),
                 color: "#333", weight: 1.5, fillOpacity: 0.45, opacity: 0.7, dashArray: "4,4",

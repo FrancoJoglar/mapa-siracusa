@@ -18,8 +18,6 @@ export default function AdminSectores() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editUnidad, setEditUnidad] = useState<UnidadRiego | null>(null);
 
-  const selectedSector = expandedId ? sectores.find(s => s.id === expandedId) : null;
-
   const unidadesPorSector = useMemo(() => {
     const map = new Map<string, UnidadRiego[]>();
     for (const u of unidades) {
