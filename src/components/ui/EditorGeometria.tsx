@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MapContainer, TileLayer } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import "leaflet/dist/leaflet.css";
@@ -18,6 +18,8 @@ interface Props {
 export default function EditorGeometria({ geojson, table, entityId, where, onCancel }: Props) {
   const [resolvedGeo, setResolvedGeo] = useState<Feature | null>(null);
   const [fetching, setFetching] = useState(false);
+  const [contextFeatures, setContextFeatures] = useState<Feature[]>([]);
+  const [showContext, setShowContext] = useState(true);
 
   useEffect(() => {
     if (geojson) {
@@ -56,6 +58,47 @@ export default function EditorGeometria({ geojson, table, entityId, where, onCan
     })();
   }, [geojson, table, entityId, where]);
 
+  // Fetch context layers (neighboring polygons)
+  useEffect(() => {
+    const fetchContext = async () => {
+      try {
+        let features: Feature[] = [];
+        if (table === "cuarteles") {
+          const { data } = await supabase
+            .from("cuarteles")
+            .select("id, geometria")
+            .not("geometria", "is", null);
+          if (data) {
+            features = data
+              .filter((r: any) => r.id !== entityId)
+              .map((r: any) => ({ type: "Feature", geometry: r.geometria, properties: {} }));
+          }
+        } else if (table === "sectores") {
+          const { data } = await supabase
+            .from("sectores")
+            .select("id, geometria")
+            .not("geometria", "is", null);
+          if (data) {
+            features = data
+              .filter((r: any) => r.id !== entityId)
+              .map((r: any) => ({ type: "Feature", geometry: r.geometria, properties: {} }));
+          }
+        } else if (table === "cuartel_sector") {
+          const { data } = await supabase.rpc("get_unidades_riego_geojson");
+          if (data) {
+            features = data
+              .filter((r: any) => r.geojson)
+              .map((r: any) => ({ type: "Feature", geometry: r.geojson, properties: {} }));
+          }
+        }
+        setContextFeatures(features);
+      } catch (e) {
+        console.error("Error fetching context layers:", e);
+      }
+    };
+    fetchContext();
+  }, [table, entityId]);
+
   const initialGeo = resolvedGeo;
 
   const initialCenter: [number, number] = (() => {
@@ -85,6 +128,18 @@ export default function EditorGeometria({ geojson, table, entityId, where, onCan
               attribution='&copy; Esri'
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             />
+            {showContext && contextFeatures.length > 0 && (
+              <GeoJSON
+                key={`ctx-${table}`}
+                data={{ type: "FeatureCollection" as const, features: contextFeatures } as any}
+                style={{ color: "#888", weight: 0.5, fill: false, opacity: 0.6 }}
+                onEachFeature={(_f, layer) => {
+                  (layer as any).options.interactive = false;
+                  if ((layer as any)._path) (layer as any)._path.style.pointerEvents = "none";
+                }}
+              />
+            )}
+
             {!fetching && (
               <GeomanEditor
                 initialGeoJSON={initialGeo}
@@ -92,6 +147,8 @@ export default function EditorGeometria({ geojson, table, entityId, where, onCan
                 entityId={entityId}
                 where={where}
                 onClose={onCancel}
+                showContext={showContext}
+                onToggleContext={() => setShowContext(v => !v)}
               />
             )}
           </MapContainer>

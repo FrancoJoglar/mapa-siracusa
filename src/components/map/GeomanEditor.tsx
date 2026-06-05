@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
@@ -12,9 +12,11 @@ interface Props {
   where?: string;
   readOnly?: boolean;
   onClose?: () => void;
+  showContext?: boolean;
+  onToggleContext?: () => void;
 }
 
-export default function GeomanEditor({ initialGeoJSON, table, entityId, where, readOnly = false, onClose }: Props) {
+export default function GeomanEditor({ initialGeoJSON, table, entityId, where, readOnly = false, onClose, showContext, onToggleContext }: Props) {
   const map = useMap();
   const setupDone = useRef(false);
   const [saving, setSaving] = useState(false);
@@ -130,14 +132,34 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
 
   return (
     <div className="leaflet-top leaflet-right" style={{ top: 150, pointerEvents: "auto" as any }}>
-      <button onClick={handleSave} disabled={saving}
-        style={{ padding: "8px 16px", background: saving ? "#ccc" : "#1565c0", color: "#fff",
-          border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
-        {saving ? "Guardando..." : "Guardar"}
-      </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {onToggleContext && (
+          <button onClick={onToggleContext} style={{
+            ...floatingBtn,
+            background: showContext ? "#ef6c00" : "white",
+            color: showContext ? "white" : "#333",
+          }}>
+            Aledaños {showContext ? "ON" : "OFF"}
+          </button>
+        )}
+        {onClose && (
+          <button onClick={onClose} style={{ ...floatingBtn, background: "white", color: "#333" }}>
+            Cancelar
+          </button>
+        )}
+        <button onClick={handleSave} disabled={saving}
+          style={{ ...floatingBtn, background: saving ? "#ccc" : "#1565c0", color: "#fff", fontWeight: 600 }}>
+          {saving ? "Guardando..." : "Guardar"}
+        </button>
+      </div>
     </div>
   );
 }
+
+const floatingBtn: React.CSSProperties = {
+  padding: "6px 12px", border: "1px solid #ccc", borderRadius: 4,
+  cursor: "pointer", fontSize: 11,
+};
 
 // Extract coordinates from a Geoman-edited layer
 function extractCoordsFromLayer(layer: any): GeoJSON.Feature | null {
