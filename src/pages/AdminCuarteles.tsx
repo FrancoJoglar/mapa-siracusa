@@ -11,7 +11,7 @@ import type { Feature } from "geojson";
 export default function AdminCuarteles() {
   const { cuarteles, loading, error, refetch, updateCuartel, deleteCuartel } = useCuarteles();
   const { sectores } = useSectores();
-  const { unidades } = useUnidadesRiego();
+  const { unidades, refetch: refetchUnidades } = useUnidadesRiego();
   const sectorCodeMap = useMemo(() => {
     const map = new Map<string, string>();
     sectores.forEach(s => map.set(s.id, s.codigo));
@@ -216,7 +216,7 @@ export default function AdminCuarteles() {
         <FormularioCuartel
           cuartel={editing}
           sectores={sectores}
-          onSave={async (data) => { await updateCuartel(editing.id, data); setShowForm(false); setEditing(null); refetch(); }}
+          onSave={async (data) => { await updateCuartel(editing.id, data); setShowForm(false); setEditing(null); refetch(); refetchUnidades(); }}
           onCancel={() => { setShowForm(false); setEditing(null); }}
         />
       )}

@@ -10,7 +10,7 @@ import type { Feature } from "geojson";
 export default function AdminSectores() {
   const { sectores, loading, error, createSector, updateSector, deleteSector, fetchGeometriaSector } = useSectores();
   const { equipos } = useEquipos();
-  const { unidades } = useUnidadesRiego();
+  const { unidades, refetch: refetchUnidades } = useUnidadesRiego();
   const [editing, setEditing] = useState<Sector | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
@@ -73,6 +73,7 @@ export default function AdminSectores() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <h2 style={{ margin: 0 }}>Sectores de Riego ({sectores.length})</h2>
         <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={refetchUnidades} style={btnClear} title="Refrescar unidades de riego">↻</button>
           <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>+ Nuevo Sector</button>
         </div>
       </div>
