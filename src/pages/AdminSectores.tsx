@@ -74,6 +74,7 @@ export default function AdminSectores() {
         <h2 style={{ margin: 0 }}>Sectores de Riego ({sectores.length})</h2>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={refetchUnidades} style={btnClear} title="Refrescar unidades de riego">↻</button>
+          <span style={{ fontSize: 11, color: "#999", alignSelf: "center" }}>expandedId: {expandedId ? expandedId.slice(0, 8) + "…" : "null"}</span>
           <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>+ Nuevo Sector</button>
         </div>
       </div>
