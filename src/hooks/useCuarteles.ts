@@ -86,47 +86,13 @@ export function useCuarteles() {
     console.log("updateCuartel OK, sector_ids:", cuartel.sector_ids);
 
     if (cuartel.sector_ids !== undefined) {
-      const { error: deleteErr } = await supabase.from("cuartel_sector").delete().eq("cuartel_id", id);
-      if (deleteErr) throw deleteErr;
-
-      if (cuartel.sector_ids.length > 0) {
-        const inserts = cuartel.sector_ids.map((sectorId) => ({
-          cuartel_id: id,
-          sector_id: sectorId,
-        }));
-        const { error: insertErr } = await supabase.from("cuartel_sector").insert(inserts);
-        if (insertErr) throw insertErr;
-
-        for (const sectorId of cuartel.sector_ids) {
-          const { error: rpcErr } = await supabase.rpc("init_unidad_riego", { p_cuartel_id: id, p_sector_id: sectorId });
-          if (rpcErr) console.error("Error init_unidad_riego:", rpcErr);
-        }
-
-        const { data: sectoresData } = await supabase
-          .from("sectores")
-          .select("codigo, equipo:equipos(codigo)")
-          .in("id", cuartel.sector_ids);
-        if (sectoresData) {
-          const equipos = new Set<number>();
-          const sectores = new Set<number>();
-          for (const s of sectoresData as any[]) {
-            const eqCode = s.equipo?.codigo;
-            if (eqCode) equipos.add(eqCode);
-            const match = s.codigo?.match(/S(\d+)/);
-            if (match) sectores.add(Number(match[1]));
-          }
-          const eqRaw = Array.from(equipos).sort((a, b) => a - b).join(" - ");
-          const secRaw = Array.from(sectores).sort((a, b) => a - b).join(" - ");
-          const { error: updateFieldErr } = await supabase
-            .from("cuarteles")
-            .update({ equipo_riego: eqRaw, sector_raw: secRaw })
-            .eq("id", id);
-          if (updateFieldErr) console.error("Error actualizando campos texto:", updateFieldErr);
-        }
-      } else {
-        const { error: clearErr } = await supabase.from("cuarteles").update({ equipo_riego: null, sector_raw: null }).eq("id", id);
-        if (clearErr) console.error("Error limpiando campos texto:", clearErr);
-      }
+      const { data: rpcResult, error: rpcErr } = await supabase
+        .rpc("set_cuartel_sectores", {
+          p_cuartel_id: id,
+          p_sector_ids: cuartel.sector_ids,
+        });
+      if (rpcErr) throw rpcErr;
+      console.log("set_cuartel_sectores result:", rpcResult);
     }
     await fetchCuarteles();
   };
