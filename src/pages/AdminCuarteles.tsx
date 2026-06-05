@@ -2,10 +2,11 @@ import { useState, useMemo } from "react";
 import { useCuarteles } from "../hooks/useCuarteles";
 import { useSectores } from "../hooks/useSectores";
 import { Cuartel } from "../lib/types";
+import { supabase } from "../lib/supabase";
 import FormularioCuartel from "../components/cuarteles/FormularioCuartel";
 
 export default function AdminCuarteles() {
-  const { cuarteles, loading, error, updateCuartel, deleteCuartel } = useCuarteles();
+  const { cuarteles, loading, error, refetch, updateCuartel, deleteCuartel } = useCuarteles();
   const { sectores } = useSectores();
   const sectorCodeMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -18,6 +19,33 @@ export default function AdminCuarteles() {
   const [search, setSearch] = useState("");
 
   const parts = (raw: string) => raw.split('-').map(x => x.trim()).filter(Boolean);
+
+  const handleNuevoCuartel = async () => {
+    try {
+      const { data, error: err } = await supabase
+        .from("cuarteles")
+        .insert({ nombre: "Nuevo Cuartel" })
+        .select("id")
+        .single();
+      if (err) throw err;
+      if (data) {
+        const nuevo: Cuartel = {
+          id: data.id, nombre: "Nuevo Cuartel",
+          especie: "", variedad: "", anio_plantacion: null,
+          superficie_ha: null, plantas: null, polinizante: "",
+          jefe_campo: "", centro_costo: "",
+          equipo_riego: "", sector_raw: "", sector_ids: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        setEditing(nuevo);
+        setShowForm(true);
+        await refetch();
+      }
+    } catch (e: any) {
+      alert("Error al crear cuartel: " + (e?.message || String(e)));
+    }
+  };
 
   const unique = useMemo(() => {
     const eq = new Set<string>();
@@ -53,7 +81,10 @@ export default function AdminCuarteles() {
   const s = selectStyle;
   return (
     <div style={{ maxWidth: "95%", margin: "24px auto", padding: "0 16px" }}>
-      <h2 style={{ margin: "0 0 12px" }}>Cuarteles ({cuarteles.length})</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 12px" }}>
+        <h2>Cuarteles ({cuarteles.length})</h2>
+        <button onClick={handleNuevoCuartel} style={btnPrimary}>+ Nuevo Cuartel</button>
+      </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
         <input
@@ -134,3 +165,4 @@ const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collap
 const selectStyle: React.CSSProperties = { padding: "5px 8px", border: "1px solid #ccc", borderRadius: 4, fontSize: 12, minWidth: 110 };
 const btnSm: React.CSSProperties = { padding: "4px 10px", background: "none", border: "1px solid #ccc", borderRadius: 4, cursor: "pointer", fontSize: 12 };
 const btnClear: React.CSSProperties = { padding: "5px 10px", border: "1px solid #ccc", borderRadius: 4, background: "#f5f5f5", cursor: "pointer", fontSize: 12 };
+const btnPrimary: React.CSSProperties = { padding: "6px 14px", border: "none", borderRadius: 4, background: "#1b5e20", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600 };
