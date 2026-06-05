@@ -80,8 +80,10 @@ export default function FormularioCuartel({
               >
                 <option value="">Seleccionar...</option>
                 <option value="Olivo">Olivo</option>
-                <option value="Avellano (Plantación)">Avellano</option>
-                <option value="Cerezos (Plantación)">Cerezo</option>
+                <option value="Cerezo">Cerezo</option>
+                <option value="Avellano">Avellano</option>
+                <option value="Kiwi">Kiwi</option>
+                <option value="Palto">Palto</option>
               </select>
             </Campo>
           </Row>

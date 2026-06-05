@@ -95,7 +95,7 @@ export default function AdminCuarteles() {
         </select>
         <select value={filtros.especie} onChange={e => setFiltros({ ...filtros, especie: e.target.value })} style={s}>
           <option value="">Especie</option>
-          {unique.especies.map(v => <option key={v} value={v}>{v}</option>)}
+          {["Olivo", "Cerezo", "Avellano", "Kiwi", "Palto"].map(v => <option key={v} value={v}>{v}</option>)}
         </select>
         <select value={filtros.jc} onChange={e => setFiltros({ ...filtros, jc: e.target.value })} style={s}>
           <option value="">Jefe de Campo</option>
