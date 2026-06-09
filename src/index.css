@@ -86,7 +86,7 @@ path.leaflet-interactive:focus-visible {
 
 .cuartel-label {
   background: rgba(0, 0, 0, 0.7);
-  border: 1px solid #e65100;
+  border: 1px solid #e65100 !important;
   border-radius: 3px;
   color: #fff;
   font-size: 10px;
