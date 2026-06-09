@@ -83,3 +83,17 @@ path.leaflet-interactive:focus-visible {
 .medir-tooltip::before {
   display: none !important;
 }
+
+.cuartel-label {
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 5px;
+  box-shadow: none;
+  white-space: nowrap;
+}
+.cuartel-label::before {
+  border-top-color: rgba(0, 0, 0, 0.7);
+}
