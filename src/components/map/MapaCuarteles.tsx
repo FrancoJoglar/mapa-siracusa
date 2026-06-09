@@ -41,6 +41,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [medir, setMedir] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [showCuartelLabels, setShowCuartelLabels] = useState(false);
 
   const layersRef = useRef<LayersMap>(new Map());
   const selectedRef = useRef<string | null>(null);
@@ -246,11 +247,12 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
           <ToggleUnidades visible={mostrarUnidades} onToggle={() => setMostrarUnidades(!mostrarUnidades)} />
           <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
+          <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
           {medir && <MedirControls />}
 
           {vista === "cuarteles" && (
             <GeoJSON
-              key={`cuarteles-${filteredCuarteles.length}`}
+              key={`cuarteles-${filteredCuarteles.length}-${showCuartelLabels}`}
               data={geoJsonCuarteles}
               onEachFeature={(feature: any, layer: any) => {
                 // Clear layers on first feature of this mount
@@ -267,7 +269,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                 if (c) {
                   registerLayer(fId, layer, baseStyle, 'cuartel');
                   layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
-                  layer.bindTooltip(c.nombre, { direction: "center", permanent: true, className: "cuartel-label", opacity: 0.9 });
+                  if (showCuartelLabels) {
+                    layer.bindTooltip(c.nombre, { direction: "center", className: "cuartel-label" });
+                  }
                 } else {
                   registerLayer(fId, layer, baseStyle, 'cuartel');
                 }
@@ -284,7 +288,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           {vista === "sectores" && (
             <>
               <GeoJSON
-                key={`cuarteles-bg-${filteredCuarteles.length}`}
+                key={`cuarteles-bg-${filteredCuarteles.length}-${showCuartelLabels}`}
                 data={geoJsonCuarteles}
                 onEachFeature={(feature: any, layer: any) => {
                   const c = cuarteles.find(x => x.id === feature.properties.cuartel_id);
@@ -296,7 +300,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                   if (c) {
                     registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
                     layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
-                    layer.bindTooltip(c.nombre, { direction: "center", permanent: true, className: "cuartel-label", opacity: 0.7 });
+                    if (showCuartelLabels) {
+                      layer.bindTooltip(c.nombre, { direction: "center", permanent: true, className: "cuartel-label", opacity: 0.7 });
+                    }
                   } else {
                     registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
                   }
@@ -501,6 +507,19 @@ function ToggleMedir({ visible, onToggle }: { visible: boolean; onToggle: () => 
           padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
           background: visible ? "#2e7d32" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
         }}>Medir</button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleCuartelLabels({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 240 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          background: visible ? "#1565c0" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
+        }}>Nombres</button>
       </div>
     </div>
   );
