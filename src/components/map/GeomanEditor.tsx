@@ -3,6 +3,7 @@ import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
 
+
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
 
 interface Props {
@@ -14,9 +15,11 @@ interface Props {
   onClose?: () => void;
   showContext?: boolean;
   onToggleContext?: () => void;
+  satelite?: boolean;
+  onToggleSatelite?: () => void;
 }
 
-export default function GeomanEditor({ initialGeoJSON, table, entityId, where, readOnly = false, onClose, showContext, onToggleContext }: Props) {
+export default function GeomanEditor({ initialGeoJSON, table, entityId, where, readOnly = false, onClose, showContext, onToggleContext, satelite, onToggleSatelite }: Props) {
   const map = useMap();
   const setupDone = useRef(false);
   const [saving, setSaving] = useState(false);
@@ -133,6 +136,15 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
   return (
     <div className="leaflet-top leaflet-right" style={{ top: 150, pointerEvents: "auto" as any }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {onToggleSatelite && (
+          <button onClick={onToggleSatelite} style={{
+            ...floatingBtn,
+            background: satelite ? "#1565c0" : "white",
+            color: satelite ? "white" : "#333",
+          }}>
+            Satélite {satelite ? "ON" : "OFF"}
+          </button>
+        )}
         {onToggleContext && (
           <button onClick={onToggleContext} style={{
             ...floatingBtn,

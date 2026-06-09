@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import { useState, useEffect, useRef } from "react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import "leaflet/dist/leaflet.css";
@@ -20,6 +21,7 @@ export default function EditorGeometria({ geojson, table, entityId, where, onCan
   const [fetching, setFetching] = useState(false);
   const [contextFeatures, setContextFeatures] = useState<Feature[]>([]);
   const [showContext, setShowContext] = useState(true);
+  const [satelite, setSatelite] = useState(true);
 
   useEffect(() => {
     if (geojson) {
@@ -125,20 +127,18 @@ export default function EditorGeometria({ geojson, table, entityId, where, onCan
             style={{ height: "100%", width: "100%" }}
           >
             <TileLayer
-              attribution='&copy; Esri'
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              key={satelite ? "sat-editor" : "osm-editor"}
+              attribution={
+                satelite
+                  ? '&copy; Esri'
+                  : '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+              }
+              url={satelite
+                ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              }
             />
-            {showContext && contextFeatures.length > 0 && (
-              <GeoJSON
-                key={`ctx-${table}`}
-                data={{ type: "FeatureCollection" as const, features: contextFeatures } as any}
-                style={{ color: "#888", weight: 0.5, fill: false, opacity: 0.6 }}
-                onEachFeature={(_f, layer) => {
-                  (layer as any).options.interactive = false;
-                  if ((layer as any)._path) (layer as any)._path.style.pointerEvents = "none";
-                }}
-              />
-            )}
+            <ContextLayers features={contextFeatures} visible={showContext} />
 
             {!fetching && (
               <GeomanEditor
@@ -149,6 +149,8 @@ export default function EditorGeometria({ geojson, table, entityId, where, onCan
                 onClose={onCancel}
                 showContext={showContext}
                 onToggleContext={() => setShowContext(v => !v)}
+                satelite={satelite}
+                onToggleSatelite={() => setSatelite(v => !v)}
               />
             )}
           </MapContainer>
@@ -156,6 +158,38 @@ export default function EditorGeometria({ geojson, table, entityId, where, onCan
       </div>
     </div>
   );
+}
+
+function ContextLayers({ features, visible }: { features: Feature[]; visible: boolean }) {
+  const map = useMap();
+  const layerRef = useRef<L.GeoJSON | null>(null);
+
+  useEffect(() => {
+    if (!features.length) return;
+    if (layerRef.current) {
+      map.removeLayer(layerRef.current);
+      layerRef.current = null;
+    }
+    if (visible) {
+      layerRef.current = L.geoJSON({ type: "FeatureCollection", features } as any, {
+        style: { color: "#888", weight: 0.5, fill: false, opacity: 0.6 },
+        onEachFeature: (_f, layer) => {
+          (layer as any).options.interactive = false;
+          if ((layer as any)._path) (layer as any)._path.style.pointerEvents = "none";
+        },
+      }).addTo(map);
+    }
+  }, [features, visible, map]);
+
+  useEffect(() => {
+    return () => {
+      if (layerRef.current) {
+        map.removeLayer(layerRef.current);
+      }
+    };
+  }, [map]);
+
+  return null;
 }
 
 const overlay: React.CSSProperties = {
