@@ -16,7 +16,6 @@ export interface Sector {
   descripcion: string;
   caudal_nominal: number | null;
   hectareas: number | null;
-  variedad: string;
   caseta: string;
   bomba: string;
   filtro: string;
@@ -60,7 +59,6 @@ export interface SectorGeo {
   codigo: string;
   numero: number;
   especie: string;
-  variedad: string;
   equipo: string;
   hectareas: number | null;
   jefe_campo: string;

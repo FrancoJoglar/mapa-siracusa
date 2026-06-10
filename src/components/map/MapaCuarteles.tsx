@@ -117,9 +117,14 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
     const e = new Set<string>(); const v = new Set<string>();
     const eq = new Set<string>(); const j = new Set<string>();
     const allCodes: string[] = [];
+    const sectorIdSet = new Set(sectores.map(s => s.id));
+    cuarteles.forEach(c => {
+      if (c.variedad && c.sector_ids?.some(sid => sectorIdSet.has(sid))) {
+        v.add(c.variedad);
+      }
+    });
     sectores.forEach(s => {
       if (s.especie) e.add(s.especie);
-      if (s.variedad) v.add(s.variedad);
       if (s.equipo) eq.add(s.equipo);
       if (s.jefe_campo) s.jefe_campo.split("/").forEach((jc: string) => j.add(jc.trim()));
       allCodes.push(s.codigo);
@@ -130,7 +135,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       sectores: allCodes.sort(numSort),
       jefes: Array.from(j).sort(),
     };
-  }, [sectores]);
+  }, [sectores, cuarteles]);
 
   // Sector codes filtered by selected equipo (cascading dropdown)
   const sectoresFiltradosPorEquipo = useMemo(() => {
@@ -165,7 +170,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const filteredSectores = useMemo(() => {
     return sectores.filter(s => {
       if (filtros.especie && s.especie !== filtros.especie) return false;
-      if (filtros.variedad && s.variedad !== filtros.variedad) return false;
+      if (filtros.variedad && !cuarteles.some(c => c.sector_ids?.includes(s.id) && c.variedad === filtros.variedad)) return false;
       if (filtros.anioDesde && (!s.anio || s.anio < filtros.anioDesde)) return false;
       if (filtros.anioHasta && (!s.anio || s.anio > filtros.anioHasta)) return false;
       if (filtros.equipo && s.equipo !== filtros.equipo) return false;
@@ -173,7 +178,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.jefeCampo && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jefeCampo))) return false;
       return true;
     });
-  }, [sectores, filtros]);
+  }, [sectores, cuarteles, filtros]);
 
   const handleFiltroChange = (f: FiltrosCuartel) => {
     if (f.equipo !== filtros.equipo) { setFiltros({ ...f, sector: "" }); }
@@ -450,7 +455,7 @@ function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[]): string {
   }
   const haRow = haText ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Hectareas:</td><td style="padding:3px 0">${haText}</td></tr>` : "";
 
-  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${r("Variedad",s.variedad)}${haRow}${r("Anio",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}</table></div>`;
+  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Anio",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}</table></div>`;
 }
 
 // ====== CONTROLS ======

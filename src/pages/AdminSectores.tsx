@@ -13,7 +13,7 @@ export default function AdminSectores() {
   const { unidades, refetch: refetchUnidades } = useUnidadesRiego();
   const [editing, setEditing] = useState<Sector | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
+  const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "" });
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editUnidad, setEditUnidad] = useState<UnidadRiego | null>(null);
@@ -35,10 +35,8 @@ export default function AdminSectores() {
     const eq = new Set<string>();
     const esp = new Set<string>();
     const jc = new Set<string>();
-    const varSet = new Set<string>();
     sectores.forEach(s => {
       if (s.especie) esp.add(s.especie);
-      if (s.variedad) varSet.add(s.variedad);
       if (s.jefe_campo) s.jefe_campo.split("/").forEach(n => jc.add(n.trim()));
       if (s.equipo_id) eq.add(getEquipoNombre(s.equipo_id));
     });
@@ -50,7 +48,6 @@ export default function AdminSectores() {
       }),
       especies: Array.from(esp).sort(),
       jefes: Array.from(jc).sort(),
-      variedades: Array.from(varSet).sort(),
     };
   }, [sectores, equipos]);
 
@@ -59,7 +56,6 @@ export default function AdminSectores() {
     const eqName = getEquipoNombre(s.equipo_id);
     if (filtros.equipo && eqName !== filtros.equipo) return false;
     if (filtros.especie && s.especie !== filtros.especie) return false;
-    if (filtros.variedad && s.variedad !== filtros.variedad) return false;
     if (filtros.jc && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jc))) return false;
     return true;
   }), [sectores, filtros, equipos, search]);
@@ -96,11 +92,7 @@ export default function AdminSectores() {
           <option value="">Jefe de Campo</option>
           {unique.jefes.map(v => <option key={v} value={v}>{v}</option>)}
         </select>
-        <select value={filtros.variedad} onChange={e => setFiltros({ ...filtros, variedad: e.target.value })} style={s}>
-          <option value="">Variedad</option>
-          {unique.variedades.map(v => <option key={v} value={v}>{v}</option>)}
-        </select>
-        <button onClick={() => setFiltros({ equipo: "", especie: "", jc: "", variedad: "" })} style={btnClear}>Limpiar</button>
+        <button onClick={() => setFiltros({ equipo: "", especie: "", jc: "" })} style={btnClear}>Limpiar</button>
       </div>
 
       <p style={{ color: "#666", fontSize: 13, marginBottom: 8 }}>
@@ -113,7 +105,7 @@ export default function AdminSectores() {
             <tr>
               <th style={{ width: 30 }}></th>
               <th>Código</th><th>Equipo</th><th>N°</th><th>Has</th>
-              <th>Especie</th><th>Variedad</th><th>Bomba</th><th>Filtro</th>
+              <th>Especie</th><th>Bomba</th><th>Filtro</th>
               <th>Año</th><th>JC</th><th>m³/ha</th>
               <th style={{ width: 100 }}>Acciones</th>
             </tr>
@@ -131,7 +123,7 @@ export default function AdminSectores() {
                   </td>
                   <td><strong>{s.codigo}</strong></td>
                   <td>{getEquipoNombre(s.equipo_id)}</td><td>{s.numero}</td>
-                  <td>{s.hectareas ?? ""}</td><td>{s.especie}</td><td>{s.variedad}</td>
+                  <td>{s.hectareas ?? ""}</td><td>{s.especie}</td>
                   <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{s.bomba}</td>
                   <td>{s.filtro}</td><td>{s.anio ?? ""}</td><td>{s.jefe_campo}</td>
                   <td>{s.m3_ha ?? ""}</td>

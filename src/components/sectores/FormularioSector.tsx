@@ -16,7 +16,6 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
   const [numero, setNumero] = useState(sector?.numero || 0);
   const [caudalNominal, setCaudalNominal] = useState(sector?.caudal_nominal ?? 0);
   const [hectareas, setHectareas] = useState(sector?.hectareas ?? 0);
-  const [variedad, setVariedad] = useState(sector?.variedad || "");
   const [caseta, setCaseta] = useState(sector?.caseta || "");
   const [bomba, setBomba] = useState(sector?.bomba || "");
   const [filtro, setFiltro] = useState(sector?.filtro || "");
@@ -44,7 +43,7 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
         equipo_id: equipoId, numero,
         caudal_nominal: caudalNominal || null,
         hectareas: hectareas || null,
-        variedad, caseta, bomba, filtro,
+        caseta, bomba, filtro,
         anio: anio || null,
         jefe_campo: jefeCampo,
         especie, descripcion,
@@ -100,7 +99,6 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
                 <option value="Kiwi">Kiwi</option>
               </select>
             </Campo>
-            <Campo label="Variedad"><input type="text" value={variedad} onChange={e => setVariedad(e.target.value)} style={inputStyle} /></Campo>
             <Campo label="Año"><input type="number" value={anio || ""} onChange={e => setAnio(Number(e.target.value))} style={inputStyle} /></Campo>
           </Row>
           <Row>

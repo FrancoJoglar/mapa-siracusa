@@ -121,7 +121,6 @@ describe("useSectores", () => {
       descripcion: "Sector de test",
       caudal_nominal: 150.5,
       hectareas: 25.75,
-      variedad: "Arbequina",
       caseta: "Caseta Norte",
       bomba: "Bomba 3",
       filtro: "Mallas 120",
