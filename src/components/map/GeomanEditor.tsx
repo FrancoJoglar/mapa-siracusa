@@ -90,7 +90,6 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
   const handleSave = async () => {
     const allFeatures: GeoJSON.Feature[] = [];
     polyLayersRef.current.forEach((l: any) => {
-      // Use Geoman's getGeojson when available (always produces valid 2D GeoJSON)
       let geo: GeoJSON.Feature | null = null;
       try {
         if (typeof l.pm?.getGeojson === 'function') {
@@ -98,7 +97,13 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
         }
       } catch {}
       if (!geo) geo = extractCoordsFromLayer(l);
-      if (geo) allFeatures.push(geo);
+      // Reject polygons with coordinates near [0,0] (invalid artifacts)
+      if (geo) {
+        const coords = (geo.geometry as any)?.coordinates;
+        const hasZero = JSON.stringify(coords).includes('[0,0') || JSON.stringify(coords).includes('[0,0]');
+        if (hasZero) { console.log("SKIP invalid polygon with [0,0] coords"); return; }
+        allFeatures.push(geo);
+      }
     });
     console.log("Poly layers tracked:", polyLayersRef.current.size, "| features:", allFeatures.length);
 
