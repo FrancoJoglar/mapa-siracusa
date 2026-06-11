@@ -90,25 +90,17 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
   const handleSave = async () => {
     const allFeatures: GeoJSON.Feature[] = [];
     polyLayersRef.current.forEach((l: any) => {
-      const geo = extractCoordsFromLayer(l);
-      if (geo) {
-        allFeatures.push(geo);
-        const first = JSON.stringify((geo.geometry as any).coordinates).substring(0, 100);
-        console.log("FEATURE coord sample:", first);
-      }
+      // Use Geoman's getGeojson when available (always produces valid 2D GeoJSON)
+      let geo: GeoJSON.Feature | null = null;
+      try {
+        if (typeof l.pm?.getGeojson === 'function') {
+          geo = l.pm.getGeojson() as GeoJSON.Feature;
+        }
+      } catch {}
+      if (!geo) geo = extractCoordsFromLayer(l);
+      if (geo) allFeatures.push(geo);
     });
     console.log("Poly layers tracked:", polyLayersRef.current.size, "| features:", allFeatures.length);
-    
-    // Check for Z in every coordinate of every feature
-    function findZ(c: any, path: string): boolean {
-      if (Array.isArray(c) && c.length > 0 && typeof c[0] === 'number' && c.length > 2) {
-        console.log("⚠️ Z at", path, ":", c);
-        return true;
-      }
-      if (Array.isArray(c)) return c.some((x, i) => findZ(x, path + '[' + i + ']'));
-      return false;
-    }
-    allFeatures.forEach((f, i) => findZ((f.geometry as any).coordinates, 'f' + i));
 
     if (allFeatures.length > 0) {
       // Check every coordinate for Z
