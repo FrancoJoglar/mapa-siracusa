@@ -86,18 +86,21 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
     // Extract ALL polygon layers currently on the map (the most reliable way)
     const allFeatures: GeoJSON.Feature[] = [];
     let layerCount = 0;
+    let skippedNoLatLngs = 0, skippedUrl = 0, skippedInteractive = 0, skippedNull = 0;
     map.eachLayer((l: any) => {
       layerCount++;
-      if (!l.getLatLngs || l._url) return; // skip tiles
-      if (l.options?.interactive === false) return; // skip context/aledaños layers
+      if (!l.getLatLngs) { skippedNoLatLngs++; return; }
+      if (l._url) { skippedUrl++; return; }
+      if (l.options?.interactive === false) { skippedInteractive++; return; }
       const geo = extractCoordsFromLayer(l);
       if (geo) {
         allFeatures.push(geo);
-        console.log("LAYER FOUND:", (geo.geometry as any)?.type);
+      } else {
+        skippedNull++;
       }
     });
-    console.log("Total layers:", layerCount, "| features found:", allFeatures.length);
-    console.log("initialGeoJSON:", !!initialGeoJSON?.geometry);
+    console.log("Total layers:", layerCount, "| features:", allFeatures.length);
+    console.log("Skipped: noLatLngs=" + skippedNoLatLngs + " url=" + skippedUrl + " interactive=false=" + skippedInteractive + " extractNull=" + skippedNull);
 
     if (allFeatures.length === 0) {
       if (initialGeoJSON?.geometry) { console.log("FALLBACK to initialGeoJSON"); await doSave(initialGeoJSON); return; }
