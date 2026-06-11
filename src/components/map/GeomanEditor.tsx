@@ -21,6 +21,8 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
   const map = useMap();
   const setupDone = useRef(false);
   const [saving, setSaving] = useState(false);
+  // Track explicit polygon layers for saving (bypass all filters)
+  const polyLayersRef = useRef<Set<any>>(new Set());
   // Store the current GeoJSON geometry (updated by pm:update/pm:create)
   const currentGeoRef = useRef<any>(null);
 
@@ -51,6 +53,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
         const layer = L.geoJSON(initialGeoJSON);
         layer.eachLayer((l: any) => {
           l.addTo(map);
+          polyLayersRef.current.add(l);
           if (!readOnly) l.pm.enable();
         });
         if (layer.getBounds().isValid()) {
@@ -62,6 +65,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
 
       // Track Geoman updates - extract coordinates from the leaf layer
       map.on("pm:create", (e: any) => {
+        polyLayersRef.current.add(e.layer);
         const coords = extractCoordsFromLayer(e.layer);
         if (coords) currentGeoRef.current = coords;
       });
@@ -81,24 +85,12 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
   }, [map, initialGeoJSON, readOnly]);
 
   const handleSave = async () => {
-    // Extract ALL polygon layers currently on the map (the most reliable way)
     const allFeatures: GeoJSON.Feature[] = [];
-    let layerCount = 0;
-    let skippedNoLatLngs = 0, skippedUrl = 0, skippedInteractive = 0, skippedNull = 0;
-    map.eachLayer((l: any) => {
-      layerCount++;
-      if (!l.getLatLngs) { skippedNoLatLngs++; return; }
-      if (l._url) { skippedUrl++; return; }
-      if (l.options?.interactive === false) { skippedInteractive++; return; }
+    polyLayersRef.current.forEach((l: any) => {
       const geo = extractCoordsFromLayer(l);
-      if (geo) {
-        allFeatures.push(geo);
-      } else {
-        skippedNull++;
-      }
+      if (geo) allFeatures.push(geo);
     });
-    console.log("Total layers:", layerCount, "| features:", allFeatures.length);
-    console.log("Skipped: noLatLngs=" + skippedNoLatLngs + " url=" + skippedUrl + " interactive=false=" + skippedInteractive + " extractNull=" + skippedNull);
+    console.log("Poly layers tracked:", polyLayersRef.current.size, "| features:", allFeatures.length);
 
     if (allFeatures.length > 0) {
       // Check every coordinate for Z
