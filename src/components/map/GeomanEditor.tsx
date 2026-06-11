@@ -102,6 +102,20 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
     console.log("Total layers:", layerCount, "| features:", allFeatures.length);
     console.log("Skipped: noLatLngs=" + skippedNoLatLngs + " url=" + skippedUrl + " interactive=false=" + skippedInteractive + " extractNull=" + skippedNull);
 
+    if (allFeatures.length > 0) {
+      // Check every coordinate for Z
+      function checkZ(c: any, depth: number): void {
+        if (Array.isArray(c) && c.length > 0 && typeof c[0] === 'number') {
+          if (c.length > 2) console.log("⚠️ Z FOUND at depth", depth, ":", c);
+        } else if (Array.isArray(c)) c.forEach((x: any) => checkZ(x, depth + 1));
+      }
+      allFeatures.forEach((f) => checkZ((f.geometry as any)?.coordinates, 0));
+      if (allFeatures.length > 1) {
+        const mp = { type: "MultiPolygon", coordinates: allFeatures.map(f => (f.geometry as any).coordinates as any) };
+        console.log("MultiPolygon (first 400):", JSON.stringify(mp).substring(0, 400));
+      }
+    }
+
     if (allFeatures.length === 0) {
       if (initialGeoJSON?.geometry) { console.log("FALLBACK to initialGeoJSON"); await doSave(initialGeoJSON); return; }
       alert("No hay poligono para guardar");
