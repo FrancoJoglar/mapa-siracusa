@@ -38,6 +38,8 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
       setupDone.current = true;
       const pm = (map as any).pm;
 
+      pm.setGlobalOptions({ snappable: false });
+
       pm.addControls({
         position: "topleft",
         drawCircle: false, drawCircleMarker: false, drawRectangle: false,
