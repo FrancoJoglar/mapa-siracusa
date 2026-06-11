@@ -117,7 +117,11 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
     }
 
     if (allFeatures.length === 0) {
-      if (initialGeoJSON?.geometry) { console.log("FALLBACK to initialGeoJSON"); await doSave(initialGeoJSON); return; }
+      if (initialGeoJSON?.geometry) {
+        alert("FALLBACK: no se encontraron poligonos editables, guardando original");
+        await doSave(initialGeoJSON);
+        return;
+      }
       alert("No hay poligono para guardar");
       return;
     }
