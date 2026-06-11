@@ -51,11 +51,14 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
 
       if (initialGeoJSON?.geometry) {
         const layer = L.geoJSON(initialGeoJSON);
+        let count = 0;
         layer.eachLayer((l: any) => {
           l.addTo(map);
           polyLayersRef.current.add(l);
           if (!readOnly) l.pm.enable();
+          count++;
         });
+        console.log("INIT: L.geoJSON created", count, "layers, polyLayersRef now:", polyLayersRef.current.size);
         if (layer.getBounds().isValid()) {
           map.fitBounds(layer.getBounds().pad(0.2));
         }
