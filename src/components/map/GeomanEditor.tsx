@@ -128,7 +128,10 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
         headers: { "Content-Type": "application/json", "apikey": ANON_KEY, "Authorization": `Bearer ${ANON_KEY}` },
         body: JSON.stringify({ geometria: geometry }),
       });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(`HTTP ${resp.status}: ${text.substring(0, 300)}`);
+      }
       alert("Poligono guardado correctamente");
       onClose?.();
     } catch (e: any) {
