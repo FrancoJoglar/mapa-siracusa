@@ -128,6 +128,8 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
         headers: { "Content-Type": "application/json", "apikey": ANON_KEY, "Authorization": `Bearer ${ANON_KEY}` },
         body: JSON.stringify({ geometria: geometry }),
       });
+      // Debug log
+      console.log("GEOMETRY SAVED:", JSON.stringify(geometry).substring(0, 500));
       if (!resp.ok) {
         const text = await resp.text();
         throw new Error(`HTTP ${resp.status}: ${text.substring(0, 300)}`);
@@ -220,11 +222,16 @@ function extractCoordsFromLayer(layer: any): GeoJSON.Feature | null {
   } catch { return null; }
 }
 
-// Strip Z (altitude) from any GeoJSON geometry coordinates — sends only [lng, lat]
+// Recursively strip Z dimension — keep only [lng, lat]
 function stripZ(geo: any): any {
   if (!geo || !geo.type) return geo;
-  function walk(coords: any[]): any[] {
-    if (typeof coords[0] === "number") return coords.slice(0, 2);
+  function walk(coords: any): any {
+    if (!Array.isArray(coords)) return coords;
+    if (coords.length === 0) return coords;
+    if (typeof coords[0] === "number") {
+      // Leaflet/Geoman sometimes produces [lng, lat, z] or [lng, lat]
+      return coords.slice(0, 2);
+    }
     return coords.map((c: any) => walk(c));
   }
   return { ...geo, coordinates: walk(geo.coordinates) };
