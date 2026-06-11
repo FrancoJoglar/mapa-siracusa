@@ -123,13 +123,23 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
       : `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}`;
     setSaving(true);
     try {
+      // Force 2D on everything before sending
+      const cleanGeo = (() => {
+        const g = JSON.parse(JSON.stringify(geometry));
+        function strip(c: any): any {
+          if (Array.isArray(c) && c.length > 0 && typeof c[0] === 'number') return c.slice(0, 2);
+          if (Array.isArray(c)) return c.map(strip);
+          return c;
+        }
+        g.coordinates = strip(g.coordinates);
+        return g;
+      })();
+      console.log("GEOMETRY FULL:", JSON.stringify(cleanGeo));
       const resp = await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "apikey": ANON_KEY, "Authorization": `Bearer ${ANON_KEY}` },
-        body: JSON.stringify({ geometria: geometry }),
+        body: JSON.stringify({ geometria: cleanGeo }),
       });
-      // Debug log
-      console.log("GEOMETRY SAVED:", JSON.stringify(geometry).substring(0, 500));
       if (!resp.ok) {
         const text = await resp.text();
         throw new Error(`HTTP ${resp.status}: ${text.substring(0, 300)}`);
