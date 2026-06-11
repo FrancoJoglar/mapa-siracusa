@@ -115,30 +115,29 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
   const doSave = async (feature: GeoJSON.Feature) => {
     if (!table) { alert("Faltan datos de guardado"); return; }
     if (!entityId && !where) { alert("Falta identificador del poligono"); return; }
-    const geometry = stripZ((feature as any)?.geometry || feature);
+    const geometry = (feature as any)?.geometry || feature;
     if (!geometry?.type || !geometry?.coordinates) { alert("Geometria invalida"); return; }
+
+    // Manually reconstruct coordinates from scratch — only [lng, lat]
+    function buildCoords(coords: any): any {
+      if (Array.isArray(coords) && coords.length > 0 && typeof coords[0] === 'number') {
+        return [coords[0], coords[1]];
+      }
+      if (Array.isArray(coords)) return coords.map(buildCoords);
+      return coords;
+    }
+    const safe: any = { type: geometry.type, coordinates: buildCoords(geometry.coordinates) };
 
     const url = where
       ? `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?${where}`
       : `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}`;
     setSaving(true);
     try {
-      // Force 2D on everything before sending
-      const cleanGeo = (() => {
-        const g = JSON.parse(JSON.stringify(geometry));
-        function strip(c: any): any {
-          if (Array.isArray(c) && c.length > 0 && typeof c[0] === 'number') return c.slice(0, 2);
-          if (Array.isArray(c)) return c.map(strip);
-          return c;
-        }
-        g.coordinates = strip(g.coordinates);
-        return g;
-      })();
-      console.log("GEOMETRY FULL:", JSON.stringify(cleanGeo));
+      console.log("SENDING:", JSON.stringify({ geometria: safe }).substring(0, 1000));
       const resp = await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "apikey": ANON_KEY, "Authorization": `Bearer ${ANON_KEY}` },
-        body: JSON.stringify({ geometria: cleanGeo }),
+        body: JSON.stringify({ geometria: safe }),
       });
       if (!resp.ok) {
         const text = await resp.text();
@@ -230,19 +229,4 @@ function extractCoordsFromLayer(layer: any): GeoJSON.Feature | null {
 
     return { type: "Feature", geometry: geometry as any, properties: {} };
   } catch { return null; }
-}
-
-// Recursively strip Z dimension — keep only [lng, lat]
-function stripZ(geo: any): any {
-  if (!geo || !geo.type) return geo;
-  function walk(coords: any): any {
-    if (!Array.isArray(coords)) return coords;
-    if (coords.length === 0) return coords;
-    if (typeof coords[0] === "number") {
-      // Leaflet/Geoman sometimes produces [lng, lat, z] or [lng, lat]
-      return coords.slice(0, 2);
-    }
-    return coords.map((c: any) => walk(c));
-  }
-  return { ...geo, coordinates: walk(geo.coordinates) };
 }
