@@ -118,26 +118,15 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
     const geometry = (feature as any)?.geometry || feature;
     if (!geometry?.type || !geometry?.coordinates) { alert("Geometria invalida"); return; }
 
-    // Manually reconstruct coordinates from scratch — only [lng, lat]
-    function buildCoords(coords: any): any {
-      if (Array.isArray(coords) && coords.length > 0 && typeof coords[0] === 'number') {
-        return [coords[0], coords[1]];
-      }
-      if (Array.isArray(coords)) return coords.map(buildCoords);
-      return coords;
-    }
-    const safe: any = { type: geometry.type, coordinates: buildCoords(geometry.coordinates) };
-
     const url = where
       ? `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?${where}`
       : `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}`;
     setSaving(true);
     try {
-      console.log("SENDING:", JSON.stringify({ geometria: safe }).substring(0, 1000));
       const resp = await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "apikey": ANON_KEY, "Authorization": `Bearer ${ANON_KEY}` },
-        body: JSON.stringify({ geometria: safe }),
+        body: JSON.stringify({ geometria: geometry }),
       });
       if (!resp.ok) {
         const text = await resp.text();
