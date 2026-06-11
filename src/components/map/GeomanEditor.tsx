@@ -147,10 +147,12 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
       : `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}`;
     setSaving(true);
     try {
+      // Deep-clone to strip any hidden properties (Leaflet/Geoman metadata)
+      const safe = JSON.parse(JSON.stringify(geometry));
       const resp = await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "apikey": ANON_KEY, "Authorization": `Bearer ${ANON_KEY}` },
-        body: JSON.stringify({ geometria: geometry }),
+        body: JSON.stringify({ geometria: safe }),
       });
       if (!resp.ok) {
         const text = await resp.text();
