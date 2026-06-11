@@ -2,9 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
-
-
-const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
+import { supabase } from "../../lib/supabase";
 
 interface Props {
   initialGeoJSON?: GeoJSON.Feature | null;
@@ -142,22 +140,24 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
     const geometry = (feature as any)?.geometry || feature;
     if (!geometry?.type || !geometry?.coordinates) { alert("Geometria invalida"); return; }
 
-    const url = where
-      ? `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?${where}`
-      : `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}`;
     setSaving(true);
     try {
-      // Deep-clone to strip any hidden properties (Leaflet/Geoman metadata)
-      const safe = JSON.parse(JSON.stringify(geometry));
-      const resp = await fetch(url, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "apikey": ANON_KEY, "Authorization": `Bearer ${ANON_KEY}` },
-        body: JSON.stringify({ geometria: safe }),
-      });
-      if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error(`HTTP ${resp.status}: ${text.substring(0, 300)}`);
+      // Build filter: parse "col1=eq.val1&col2=eq.val2" into match object
+      const matchObj: Record<string, string> = {};
+      if (where) {
+        where.split('&').forEach(pair => {
+          const [key, rest] = pair.split('=');
+          const val = rest?.replace(/^eq\./, '');
+          if (key && val) matchObj[key] = val;
+        });
+      } else {
+        matchObj.id = entityId!;
       }
+      const { error } = await (supabase
+        .from(table) as any)
+        .update({ geometria: geometry })
+        .match(matchObj);
+      if (error) throw new Error(error.message);
       alert("Poligono guardado correctamente");
       onClose?.();
     } catch (e: any) {
