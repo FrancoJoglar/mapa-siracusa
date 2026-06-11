@@ -87,6 +87,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
     const allFeatures: GeoJSON.Feature[] = [];
     map.eachLayer((l: any) => {
       if (!l.getLatLngs || l._url) return; // skip tiles
+      if (l.options?.interactive === false) return; // skip context/aledaños layers
       const geo = extractCoordsFromLayer(l);
       if (geo) allFeatures.push(geo);
     });
