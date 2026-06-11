@@ -50,6 +50,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
 
       if (initialGeoJSON?.geometry) {
         const layer = L.geoJSON(initialGeoJSON);
+        console.log("INIT initialGeoJSON type:", initialGeoJSON.geometry.type, "| coords:", JSON.stringify((initialGeoJSON.geometry as any).coordinates).substring(0, 200));
         let count = 0;
         layer.eachLayer((l: any) => {
           l.addTo(map);
