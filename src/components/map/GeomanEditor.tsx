@@ -115,7 +115,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
   const doSave = async (feature: GeoJSON.Feature) => {
     if (!table) { alert("Faltan datos de guardado"); return; }
     if (!entityId && !where) { alert("Falta identificador del poligono"); return; }
-    const geometry = (feature as any)?.geometry || feature;
+    const geometry = stripZ((feature as any)?.geometry || feature);
     if (!geometry?.type || !geometry?.coordinates) { alert("Geometria invalida"); return; }
 
     const url = where
@@ -218,4 +218,14 @@ function extractCoordsFromLayer(layer: any): GeoJSON.Feature | null {
 
     return { type: "Feature", geometry: geometry as any, properties: {} };
   } catch { return null; }
+}
+
+// Strip Z (altitude) from any GeoJSON geometry coordinates — sends only [lng, lat]
+function stripZ(geo: any): any {
+  if (!geo || !geo.type) return geo;
+  function walk(coords: any[]): any[] {
+    if (typeof coords[0] === "number") return coords.slice(0, 2);
+    return coords.map((c: any) => walk(c));
+  }
+  return { ...geo, coordinates: walk(geo.coordinates) };
 }
