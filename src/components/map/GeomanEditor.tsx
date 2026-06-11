@@ -85,15 +85,22 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
   const handleSave = async () => {
     // Extract ALL polygon layers currently on the map (the most reliable way)
     const allFeatures: GeoJSON.Feature[] = [];
+    let layerCount = 0;
     map.eachLayer((l: any) => {
+      layerCount++;
       if (!l.getLatLngs || l._url) return; // skip tiles
       if (l.options?.interactive === false) return; // skip context/aledaños layers
       const geo = extractCoordsFromLayer(l);
-      if (geo) allFeatures.push(geo);
+      if (geo) {
+        allFeatures.push(geo);
+        console.log("LAYER FOUND:", (geo.geometry as any)?.type);
+      }
     });
+    console.log("Total layers:", layerCount, "| features found:", allFeatures.length);
+    console.log("initialGeoJSON:", !!initialGeoJSON?.geometry);
 
     if (allFeatures.length === 0) {
-      if (initialGeoJSON?.geometry) { await doSave(initialGeoJSON); return; }
+      if (initialGeoJSON?.geometry) { console.log("FALLBACK to initialGeoJSON"); await doSave(initialGeoJSON); return; }
       alert("No hay poligono para guardar");
       return;
     }
