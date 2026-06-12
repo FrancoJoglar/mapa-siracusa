@@ -65,6 +65,13 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
         }
         let count = 0;
         allCoords.forEach((ring: number[][]) => {
+          // Ensure ring is closed (GeoJSON standard: first point == last point)
+          if (ring.length > 1) {
+            const last = ring[ring.length - 1];
+            if (last[0] !== ring[0][0] || last[1] !== ring[0][1]) {
+              ring.push([...ring[0]]);
+            }
+          }
           const latlngs = ring.map((c: number[]) => [c[1], c[0]] as [number, number]);
           const polygon = L.polygon(latlngs, { color: "#3388ff", weight: 2, fillOpacity: 0.2 });
           polygon.addTo(map);
