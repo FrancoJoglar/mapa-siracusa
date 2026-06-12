@@ -66,12 +66,17 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
         currentGeoRef.current = initialGeoJSON;
       }
 
-      // Track Geoman updates - extract coordinates from the leaf layer
+      // Track layers created by Geoman (user draws new polygon)
       map.on("pm:create", (e: any) => {
-        const coordSample = JSON.stringify(extractCoordsFromLayer(e.layer)?.geometry).substring(0, 100);
-        console.log("pm:create fired - layer type:", e.layer?.getLatLngs ? "Polygon" : "Other", "coords:", coordSample);
-        polyLayersRef.current.add(e.layer);
-        const coords = extractCoordsFromLayer(e.layer);
+        const l = e.layer;
+        // Validate: must have at least 3 distinct non-zero points
+        if (typeof l.getLatLngs !== 'function') return;
+        const latlngs = l.getLatLngs();
+        const pts: any[] = Array.isArray(latlngs?.[0]) ? latlngs[0] : [];
+        const valid = pts.filter((p: any) => Math.abs(p.lat) > 0.001 || Math.abs(p.lng) > 0.001).length;
+        if (valid < 3) { console.log("pm:create SKIP phantom layer, valid pts:", valid); return; }
+        polyLayersRef.current.add(l);
+        const coords = extractCoordsFromLayer(l);
         if (coords) currentGeoRef.current = coords;
       });
       map.on("pm:update", (e: any) => {
@@ -92,20 +97,19 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
   const handleSave = async () => {
     const allFeatures: GeoJSON.Feature[] = [];
     polyLayersRef.current.forEach((l: any) => {
-      let geo: GeoJSON.Feature | null = null;
-      try {
-        if (typeof l.pm?.getGeojson === 'function') {
-          geo = l.pm.getGeojson() as GeoJSON.Feature;
-        }
-      } catch {}
-      if (!geo) geo = extractCoordsFromLayer(l);
-      // Reject polygons with coordinates near [0,0] (invalid artifacts)
-      if (geo) {
-        const coords = (geo.geometry as any)?.coordinates;
-        const hasZero = JSON.stringify(coords).includes('[0,0') || JSON.stringify(coords).includes('[0,0]');
-        if (hasZero) { console.log("SKIP invalid polygon with [0,0] coords"); return; }
-        allFeatures.push(geo);
+      const geo = extractCoordsFromLayer(l);
+      if (!geo) return;
+      // Reject polygons with zero/near-zero coordinates (invalid artifacts)
+      const allCoords: number[][] = [];
+      function walk(c: any) { if (Array.isArray(c) && typeof c[0] === 'number') allCoords.push(c); else if (Array.isArray(c)) c.forEach(walk); }
+      walk((geo.geometry as any)?.coordinates);
+      const hasBad = allCoords.some(c => Math.abs(c[0]) < 0.001 && Math.abs(c[1]) < 0.001);
+      const validPoints = allCoords.filter(c => Math.abs(c[0]) > 0.001 || Math.abs(c[1]) > 0.001).length;
+      if (hasBad || validPoints < 3) {
+        console.log("SKIP bad polygon: bad=" + hasBad + " validPoints=" + validPoints);
+        return;
       }
+      allFeatures.push(geo);
     });
     console.log("Poly layers tracked:", polyLayersRef.current.size, "| features:", allFeatures.length);
 
