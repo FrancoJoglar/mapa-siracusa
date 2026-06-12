@@ -68,6 +68,8 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
 
       // Track Geoman updates - extract coordinates from the leaf layer
       map.on("pm:create", (e: any) => {
+        const coordSample = JSON.stringify(extractCoordsFromLayer(e.layer)?.geometry).substring(0, 100);
+        console.log("pm:create fired - layer type:", e.layer?.getLatLngs ? "Polygon" : "Other", "coords:", coordSample);
         polyLayersRef.current.add(e.layer);
         const coords = extractCoordsFromLayer(e.layer);
         if (coords) currentGeoRef.current = coords;
