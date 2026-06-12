@@ -1,10 +1,32 @@
 import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import MapaPage from "./pages/MapaPage";
 import AdminEquipos from "./pages/AdminEquipos";
 import AdminSectores from "./pages/AdminSectores";
 import AdminCuarteles from "./pages/AdminCuarteles";
+import LoginPage from "./pages/LoginPage";
 
 export default function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
+  );
+}
+
+function AppInner() {
+  const { user, loading, signOut } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        <p style={{ fontSize: 16, color: "#666" }}>Cargando...</p>
+      </div>
+    );
+  }
+
+  if (!user) return <LoginPage />;
+
   return (
     <BrowserRouter>
       <div style={{ display: "flex", height: "100vh" }}>
@@ -12,6 +34,9 @@ export default function App() {
           <h2 style={{ color: "#fff", fontSize: 15, margin: "0 0 16px", padding: "0 8px" }}>
             Siracusa 2025
           </h2>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 12, padding: "0 8px" }}>
+            {user.email}
+          </div>
           <NavLink to="/" end style={linkStyle}>
             Mapa
           </NavLink>
@@ -24,6 +49,14 @@ export default function App() {
           <NavLink to="/admin/cuarteles" style={linkStyle}>
             Cuarteles
           </NavLink>
+          <div style={{ flex: 1 }} />
+          <button onClick={signOut} style={{
+            color: "rgba(255,255,255,0.7)", background: "transparent",
+            border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6,
+            padding: "6px 12px", fontSize: 12, cursor: "pointer",
+          }}>
+            Cerrar sesión
+          </button>
         </nav>
         <main style={{ flex: 1, overflow: "auto" }}>
           <Routes>
