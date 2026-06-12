@@ -50,17 +50,29 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
       });
 
       if (initialGeoJSON?.geometry) {
-        const layer = L.geoJSON(initialGeoJSON);
-        console.log("INIT initialGeoJSON type:", initialGeoJSON.geometry.type, "| coords:", JSON.stringify((initialGeoJSON.geometry as any).coordinates).substring(0, 200));
+        console.log("INIT initialGeoJSON type:", initialGeoJSON.geometry.type);
+        // Create polygons manually from coordinates — no L.geoJSON FeatureGroup
+        const allCoords: number[][][] = [];
+        const raw = (initialGeoJSON.geometry as any).coordinates;
+        if (initialGeoJSON.geometry.type === 'MultiPolygon') {
+          raw.forEach((poly: any) => allCoords.push(poly[0]));
+        } else if (initialGeoJSON.geometry.type === 'Polygon') {
+          allCoords.push(raw[0]);
+        }
         let count = 0;
-        layer.eachLayer((l: any) => {
-          l.addTo(map);
-          polyLayersRef.current.add(l);
-          if (!readOnly) l.pm.enable();
+        allCoords.forEach((ring: number[][]) => {
+          const latlngs = ring.map((c: number[]) => [c[1], c[0]] as [number, number]);
+          const polygon = L.polygon(latlngs, { color: "#3388ff", weight: 2, fillOpacity: 0.2 });
+          polygon.addTo(map);
+          polyLayersRef.current.add(polygon);
+          if (!readOnly) polygon.pm.enable();
+          count++;
         });
-        console.log("INIT: L.geoJSON created", count, "layers, polyLayersRef now:", polyLayersRef.current.size);
-        if (layer.getBounds().isValid()) {
-          map.fitBounds(layer.getBounds().pad(0.2));
+        console.log("INIT: created", count, "manual polygons, polyLayersRef now:", polyLayersRef.current.size);
+        // Fit bounds
+        if (allCoords.length > 0) {
+          const allLatLngs = allCoords.flat().map((c: number[]) => [c[1], c[0]] as [number, number]);
+          map.fitBounds(L.latLngBounds(allLatLngs).pad(0.2));
         }
         // Store the initial geometry
         currentGeoRef.current = initialGeoJSON;
