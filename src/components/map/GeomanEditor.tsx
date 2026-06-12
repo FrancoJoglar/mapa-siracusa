@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
@@ -21,19 +21,8 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
   const setupDone = useRef(false);
   const [saving, setSaving] = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
-  const deleteModeRef = useRef(false);
   // Track explicit polygon layers for saving (bypass all filters)
   const polyLayersRef = useRef<Set<any>>(new Set());
-
-  // Called when any polygon is clicked during delete mode
-  const onPolygonClick = useCallback((e: any) => {
-    if (!deleteModeRef.current) return;
-    const layer = e.target;
-    map.removeLayer(layer);
-    polyLayersRef.current.delete(layer);
-    setDeleteMode(false);
-    deleteModeRef.current = false;
-  }, [map]);
   // Store the current GeoJSON geometry (updated by pm:update/pm:create)
   const currentGeoRef = useRef<any>(null);
 
@@ -66,7 +55,6 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
         let count = 0;
         layer.eachLayer((l: any) => {
           l.addTo(map);
-          l.on("click", onPolygonClick);
           polyLayersRef.current.add(l);
           if (!readOnly) l.pm.enable();
         });
@@ -87,7 +75,6 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
         const pts: any[] = Array.isArray(latlngs?.[0]) ? latlngs[0] : [];
         const valid = pts.filter((p: any) => Math.abs(p.lat) > 0.001 || Math.abs(p.lng) > 0.001).length;
         if (valid < 3) { console.log("pm:create SKIP phantom layer, valid pts:", valid); return; }
-        l.on("click", onPolygonClick);
         polyLayersRef.current.add(l);
         const coords = extractCoordsFromLayer(l);
         if (coords) currentGeoRef.current = coords;
@@ -237,12 +224,28 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
           </button>
         )}
         {onClose && (
-          <button onClick={() => { setDeleteMode(false); deleteModeRef.current = false; onClose(); }} style={{ ...floatingBtn, background: "white", color: "#333" }}>
+          <button onClick={() => {
+            setDeleteMode(false);
+            map.pm.disableGlobalRemovalMode();
+            onClose();
+          }} style={{ ...floatingBtn, background: "white", color: "#333" }}>
             Cancelar
           </button>
         )}
-        <button onClick={() => { setDeleteMode(true); deleteModeRef.current = true; }} disabled={deleteMode}
-          style={{ ...floatingBtn, background: deleteMode ? "#c62828" : "white", color: deleteMode ? "white" : "#c62828", borderColor: "#c62828" }}>
+        <button onClick={() => {
+          if (map.pm.globalRemovalModeEnabled()) {
+            map.pm.disableGlobalRemovalMode();
+            setDeleteMode(false);
+          } else {
+            map.pm.enableGlobalRemovalMode();
+            setDeleteMode(true);
+          }
+        }} style={{
+          ...floatingBtn,
+          background: deleteMode ? "#c62828" : "white",
+          color: deleteMode ? "white" : "#c62828",
+          borderColor: "#c62828"
+        }}>
           {deleteMode ? "Click en poligono a eliminar" : "Eliminar"}
         </button>
         <button onClick={handleSave} disabled={saving}
