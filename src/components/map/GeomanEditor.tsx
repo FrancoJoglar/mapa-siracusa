@@ -83,6 +83,10 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
         const coords = extractCoordsFromLayer(e.layer);
         if (coords) currentGeoRef.current = coords;
       });
+      // Track layer removal (Geoman delete tool)
+      map.on("pm:remove", (e: any) => {
+        polyLayersRef.current.delete(e.layer);
+      });
     };
 
     requestAnimationFrame(init);
@@ -91,6 +95,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
       try { (map as any)?.pm?.removeControls(); } catch {}
       map.off("pm:create");
       map.off("pm:update");
+      map.off("pm:remove");
     };
   }, [map, initialGeoJSON, readOnly]);
 
@@ -242,7 +247,7 @@ function extractCoordsFromLayer(layer: any): GeoJSON.Feature | null {
     const latlngs = layer.getLatLngs();
     // Leaflet Polygon.getLatLngs() returns [[LatLng, LatLng, ...]] for a single polygon
     // or [[[LatLng, LatLng, ...]]] for a MultiPolygon
-    const rings: number[][][] = [];
+    let rings: number[][][] = [];
 
     if (!latlngs || !latlngs[0]) return null;
 
@@ -268,6 +273,17 @@ function extractCoordsFromLayer(layer: any): GeoJSON.Feature | null {
     }
 
     if (rings.length === 0 || rings[0].length < 3) return null;
+
+    // Force counter-clockwise orientation for all rings (GeoJSON standard)
+    rings = rings.map(ring => {
+      let area = 0;
+      for (let i = 0; i < ring.length; i++) {
+        const j = (i + 1) % ring.length;
+        area += ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
+      }
+      // Positive area = CCW, Negative = CW (need to reverse)
+      return area > 0 ? ring : ring.slice().reverse();
+    });
 
     const geometry = rings.length === 1
       ? { type: "Polygon" as const, coordinates: [rings[0]] }
