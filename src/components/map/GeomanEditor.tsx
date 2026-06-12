@@ -38,7 +38,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
       setupDone.current = true;
       const pm = (map as any).pm;
 
-      pm.setGlobalOptions({ snappable: false });
+      pm.setGlobalOptions({ snappable: false, snapDistance: 0 });
 
       pm.addControls({
         position: "topleft",
