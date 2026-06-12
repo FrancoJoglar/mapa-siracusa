@@ -184,7 +184,7 @@ export default function AdminSectores() {
           geojson={(editUnidad.geojson as Feature) || null}
           table="cuartel_sector"
           where={`cuartel_id=eq.${editUnidad.cuartel_id}&sector_id=eq.${editUnidad.sector_id}`}
-          onCancel={() => setEditUnidad(null)}
+          onCancel={() => { setEditUnidad(null); refetchUnidades(); }}
         />
       )}
 
