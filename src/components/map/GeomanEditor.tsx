@@ -153,6 +153,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
           } as any,
           properties: {},
         };
+    console.log("SAVING feats:", allFeatures.length, "| allCoords:", JSON.stringify(allFeatures.map(f => (f.geometry as any)?.coordinates?.[0]?.[0])).substring(0, 200));
     await doSave(feature);
   };
 
