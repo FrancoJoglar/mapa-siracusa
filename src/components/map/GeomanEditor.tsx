@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
@@ -20,8 +20,27 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
   const map = useMap();
   const setupDone = useRef(false);
   const [saving, setSaving] = useState(false);
+  const [deleteMode, setDeleteMode] = useState(false);
   // Track explicit polygon layers for saving (bypass all filters)
   const polyLayersRef = useRef<Set<any>>(new Set());
+
+  // Click-to-delete mode: click a polygon to remove it
+  const handleDeleteClick = useCallback((e: L.LeafletMouseEvent) => {
+    if (!deleteMode) return;
+    // Find if we clicked on one of our tracked polygons
+    map.eachLayer((l: any) => {
+      if (!polyLayersRef.current.has(l)) return;
+      const latlngs = l.getLatLngs?.();
+      if (!latlngs) return;
+      // Check if click is inside this polygon
+      const poly = L.polygon(latlngs);
+      if (L.latLngBounds(poly.getLatLngs().flat().flat()).contains(e.latlng)) {
+        map.removeLayer(l);
+        polyLayersRef.current.delete(l);
+        setDeleteMode(false);
+      }
+    });
+  }, [deleteMode, map]);
   // Store the current GeoJSON geometry (updated by pm:update/pm:create)
   const currentGeoRef = useRef<any>(null);
 
@@ -45,7 +64,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
         drawPolyline: false, drawMarker: false, drawText: false,
         cutPolygon: false, rotateMode: false,
         drawPolygon: !readOnly,
-        dragMode: !readOnly, editMode: !readOnly, removalMode: !readOnly,
+        dragMode: !readOnly, editMode: !readOnly, removalMode: false,
       });
 
       if (initialGeoJSON?.geometry) {
@@ -87,6 +106,8 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
       map.on("pm:remove", (e: any) => {
         polyLayersRef.current.delete(e.layer);
       });
+      // Click-to-delete handler
+      map.on("click", handleDeleteClick);
     };
 
     requestAnimationFrame(init);
@@ -96,6 +117,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
       map.off("pm:create");
       map.off("pm:update");
       map.off("pm:remove");
+      map.off("click", handleDeleteClick);
     };
   }, [map, initialGeoJSON, readOnly]);
 
@@ -224,10 +246,14 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
           </button>
         )}
         {onClose && (
-          <button onClick={onClose} style={{ ...floatingBtn, background: "white", color: "#333" }}>
+          <button onClick={() => { setDeleteMode(false); onClose(); }} style={{ ...floatingBtn, background: "white", color: "#333" }}>
             Cancelar
           </button>
         )}
+        <button onClick={() => setDeleteMode(true)} disabled={deleteMode}
+          style={{ ...floatingBtn, background: deleteMode ? "#c62828" : "white", color: deleteMode ? "white" : "#c62828", borderColor: "#c62828" }}>
+          {deleteMode ? "Click en poligono a eliminar" : "Eliminar"}
+        </button>
         <button onClick={handleSave} disabled={saving}
           style={{ ...floatingBtn, background: saving ? "#ccc" : "#1565c0", color: "#fff", fontWeight: 600 }}>
           {saving ? "Guardando..." : "Guardar"}
