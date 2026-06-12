@@ -39,6 +39,10 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
       const pm = (map as any).pm;
 
       pm.setGlobalOptions({ snappable: false, snapDistance: 0 });
+      // Force snappable off on draw start (defensive)
+      map.on("pm:drawstart", () => {
+        pm.setGlobalOptions({ snappable: false, snapDistance: 0 });
+      });
 
       pm.addControls({
         position: "topleft",
@@ -65,7 +69,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
           const polygon = L.polygon(latlngs, { color: "#3388ff", weight: 2, fillOpacity: 0.2 });
           polygon.addTo(map);
           polyLayersRef.current.add(polygon);
-          if (!readOnly) polygon.pm.enable();
+          if (!readOnly) polygon.pm.enable({ snappable: false });
           count++;
         });
         console.log("INIT: created", count, "manual polygons, polyLayersRef now:", polyLayersRef.current.size);
@@ -108,6 +112,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
       map.off("pm:create");
       map.off("pm:update");
       map.off("pm:remove");
+      map.off("pm:drawstart");
     };
   }, [map, initialGeoJSON, readOnly]);
 
