@@ -120,7 +120,7 @@ export default function EditorGeometria({ geojson, table, entityId, where, onCan
       <div style={modal}>
         <h3 style={{ marginTop: 0 }}>Editor de Poligono</h3>
         {fetching && <p style={{ color: "#999", fontSize: 12, margin: "0 0 8px" }}>Cargando geometria...</p>}
-        <div style={{ height: 440 }}>
+        <div style={{ flex: 1, minHeight: 0 }}>
           <MapContainer
             center={initialCenter}
             zoom={15}
@@ -197,5 +197,7 @@ const overlay: React.CSSProperties = {
   display: "flex", justifyContent: "center", alignItems: "center", zIndex: 3000,
 };
 const modal: React.CSSProperties = {
-  background: "#fff", padding: 20, borderRadius: 8, width: 750, maxWidth: "95vw",
+  background: "#fff", padding: "12px 20px 20px", borderRadius: 8,
+  width: "100vw", height: "100vh", maxWidth: "100vw", maxHeight: "100vh",
+  boxSizing: "border-box", display: "flex", flexDirection: "column",
 };
