@@ -203,6 +203,7 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
           const [k, rest] = p.split('=');
           return [k, rest?.startsWith('eq.') ? rest.slice(3) : rest];
         }));
+        console.log("CS PARAMS:", JSON.stringify(params), "| geo:", JSON.stringify(geometry).substring(0, 100));
         resp = await fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/rpc/update_cuartel_sector_geom`, {
           method: "POST",
           headers: {
