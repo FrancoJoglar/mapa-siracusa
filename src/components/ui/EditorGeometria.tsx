@@ -167,26 +167,29 @@ function ContextLayers({ features, visible }: { features: Feature[]; visible: bo
   useEffect(() => {
     if (!features.length) return;
     if (layerRef.current) {
-      map.removeLayer(layerRef.current);
+      layerRef.current.eachLayer((l: any) => map.removeLayer(l));
       layerRef.current = null;
     }
     if (visible) {
-      layerRef.current = L.geoJSON({ type: "FeatureCollection", features } as any, {
+      const geoLayer = L.geoJSON({ type: "FeatureCollection", features } as any, {
         style: { color: "#e65100", weight: 2, fillColor: "#ffe0b2", fillOpacity: 0.15, opacity: 0.8 },
-        pmIgnore: true,
         onEachFeature: (_f, layer) => {
           (layer as any).options.interactive = false;
           (layer as any).options.pmIgnore = true;
           if ((layer as any)._path) (layer as any)._path.style.pointerEvents = "none";
         },
-      }).addTo(map);
+      });
+      // Add each child individually so they're independent map layers (not a group)
+      geoLayer.eachLayer((l: any) => l.addTo(map));
+      layerRef.current = geoLayer as any;
     }
   }, [features, visible, map]);
 
   useEffect(() => {
     return () => {
       if (layerRef.current) {
-        map.removeLayer(layerRef.current);
+        layerRef.current.eachLayer((l: any) => map.removeLayer(l));
+        layerRef.current = null;
       }
     };
   }, [map]);
