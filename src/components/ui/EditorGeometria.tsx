@@ -172,7 +172,7 @@ function ContextLayers({ features, visible }: { features: Feature[]; visible: bo
     }
     if (visible) {
       layerRef.current = L.geoJSON({ type: "FeatureCollection", features } as any, {
-        style: { color: "#888", weight: 0.5, fill: false, opacity: 0.6 },
+        style: { color: "#e65100", weight: 2, fillColor: "#ffe0b2", fillOpacity: 0.15, opacity: 0.8 },
         onEachFeature: (_f, layer) => {
           (layer as any).options.interactive = false;
           if ((layer as any)._path) (layer as any)._path.style.pointerEvents = "none";
