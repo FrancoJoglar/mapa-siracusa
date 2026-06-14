@@ -2,8 +2,10 @@ import { useState } from "react";
 import { useEquipos } from "../hooks/useEquipos";
 import { Equipo } from "../lib/types";
 import FormularioEquipo from "../components/equipos/FormularioEquipo";
+import { useAuth } from "../context/AuthContext";
 
 export default function AdminEquipos() {
+  const { isAdmin } = useAuth();
   const { equipos, loading, error, createEquipo, updateEquipo, deleteEquipo } =
     useEquipos();
   const [editing, setEditing] = useState<Equipo | null>(null);
@@ -23,6 +25,7 @@ export default function AdminEquipos() {
         }}
       >
         <h2 style={{ margin: 0 }}>Equipos de Riego</h2>
+        {isAdmin && (
         <button
           onClick={() => {
             setEditing(null);
@@ -32,6 +35,7 @@ export default function AdminEquipos() {
         >
           + Nuevo Equipo
         </button>
+        )}
       </div>
 
       <table style={tableStyle}>
@@ -50,7 +54,7 @@ export default function AdminEquipos() {
               <td>{e.nombre}</td>
               <td>{e.descripcion}</td>
               <td>
-                <button
+                {isAdmin && <><button
                   onClick={() => {
                     setEditing(e);
                     setShowForm(true);
@@ -67,7 +71,7 @@ export default function AdminEquipos() {
                   style={{ ...btnSmStyle, color: "#c62828" }}
                 >
                   Eliminar
-                </button>
+                </button></>}
               </td>
             </tr>
           ))}

@@ -6,8 +6,10 @@ import { Sector, UnidadRiego } from "../lib/types";
 import FormularioSector from "../components/sectores/FormularioSector";
 import EditorGeometria from "../components/ui/EditorGeometria";
 import type { Feature } from "geojson";
+import { useAuth } from "../context/AuthContext";
 
 export default function AdminSectores() {
+  const { isAdmin } = useAuth();
   const { sectores, loading, error, createSector, updateSector, deleteSector, fetchGeometriaSector } = useSectores();
   const { equipos } = useEquipos();
   const { unidades, refetch: refetchUnidades } = useUnidadesRiego();
@@ -70,7 +72,7 @@ export default function AdminSectores() {
         <h2 style={{ margin: 0 }}>Sectores de Riego ({sectores.length})</h2>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={refetchUnidades} style={btnClear} title="Refrescar unidades de riego">↻</button>
-          <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>+ Nuevo Sector</button>
+          {isAdmin && <button onClick={() => { setEditing(null); setShowForm(true); }} style={btnPrimary}>+ Nuevo Sector</button>}
         </div>
       </div>
 
@@ -127,11 +129,11 @@ export default function AdminSectores() {
                   <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{s.bomba}</td>
                   <td>{s.filtro}</td><td>{s.anio ?? ""}</td><td>{s.jefe_campo}</td>
                   <td>{s.m3_ha ?? ""}</td>
-                  <td>
+                  <td>{isAdmin && <>
                     <button onClick={e => { e.stopPropagation(); setEditing(s); setShowForm(true); }} style={btnSm}>Editar</button>{" "}
                     <button onClick={e => { e.stopPropagation(); if (confirm(`Eliminar ${s.codigo}?`)) deleteSector(s.id); }}
                       style={{ ...btnSm, color: "#c62828" }}>Eliminar</button>
-                  </td>
+                  </>}</td>
                 </tr>
                 {isExpanded && (
                   <tr>
@@ -158,7 +160,7 @@ export default function AdminSectores() {
                                   <td style={tdSub}>{u.cuartel_nombre}</td>
                                   <td style={tdSub}>{u.porcentaje_agua ?? ""}</td>
                                   <td style={tdSub}>
-                                    <button onClick={() => setEditUnidad(u)} style={btnSm}>Editar</button>
+                                    {isAdmin && <button onClick={() => setEditUnidad(u)} style={btnSm}>Editar</button>}
                                   </td>
                                 </tr>
                               ))}

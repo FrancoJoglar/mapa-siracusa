@@ -15,7 +15,7 @@ export default function App() {
 }
 
 function AppInner() {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, isAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -40,7 +40,7 @@ function AppInner() {
           <NavLink to="/" end style={linkStyle}>
             Mapa
           </NavLink>
-          <NavLink to="/admin/equipos" style={linkStyle}>
+          {isAdmin && <><NavLink to="/admin/equipos" style={linkStyle}>
             Equipos
           </NavLink>
           <NavLink to="/admin/sectores" style={linkStyle}>
@@ -48,7 +48,7 @@ function AppInner() {
           </NavLink>
           <NavLink to="/admin/cuarteles" style={linkStyle}>
             Cuarteles
-          </NavLink>
+          </NavLink></>}
           <div style={{ flex: 1 }} />
           <button onClick={signOut} style={{
             color: "rgba(255,255,255,0.7)", background: "transparent",

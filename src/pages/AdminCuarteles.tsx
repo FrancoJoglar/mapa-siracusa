@@ -7,8 +7,10 @@ import { supabase } from "../lib/supabase";
 import FormularioCuartel from "../components/cuarteles/FormularioCuartel";
 import EditorGeometria from "../components/ui/EditorGeometria";
 import type { Feature } from "geojson";
+import { useAuth } from "../context/AuthContext";
 
 export default function AdminCuarteles() {
+  const { isAdmin } = useAuth();
   const { cuarteles, loading, error, refetch, updateCuartel, deleteCuartel } = useCuarteles();
   const { sectores } = useSectores();
   const { unidades, refetch: refetchUnidades } = useUnidadesRiego();
@@ -98,7 +100,7 @@ export default function AdminCuarteles() {
     <div style={{ maxWidth: "95%", margin: "24px auto", padding: "0 16px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 12px" }}>
         <h2>Cuarteles ({cuarteles.length})</h2>
-        <button onClick={handleNuevoCuartel} style={btnPrimary}>+ Nuevo Cuartel</button>
+        {isAdmin && <button onClick={handleNuevoCuartel} style={btnPrimary}>+ Nuevo Cuartel</button>}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
@@ -155,9 +157,9 @@ export default function AdminCuarteles() {
                   <td>{c.superficie_ha ? `${c.superficie_ha} ha` : ""}</td><td>{c.jefe_campo}</td>
                   <td>{c.centro_costo}</td><td>{(c.sector_ids || []).map(id => sectorCodeMap.get(id)).filter(Boolean).join(", ")}</td>
                   <td>
-                    <button onClick={() => { setEditing(c); setShowForm(true); }} style={btnSm}>Editar</button>{" "}
+                    {isAdmin && <><button onClick={() => { setEditing(c); setShowForm(true); }} style={btnSm}>Editar</button>{" "}
                     <button onClick={() => { if (confirm(`Eliminar ${c.nombre}?`)) deleteCuartel(c.id); }}
-                      style={{ ...btnSm, color: "#c62828" }}>Eliminar</button>
+                      style={{ ...btnSm, color: "#c62828" }}>Eliminar</button></>}
                   </td>
                 </tr>
               );
@@ -191,7 +193,7 @@ export default function AdminCuarteles() {
                         <td>{u.sector_codigo}</td>
                         <td>{u.porcentaje_agua ?? ""}</td>
                         <td>
-                          <button onClick={() => setEditUnidad(u)} style={btnSm}>Editar</button>
+                          {isAdmin && <button onClick={() => setEditUnidad(u)} style={btnSm}>Editar</button>}
                         </td>
                       </tr>
                     ))}
