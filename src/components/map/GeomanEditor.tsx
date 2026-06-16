@@ -204,6 +204,16 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
           },
           body: JSON.stringify({ p_id: entityId, p_geojson: geometry }),
         });
+      } else if (table === 'cuarteles' && entityId) {
+        resp = await fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/rpc/update_cuartel_geom`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
+          },
+          body: JSON.stringify({ p_id: entityId, p_geojson: geometry }),
+        });
       } else if (table === 'cuartel_sector' && where) {
         // Parse cuartel_id and sector_id from "cuartel_id=eq.uuid&sector_id=eq.uuid"
         const params = Object.fromEntries(where.split('&').map(p => {
