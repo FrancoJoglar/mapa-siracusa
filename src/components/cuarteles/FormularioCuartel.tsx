@@ -7,6 +7,7 @@ interface Props {
   sectores: Sector[];
   onSave: (data: Partial<Cuartel>) => Promise<void>;
   onCancel: () => void;
+  onPolygonSaved?: () => void;
 }
 
 export default function FormularioCuartel({
@@ -14,6 +15,7 @@ export default function FormularioCuartel({
   sectores,
   onSave,
   onCancel,
+  onPolygonSaved,
 }: Props) {
   const [nombre, setNombre] = useState(cuartel.nombre);
   const [especie, setEspecie] = useState(cuartel.especie || "");
@@ -267,7 +269,7 @@ export default function FormularioCuartel({
           geojson={cuartel.geojson || null}
           table="cuarteles"
           entityId={cuartel.id}
-          onCancel={() => setShowEditor(false)}
+          onCancel={() => { setShowEditor(false); onPolygonSaved?.(); }}
         />
       )}
     </div>

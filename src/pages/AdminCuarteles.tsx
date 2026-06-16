@@ -220,6 +220,7 @@ export default function AdminCuarteles() {
           sectores={sectores}
           onSave={async (data) => { await updateCuartel(editing.id, data); setShowForm(false); setEditing(null); refetch(); refetchUnidades(); }}
           onCancel={() => { setShowForm(false); setEditing(null); }}
+          onPolygonSaved={refetch}
         />
       )}
     </div>
