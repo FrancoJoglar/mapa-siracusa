@@ -275,7 +275,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                   registerLayer(fId, layer, baseStyle, 'cuartel');
                   layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
                   if (showCuartelLabels) {
-                    layer.bindTooltip(c.nombre, { direction: "center", className: "cuartel-label" });
+                    layer.bindTooltip(c.nombre, { sticky: true, className: "cuartel-label" });
                   }
                 } else {
                   registerLayer(fId, layer, baseStyle, 'cuartel');
@@ -306,7 +306,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                     registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
                     layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
                     if (showCuartelLabels) {
-                      layer.bindTooltip(c.nombre, { direction: "center", permanent: true, className: "cuartel-label", opacity: 0.7 });
+                      layer.bindTooltip(c.nombre, { sticky: true, className: "cuartel-label", opacity: 0.7 });
                     }
                   } else {
                     registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
@@ -340,7 +340,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                 color: "#d32f2f", weight: 3, fillOpacity: 0.05, opacity: 1, dashArray: "4,4",
               });
               layer.bringToFront();
-              layer.bindTooltip(feature.properties.codigo, { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
+              layer.bindTooltip(feature.properties.codigo, { sticky: true, className: "cuartel-tooltip", opacity: 0.9 });
               layer.bindPopup(`<div style="font-size:13px"><strong>${feature.properties.codigo}</strong><br/>Cuartel: ${feature.properties.cuartel}<br/>Sector: ${feature.properties.sector}</div>`, { maxWidth: 250 });
             }} />
           )}
@@ -348,7 +348,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           {mostrarEdif && edificaciones.length > 0 && (
             <GeoJSON key="edificaciones" data={geoJsonEdif} onEachFeature={(feature: any, layer: any) => {
               layer.setStyle({ fillColor: COLOR_EDIFICACION, color: "#e65100", weight: 2, fillOpacity: 0.6, opacity: 0.9 });
-              layer.bindTooltip(feature.properties.nombre, { direction: "center" });
+              layer.bindTooltip(feature.properties.nombre, { sticky: true });
             }} />
           )}
 
