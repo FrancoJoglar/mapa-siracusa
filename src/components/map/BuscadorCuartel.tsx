@@ -45,7 +45,7 @@ export default function BuscadorCuartel({ cuarteles }: Props) {
   };
 
   return (
-    <div className="leaflet-top leaflet-left" style={{ top: 80, marginLeft: 10 }}>
+    <div className="leaflet-top leaflet-left" style={{ top: 10, marginLeft: 50 }}>
       <div className="leaflet-control" style={{ position: "relative" }}>
         <input
           type="text"
