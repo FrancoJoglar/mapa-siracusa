@@ -402,7 +402,7 @@ function SectoresLayer({ data, sectores, cuarteles, onFitBounds, registerLayer, 
         layer.setStyle(baseStyle);
         registerLayer(fId, layer, baseStyle, 'sector');
         if (s) {
-          layer.bindTooltip(s.codigo, { direction: "center", className: "cuartel-tooltip", opacity: 0.9 });
+          layer.bindTooltip(s.codigo, { sticky: true, className: "cuartel-tooltip", opacity: 0.9 });
           layer.bindPopup(popupSectorHtml(s, cuarteles || []), { maxWidth: 300 });
         }
         layer.on("mouseover", () => setHighlighted(fId));
