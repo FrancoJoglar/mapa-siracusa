@@ -4,6 +4,8 @@ import MapaPage from "./pages/MapaPage";
 import AdminEquipos from "./pages/AdminEquipos";
 import AdminSectores from "./pages/AdminSectores";
 import AdminCuarteles from "./pages/AdminCuarteles";
+import AdminTuberias from "./pages/AdminTuberias";
+import AdminValvulas from "./pages/AdminValvulas";
 import LoginPage from "./pages/LoginPage";
 
 export default function App() {
@@ -48,6 +50,12 @@ function AppInner() {
           </NavLink>
           <NavLink to="/admin/cuarteles" style={linkStyle}>
             Cuarteles
+          </NavLink>
+          <NavLink to="/admin/tuberias" style={linkStyle}>
+            Tuberías
+          </NavLink>
+          <NavLink to="/admin/valvulas" style={linkStyle}>
+            Válvulas
           </NavLink></>}
           <div style={{ flex: 1 }} />
           <button onClick={signOut} style={{
@@ -64,6 +72,8 @@ function AppInner() {
             <Route path="/admin/equipos" element={<AdminEquipos />} />
             <Route path="/admin/sectores" element={<AdminSectores />} />
             <Route path="/admin/cuarteles" element={<AdminCuarteles />} />
+            <Route path="/admin/tuberias" element={<AdminTuberias />} />
+            <Route path="/admin/valvulas" element={<AdminValvulas />} />
           </Routes>
         </main>
       </div>

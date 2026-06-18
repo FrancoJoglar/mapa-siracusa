@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Cuartel, Edificacion, SectorGeo, UnidadRiego } from "../lib/types";
+import { Cuartel, Edificacion, SectorGeo, UnidadRiego, Tuberia, Valvula } from "../lib/types";
 import MapaCuarteles from "../components/map/MapaCuarteles";
 
 export default function MapaPage() {
@@ -8,6 +8,8 @@ export default function MapaPage() {
   const [sectores, setSectores] = useState<SectorGeo[]>([]);
   const [edificaciones, setEdificaciones] = useState<Edificacion[]>([]);
   const [unidades, setUnidades] = useState<UnidadRiego[]>([]);
+  const [tuberias, setTuberias] = useState<Tuberia[]>([]);
+  const [valvulas, setValvulas] = useState<Valvula[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,11 +18,13 @@ export default function MapaPage() {
       setLoading(true);
       setError(null);
       try {
-        const [cuartelesRes, edificacionesRes, sectoresRes, unidadesRes] = await Promise.all([
+        const [cuartelesRes, edificacionesRes, sectoresRes, unidadesRes, tuberiasRes, valvulasRes] = await Promise.all([
           supabase.rpc("get_cuarteles_con_sectores"),
           supabase.rpc("get_edificaciones_geojson"),
           supabase.rpc("get_sectores_geojson"),
           supabase.rpc("get_unidades_riego_geojson"),
+          supabase.from("tuberias").select("*"),
+          supabase.from("valvulas").select("*"),
         ]);
 
         if (cuartelesRes.error) throw cuartelesRes.error;
@@ -71,6 +75,16 @@ export default function MapaPage() {
         setEdificaciones(parsedEdificaciones);
         setSectores(parsedSectores);
         setUnidades(parsedUnidades);
+
+        const parsedTuberias: Tuberia[] = (tuberiasRes.data || []).map((r: any) => ({
+          ...r, geojson: r.geometria ? { type: "Feature", geometry: r.geometria, properties: {} } : undefined,
+        }));
+        const parsedValvulas: Valvula[] = (valvulasRes.data || []).map((r: any) => ({
+          ...r, geojson: r.geometria ? { type: "Feature", geometry: r.geometria, properties: {} } : undefined,
+        }));
+
+        setTuberias(parsedTuberias);
+        setValvulas(parsedValvulas);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -98,7 +112,7 @@ export default function MapaPage() {
     );
   }
 
-  return <MapaCuarteles cuarteles={cuarteles} edificaciones={edificaciones} sectores={sectores} unidades={unidades} />;
+  return <MapaCuarteles cuarteles={cuarteles} edificaciones={edificaciones} sectores={sectores} unidades={unidades} tuberias={tuberias} valvulas={valvulas} />;
 }
 
 const centerStyle: React.CSSProperties = {
