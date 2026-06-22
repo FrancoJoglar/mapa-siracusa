@@ -8,7 +8,7 @@ interface Props {
 
 export default function VisorPlano({ url, nombre, onClose }: Props) {
   const [fullscreen, setFullscreen] = useState(false);
-  const [error, setError] = useState(false);
+  const googleUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
 
   const c: React.CSSProperties = {
     position: "fixed", inset: 0, zIndex: 5000,
@@ -29,8 +29,6 @@ export default function VisorPlano({ url, nombre, onClose }: Props) {
     padding: "4px 10px", cursor: "pointer", fontSize: 12, marginLeft: 6,
   };
 
-  const embedUrl = url + "#view=FitH&toolbar=1&navpanes=1";
-
   return (
     <div style={c} onClick={onClose}>
       <div style={m} onClick={e => e.stopPropagation()}>
@@ -45,14 +43,7 @@ export default function VisorPlano({ url, nombre, onClose }: Props) {
           </div>
         </div>
         <div style={{ flex: 1, position: "relative", background: "#f0f0f0" }}>
-          {error ? (
-            <div style={{ textAlign: "center", padding: 40 }}>
-              <p style={{ color: "#c62828" }}>No se pudo cargar el plano.</p>
-              <a href={url} target="_blank" rel="noopener" style={{ color: "#1565c0" }}>Abrir en nueva pestaña</a>
-            </div>
-          ) : (
-            <embed src={embedUrl} type="application/pdf" style={{ width: "100%", height: "100%" }} onError={() => setError(true)} />
-          )}
+          <iframe src={googleUrl} style={{ width: "100%", height: "100%", border: "none" }} title={nombre} />
         </div>
       </div>
     </div>
