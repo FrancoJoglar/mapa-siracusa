@@ -87,6 +87,7 @@ export default function AdminEquipos() {
 
 function FilaEquipo({ equipo, isAdmin, onEdit, onDelete }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void }) {
   const [uploading, setUploading] = useState(false);
+  const [deletingPlano, setDeletingPlano] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (file: File) => {
@@ -108,15 +109,30 @@ function FilaEquipo({ equipo, isAdmin, onEdit, onDelete }: { equipo: Equipo; isA
     }
   };
 
+  const handleDeletePlano = async (eq: Equipo) => {
+    if (!confirm('¿Eliminar plano de ' + eq.nombre + '?')) return;
+    setDeletingPlano(eq.id);
+    try {
+      const path = `equipo_${eq.codigo}.pdf`;
+      await supabase.storage.from('planos').remove([path]);
+      await supabase.from('equipos').update({ plano_url: null }).eq('id', eq.id);
+      window.location.reload();
+    } catch (e: any) { alert('Error: ' + e.message); }
+    finally { setDeletingPlano(null); }
+  };
+
   return (
     <tr key={equipo.id}>
       <td>{equipo.codigo}</td>
       <td>{equipo.nombre}</td>
       <td>{equipo.descripcion}</td>
       <td>
-        {equipo.plano_url
-          ? <a href={equipo.plano_url} target="_blank" rel="noopener" style={{ color: "#1565c0", fontWeight: 500, marginRight: 8 }}>📋 Ver</a>
-          : <span style={{ color: "#999", fontSize: 12 }}>—</span>}
+        {equipo.plano_url ? (
+          <span>
+            <a href={equipo.plano_url} target="_blank" rel="noopener" style={{ color: "#1565c0", fontWeight: 500, marginRight: 8 }}>Ver Plano</a>
+            {isAdmin && <button onClick={() => handleDeletePlano(equipo)} disabled={deletingPlano === equipo.id} style={{ ...btnSmStyle, fontSize: 11, color: "#c62828", marginLeft: 4 }}>{deletingPlano === equipo.id ? '...' : 'X'}</button>}
+          </span>
+        ) : <span style={{ color: "#999", fontSize: 12 }}>--</span>}
         {isAdmin && <>
           <input type="file" accept=".pdf" ref={fileRef} style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); }} />
           <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ ...btnSmStyle, fontSize: 11 }}>{uploading ? 'Subiendo...' : 'Subir PDF'}</button>
