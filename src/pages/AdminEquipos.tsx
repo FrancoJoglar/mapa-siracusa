@@ -97,7 +97,7 @@ function FilaEquipo({ equipo, isAdmin, onEdit, onDelete }: { equipo: Equipo; isA
       const path = `equipo_${equipo.codigo}.pdf`;
       const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
       const url = `https://nnelrvctqjbwfucccxfh.supabase.co/storage/v1/object/planos/${path}`;
-      const resp = await fetch(url, { method: "PUT", headers: { "apikey": ANON_KEY, "Authorization": "Bearer " + ANON_KEY, "Content-Type": "application/pdf" }, body: file });
+      const resp = await fetch(url, { method: "POST", headers: { "apikey": ANON_KEY, "Authorization": "Bearer " + ANON_KEY, "Content-Type": "application/pdf" }, body: file });
       if (!resp.ok) { const t = await resp.text(); throw new Error(t.substring(0, 200)); }
       const { data: { publicUrl } } = supabase.storage.from('planos').getPublicUrl(path);
       const { error: updateErr } = await supabase.from('equipos').update({ plano_url: publicUrl }).eq('id', equipo.id);
