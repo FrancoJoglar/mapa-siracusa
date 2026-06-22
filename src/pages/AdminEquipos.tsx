@@ -115,8 +115,10 @@ function FilaEquipo({ equipo, isAdmin, onEdit, onDelete }: { equipo: Equipo; isA
     if (!confirm('¿Eliminar plano de ' + eq.nombre + '?')) return;
     setDeletingPlano(eq.id);
     try {
+      const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
       const path = `equipo_${eq.codigo}.pdf`;
-      await supabase.storage.from('planos').remove([path]);
+      const url = `https://nnelrvctqjbwfucccxfh.supabase.co/storage/v1/object/planos/${path}`;
+      await fetch(url, { method: "DELETE", headers: { "apikey": ANON_KEY, "Authorization": "Bearer " + ANON_KEY } });
       await supabase.from('equipos').update({ plano_url: null }).eq('id', eq.id);
       window.location.reload();
     } catch (e: any) { alert('Error: ' + e.message); }
