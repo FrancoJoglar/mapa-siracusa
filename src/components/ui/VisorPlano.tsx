@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface Props {
   url: string;
@@ -8,19 +8,7 @@ interface Props {
 
 export default function VisorPlano({ url, nombre, onClose }: Props) {
   const [fullscreen, setFullscreen] = useState(false);
-  const [blobUrl, setBlobUrl] = useState("");
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(false);
-    fetch(url)
-      .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.blob(); })
-      .then(blob => { setBlobUrl(URL.createObjectURL(blob)); setLoading(false); })
-      .catch(() => { setError(true); setLoading(false); });
-    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
-  }, [url]);
 
   const c: React.CSSProperties = {
     position: "fixed", inset: 0, zIndex: 5000,
@@ -41,6 +29,8 @@ export default function VisorPlano({ url, nombre, onClose }: Props) {
     padding: "4px 10px", cursor: "pointer", fontSize: 12, marginLeft: 6,
   };
 
+  const embedUrl = url + "#view=FitH&toolbar=1&navpanes=1";
+
   return (
     <div style={c} onClick={onClose}>
       <div style={m} onClick={e => e.stopPropagation()}>
@@ -55,14 +45,14 @@ export default function VisorPlano({ url, nombre, onClose }: Props) {
           </div>
         </div>
         <div style={{ flex: 1, position: "relative", background: "#f0f0f0" }}>
-          {loading && <p style={{ textAlign: "center", padding: 40, color: "#666" }}>Cargando plano...</p>}
-          {error && (
+          {error ? (
             <div style={{ textAlign: "center", padding: 40 }}>
               <p style={{ color: "#c62828" }}>No se pudo cargar el plano.</p>
               <a href={url} target="_blank" rel="noopener" style={{ color: "#1565c0" }}>Abrir en nueva pestaña</a>
             </div>
+          ) : (
+            <embed src={embedUrl} type="application/pdf" style={{ width: "100%", height: "100%" }} onError={() => setError(true)} />
           )}
-          {blobUrl && <iframe src={blobUrl} style={{ width: "100%", height: "100%", border: "none" }} title={nombre} />}
         </div>
       </div>
     </div>
