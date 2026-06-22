@@ -95,9 +95,11 @@ function FilaEquipo({ equipo, isAdmin, onEdit, onDelete }: { equipo: Equipo; isA
     setUploading(true);
     try {
       const path = `equipo_${equipo.codigo}.pdf`;
-      const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      if (!token) { alert('No hay sesión activa'); return; }
       const url = `https://nnelrvctqjbwfucccxfh.supabase.co/storage/v1/object/planos/${path}`;
-      const resp = await fetch(url, { method: "POST", headers: { "apikey": ANON_KEY, "Authorization": "Bearer " + ANON_KEY, "Content-Type": "application/pdf" }, body: file });
+      const resp = await fetch(url, { method: "POST", headers: { "apikey": token, "Authorization": "Bearer " + token, "Content-Type": "application/pdf" }, body: file });
       if (!resp.ok) { const t = await resp.text(); throw new Error(t.substring(0, 200)); }
       const { data: { publicUrl } } = supabase.storage.from('planos').getPublicUrl(path);
       const { error: updateErr } = await supabase.from('equipos').update({ plano_url: publicUrl }).eq('id', equipo.id);
@@ -115,10 +117,12 @@ function FilaEquipo({ equipo, isAdmin, onEdit, onDelete }: { equipo: Equipo; isA
     if (!confirm('¿Eliminar plano de ' + eq.nombre + '?')) return;
     setDeletingPlano(eq.id);
     try {
-      const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      if (!token) { alert('No hay sesión activa'); return; }
       const path = `equipo_${eq.codigo}.pdf`;
       const url = `https://nnelrvctqjbwfucccxfh.supabase.co/storage/v1/object/planos/${path}`;
-      await fetch(url, { method: "DELETE", headers: { "apikey": ANON_KEY, "Authorization": "Bearer " + ANON_KEY } });
+      await fetch(url, { method: "DELETE", headers: { "apikey": token, "Authorization": "Bearer " + token } });
       await supabase.from('equipos').update({ plano_url: null }).eq('id', eq.id);
       window.location.reload();
     } catch (e: any) { alert('Error: ' + e.message); }
