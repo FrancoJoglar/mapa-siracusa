@@ -98,14 +98,9 @@ export default function AdminCuarteles() {
   const s = selectStyle;
   return (
     <div style={{ maxWidth: "95%", margin: "24px auto", padding: "0 16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 12px", gap: 8 }}>
-        <h2 style={{ margin: 0, whiteSpace: "nowrap" }}>Cuarteles ({cuarteles.length})</h2>
-        <input
-          type="text" placeholder="Buscar cuartel..." value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ ...s, flex: 1, maxWidth: 400 }}
-        />
-        {isAdmin && <button onClick={handleNuevoCuartel} style={{ ...btnPrimary, whiteSpace: "nowrap" }}>+ Nuevo Cuartel</button>}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 12px" }}>
+        <h2>Cuarteles ({cuarteles.length})</h2>
+        {isAdmin && <button onClick={handleNuevoCuartel} style={btnPrimary}>+ Nuevo Cuartel</button>}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>

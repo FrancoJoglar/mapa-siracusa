@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useEquipos } from "../hooks/useEquipos";
 import { Equipo } from "../lib/types";
 import FormularioEquipo from "../components/equipos/FormularioEquipo";
 import { useAuth } from "../context/AuthContext";
+import { supabase } from "../lib/supabase";
 
 export default function AdminEquipos() {
   const { isAdmin } = useAuth();
@@ -44,36 +45,13 @@ export default function AdminEquipos() {
             <th>Código</th>
             <th>Nombre</th>
             <th>Descripción</th>
+            <th>Plano</th>
             <th style={{ width: 120 }}>Acciones</th>
           </tr>
         </thead>
         <tbody>
           {equipos.map((e) => (
-            <tr key={e.id}>
-              <td>{e.codigo}</td>
-              <td>{e.nombre}</td>
-              <td>{e.descripcion}</td>
-              <td>
-                {isAdmin && <><button
-                  onClick={() => {
-                    setEditing(e);
-                    setShowForm(true);
-                  }}
-                  style={btnSmStyle}
-                >
-                  Editar
-                </button>{" "}
-                <button
-                  onClick={() => {
-                    if (confirm(`¿Eliminar ${e.nombre}?`))
-                      deleteEquipo(e.id);
-                  }}
-                  style={{ ...btnSmStyle, color: "#c62828" }}
-                >
-                  Eliminar
-                </button></>}
-              </td>
-            </tr>
+            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} />
           ))}
           {equipos.length === 0 && (
             <tr>
@@ -104,6 +82,51 @@ export default function AdminEquipos() {
         />
       )}
     </div>
+  );
+}
+
+function FilaEquipo({ equipo, isAdmin, onEdit, onDelete }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void }) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (file: File) => {
+    if (!file.name.endsWith('.pdf')) { alert('Solo se aceptan archivos PDF'); return; }
+    setUploading(true);
+    try {
+      const path = `equipo_${equipo.codigo}.pdf`;
+      const { error: uploadErr } = await supabase.storage.from('planos').upload(path, file, { upsert: true });
+      if (uploadErr) throw uploadErr;
+      const { data: { publicUrl } } = supabase.storage.from('planos').getPublicUrl(path);
+      const { error: updateErr } = await supabase.from('equipos').update({ plano_url: publicUrl }).eq('id', equipo.id);
+      if (updateErr) throw updateErr;
+      alert('Plano subido correctamente');
+      window.location.reload();
+    } catch (e: any) {
+      alert('Error al subir plano: ' + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <tr key={equipo.id}>
+      <td>{equipo.codigo}</td>
+      <td>{equipo.nombre}</td>
+      <td>{equipo.descripcion}</td>
+      <td>
+        {equipo.plano_url
+          ? <a href={equipo.plano_url} target="_blank" rel="noopener" style={{ color: "#1565c0", fontWeight: 500, marginRight: 8 }}>📋 Ver</a>
+          : <span style={{ color: "#999", fontSize: 12 }}>—</span>}
+        {isAdmin && <>
+          <input type="file" accept=".pdf" ref={fileRef} style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); }} />
+          <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ ...btnSmStyle, fontSize: 11 }}>{uploading ? 'Subiendo...' : 'Subir PDF'}</button>
+        </>}
+      </td>
+      <td>
+        {isAdmin && <><button onClick={onEdit} style={btnSmStyle}>Editar</button>{" "}
+        <button onClick={onDelete} style={{ ...btnSmStyle, color: "#c62828" }}>Eliminar</button></>}
+      </td>
+    </tr>
   );
 }
 

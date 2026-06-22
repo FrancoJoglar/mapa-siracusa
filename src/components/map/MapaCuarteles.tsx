@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { Cuartel, Edificacion, SectorGeo, FiltrosCuartel, UnidadRiego, Tuberia, Valvula } from "../../lib/types";
+import { Cuartel, Edificacion, SectorGeo, FiltrosCuartel, UnidadRiego, Equipo } from "../../lib/types";
 import {
   COLOR_EDIFICACION, colorPorEspecie, COLOR_POR_ESPECIE,
 } from "../../lib/colors";
@@ -21,8 +21,7 @@ interface Props {
   edificaciones: Edificacion[];
   sectores: SectorGeo[];
   unidades: UnidadRiego[];
-  tuberias?: Tuberia[];
-  valvulas?: Valvula[];
+  equipos?: Equipo[];
 }
 
 const FILTROS_VACIOS: FiltrosCuartel = {
@@ -33,13 +32,11 @@ const FILTROS_VACIOS: FiltrosCuartel = {
 type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions; kind: 'cuartel' | 'sector' | 'unidad' };
 type LayersMap = Map<string, LayerEntry>;
 
-export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unidades, tuberias = [], valvulas = [] }: Props) {
+export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unidades, equipos = [] }: Props) {
   const [filtros, setFiltros] = useState<FiltrosCuartel>(FILTROS_VACIOS);
   const [vista, setVista] = useState<Vista>("sectores");
   const [mostrarEdif, setMostrarEdif] = useState(true);
   const [mostrarUnidades, setMostrarUnidades] = useState(false);
-  const [mostrarTuberias, setMostrarTuberias] = useState(true);
-  const [mostrarValvulas, setMostrarValvulas] = useState(true);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
   const [satelite, setSatelite] = useState(true);
   const [medir, setMedir] = useState(false);
@@ -255,8 +252,6 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           <ToggleVista vista={vista} onChange={cambiarVista} />
           <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
           <ToggleUnidades visible={mostrarUnidades} onToggle={() => setMostrarUnidades(!mostrarUnidades)} />
-          <ToggleTuberias visible={mostrarTuberias} onToggle={() => setMostrarTuberias(!mostrarTuberias)} />
-          <ToggleValvulas visible={mostrarValvulas} onToggle={() => setMostrarValvulas(!mostrarValvulas)} />
           <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
           <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
           {medir && <MedirControls />}
@@ -320,6 +315,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                 data={geoJsonSectores}
                 sectores={sectores}
                 cuarteles={cuarteles}
+                equipos={equipos}
                 onFitBounds={setFitBounds}
                 registerLayer={registerLayer}
                 selectedRef={selectedRef}
@@ -347,19 +343,6 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
             }} />
           )}
 
-          {mostrarTuberias && tuberias.length > 0 && tuberias.map(t => t.geojson && (
-            <GeoJSON key={"tub-" + t.id} data={t.geojson} style={{
-              color: t.nivel === "matriz" ? "#1565c0" : "#42a5f5",
-              weight: t.nivel === "matriz" ? 3 : 2, opacity: 0.85,
-            }} />
-          ))}
-
-          {mostrarValvulas && valvulas.length > 0 && valvulas.map(v => v.geojson && (
-            <GeoJSON key={"val-" + v.id} data={v.geojson} pointToLayer={(_f, latlng) =>
-              L.circleMarker(latlng, { radius: 5, color: "#e65100", fillColor: "#ff8a65", fillOpacity: 0.9 })
-            } />
-          ))}
-
           {mostrarEdif && edificaciones.length > 0 && (
             <GeoJSON key="edificaciones" data={geoJsonEdif} onEachFeature={(feature: any, layer: any) => {
               layer.setStyle({ fillColor: COLOR_EDIFICACION, color: "#e65100", weight: 2, fillOpacity: 0.6, opacity: 0.9 });
@@ -377,10 +360,11 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
 }
 
 // ====== SECTORES LAYER ======
-function SectoresLayer({ data, sectores, cuarteles, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
+function SectoresLayer({ data, sectores, cuarteles, equipos, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
   data: GeoJSON.FeatureCollection;
   sectores: SectorGeo[];
   cuarteles?: Cuartel[];
+  equipos?: Equipo[];
   onFitBounds: (b: L.LatLngBounds | null) => void;
   registerLayer: (id: string, layer: L.Path, baseStyle: L.PathOptions, kind?: 'cuartel' | 'sector') => void;
   selectedRef: React.MutableRefObject<string | null>;
@@ -418,7 +402,7 @@ function SectoresLayer({ data, sectores, cuarteles, onFitBounds, registerLayer, 
         registerLayer(fId, layer, baseStyle, 'sector');
         if (s) {
           layer.bindTooltip(s.codigo, { sticky: true, className: "cuartel-tooltip", opacity: 0.9 });
-          layer.bindPopup(popupSectorHtml(s, cuarteles || []), { maxWidth: 300 });
+          layer.bindPopup(popupSectorHtml(s, cuarteles || [], equipos), { maxWidth: 300 });
         }
         layer.on("mouseover", () => setHighlighted(fId));
         layer.on("mouseout", () => setHighlighted(null));
@@ -457,7 +441,7 @@ function popupCuartelHtml(c: Cuartel): string {
   return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${c.nombre}</h3><table style="width:100%">${r("Especie",c.especie)}${r("Variedad",c.variedad)}${r("Anio plantacion",c.anio_plantacion)}${supRow}${r("Plantas",c.plantas)}${r("Jefe de campo",c.jefe_campo)}${r("Centro costo",c.centro_costo)}${r("Equipo riego",c.equipo_riego)}${r("Sectores",c.sector_raw)}</table></div>`;
 }
 
-function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[]): string {
+function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equipos?: Equipo[]): string {
   const r = (l: string, v: any) => v ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">${l}:</td><td style="padding:3px 0">${v}</td></tr>` : "";
 
   let haText = "";
@@ -470,7 +454,10 @@ function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[]): string {
   }
   const haRow = haText ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Hectareas:</td><td style="padding:3px 0">${haText}</td></tr>` : "";
 
-  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Anio",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}</table></div>`;
+  const eq = (equipos || []).find(e => e.nombre === s.equipo);
+  const planoLink = eq?.plano_url ? `<tr><td colspan="2" style="padding:6px 0 0"><a href="${eq.plano_url}" target="_blank" rel="noopener" style="color:#1565c0;font-weight:600;text-decoration:none">📋 Ver Plano de Riego</a></td></tr>` : "";
+
+  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Anio",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}${planoLink}</table></div>`;
 }
 
 // ====== CONTROLS ======
@@ -540,32 +527,6 @@ function ToggleCuartelLabels({ visible, onToggle }: { visible: boolean; onToggle
           padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
           background: visible ? "#1565c0" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
         }}>Nombres</button>
-      </div>
-    </div>
-  );
-}
-
-function ToggleTuberias({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
-  return (
-    <div className="leaflet-top leaflet-right" style={{ top: 280 }}>
-      <div className="leaflet-control">
-        <button onClick={onToggle} style={{
-          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
-          background: visible ? "#1565c0" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
-        }}>Matrices</button>
-      </div>
-    </div>
-  );
-}
-
-function ToggleValvulas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
-  return (
-    <div className="leaflet-top leaflet-right" style={{ top: 320 }}>
-      <div className="leaflet-control">
-        <button onClick={onToggle} style={{
-          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
-          background: visible ? "#e65100" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
-        }}>Válvulas</button>
       </div>
     </div>
   );

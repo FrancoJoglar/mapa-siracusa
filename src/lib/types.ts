@@ -5,6 +5,7 @@ export interface Equipo {
   codigo: number;
   nombre: string;
   descripcion: string;
+  plano_url?: string;
   created_at: string;
 }
 
@@ -102,26 +103,4 @@ export interface FiltrosCuartel {
   equipo: string;
   sector: string;
   jefeCampo: string;
-}
-
-export interface Tuberia {
-  id: string;
-  codigo: string;
-  equipo_id: string;
-  nivel: string;
-  nombre: string;
-  material: string;
-  diametro_mm: number | null;
-  geojson?: Feature;
-  created_at: string;
-}
-
-export interface Valvula {
-  id: string;
-  codigo: string;
-  tuberia_id: string;
-  tipo: string;
-  diametro_mm: number | null;
-  geojson?: Feature;
-  created_at: string;
 }
