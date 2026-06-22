@@ -130,7 +130,7 @@ function FilaEquipo({ equipo, isAdmin, onEdit, onDelete }: { equipo: Equipo; isA
         {equipo.plano_url ? (
           <span>
             <a href={equipo.plano_url} target="_blank" rel="noopener" style={{ color: "#1565c0", fontWeight: 500, marginRight: 8 }}>Ver Plano</a>
-            {isAdmin && <button onClick={() => handleDeletePlano(equipo)} disabled={deletingPlano === equipo.id} style={{ ...btnSmStyle, fontSize: 11, color: "#c62828", marginLeft: 4 }}>{deletingPlano === equipo.id ? '...' : 'X'}</button>}
+            {isAdmin && <button onClick={() => handleDeletePlano(equipo)} disabled={deletingPlano === equipo.id} style={{ ...btnSmStyle, color: "#c62828", fontWeight: 600 }}>Eliminar</button>}
           </span>
         ) : <span style={{ color: "#999", fontSize: 12 }}>--</span>}
         {isAdmin && <>
