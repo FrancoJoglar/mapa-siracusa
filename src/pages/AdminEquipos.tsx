@@ -4,7 +4,6 @@ import { Equipo } from "../lib/types";
 import FormularioEquipo from "../components/equipos/FormularioEquipo";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
-import VisorPlano from "../components/ui/VisorPlano";
 
 export default function AdminEquipos() {
   const { isAdmin } = useAuth();
@@ -12,7 +11,6 @@ export default function AdminEquipos() {
     useEquipos();
   const [editing, setEditing] = useState<Equipo | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [visorPlano, setVisorPlano] = useState<{ url: string; nombre: string } | null>(null);
 
   if (loading) return <CenterMsg msg="Cargando equipos..." />;
   if (error) return <CenterMsg msg={`Error: ${error}`} />;
@@ -53,7 +51,7 @@ export default function AdminEquipos() {
         </thead>
         <tbody>
           {equipos.map((e) => (
-            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} onViewPlano={(url, nombre) => setVisorPlano({ url, nombre })} />
+            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} />
           ))}
           {equipos.length === 0 && (
             <tr>
@@ -83,13 +81,11 @@ export default function AdminEquipos() {
           }}
         />
       )}
-
-      {visorPlano && <VisorPlano url={visorPlano.url} nombre={visorPlano.nombre} onClose={() => setVisorPlano(null)} />}
     </div>
   );
 }
 
-function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onViewPlano }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void; onViewPlano: (url: string, nombre: string) => void }) {
+function FilaEquipo({ equipo, isAdmin, onEdit, onDelete }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void }) {
   const [uploading, setUploading] = useState(false);
   const [deletingPlano, setDeletingPlano] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -141,7 +137,7 @@ function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onViewPlano }: { equipo
       <td>
         {equipo.plano_url ? (
           <span>
-            <a href="#" onClick={e => { e.preventDefault(); onViewPlano(equipo.plano_url!, equipo.codigo + ' - ' + equipo.nombre); }} style={{ color: "#1565c0", fontWeight: 500, marginRight: 8, cursor: "pointer" }}>Ver Plano</a>
+            <a href="#" onClick={e => { e.preventDefault(); window.open(equipo.plano_url!, '_blank', 'noopener,noreferrer'); }} style={{ color: "#1565c0", fontWeight: 500, marginRight: 8, cursor: "pointer" }}>Ver Plano</a>
             <a href={equipo.plano_url} download style={{ ...btnSmStyle, textDecoration: "none", fontSize: 11, marginRight: 4 }}>Descargar</a>
             {isAdmin && <button onClick={() => handleDeletePlano(equipo)} disabled={deletingPlano === equipo.id} style={{ ...btnSmStyle, color: "#c62828", fontWeight: 600 }}>Eliminar</button>}
           </span>
