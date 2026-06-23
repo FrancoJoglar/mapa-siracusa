@@ -1,7 +1,5 @@
-import { useState, useEffect } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+import { useState } from "react";
+import { Document, Page } from "react-pdf";
 
 interface Props {
   url: string;
@@ -15,18 +13,7 @@ export default function VisorPlano({ url, nombre, onClose }: Props) {
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
-  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(false);
-    fetch(url)
-      .then(r => { if (!r.ok) throw new Error(); return r.arrayBuffer(); })
-      .then(buf => { setPdfData(new Uint8Array(buf)); setLoading(false); })
-      .catch(() => { setError(true); setLoading(false); });
-  }, [url]);
+  const [loadError, setLoadError] = useState(false);
 
   const c: React.CSSProperties = {
     position: "fixed", inset: 0, zIndex: 5000,
@@ -46,7 +33,6 @@ export default function VisorPlano({ url, nombre, onClose }: Props) {
     background: "none", border: "1px solid #ccc", borderRadius: 4,
     padding: "4px 10px", cursor: "pointer", fontSize: 12, marginLeft: 4,
   };
-  const btnActive: React.CSSProperties = { ...b, background: "#e3f2fd", border: "1px solid #1565c0" };
 
   return (
     <div style={c} onClick={onClose}>
@@ -54,13 +40,13 @@ export default function VisorPlano({ url, nombre, onClose }: Props) {
         <div style={h}>
           <span>{nombre}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {!!pdfData && <>
+            {numPages > 0 && <>
               <span style={{ fontSize: 12, color: "#666" }}>pág {page}/{numPages}</span>
               <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} style={b}>◀</button>
               <button disabled={page >= numPages} onClick={() => setPage(p => Math.min(numPages, p + 1))} style={b}>▶</button>
               <span style={{ width: 1, height: 20, background: "#ddd", margin: "0 4px" }} />
-              <button onClick={() => setScale(s => Math.min(3, s + 0.25))} style={scale >= 3 ? btnActive : b} title="Zoom in">🔍+</button>
-              <button onClick={() => setScale(s => Math.max(0.5, s - 0.25))} style={scale <= 0.5 ? btnActive : b} title="Zoom out">🔍−</button>
+              <button onClick={() => setScale(s => Math.min(3, s + 0.25))} style={b} title="Zoom in">🔍+</button>
+              <button onClick={() => setScale(s => Math.max(0.5, s - 0.25))} style={b} title="Zoom out">🔍−</button>
               <span style={{ fontSize: 11, color: "#666", minWidth: 32, textAlign: "center" }}>{Math.round(scale * 100)}%</span>
               <button onClick={() => setScale(1)} style={{ ...b, fontWeight: scale === 1 ? 700 : 400 }}>100%</button>
               <button onClick={() => setScale(1.5)} style={b}>150%</button>
@@ -75,25 +61,25 @@ export default function VisorPlano({ url, nombre, onClose }: Props) {
           </div>
         </div>
         <div style={{ flex: 1, overflow: "auto", display: "flex", justifyContent: "center", padding: 16, background: "#f0f0f0" }}>
-          {loading && <p style={{ padding: 40, color: "#666" }}>Cargando plano...</p>}
-          {error && (
+          {loadError ? (
             <div style={{ textAlign: "center", padding: 40 }}>
-              <p style={{ color: "#c62828" }}>No se pudo cargar el plano.</p>
-              <a href={url} target="_blank" rel="noopener" style={{ color: "#1565c0" }}>Abrir en nueva pestaña</a>
+              <p style={{ color: "#c62828", marginBottom: 12 }}>No se pudo cargar el plano.</p>
+              <a href={url} target="_blank" rel="noopener" style={{ color: "#1565c0", fontWeight: 500 }}>Abrir en nueva pestaña</a>
             </div>
-          )}
-          {pdfData && (
+          ) : (
             <Document
-              file={{ data: pdfData }}
+              file={url}
               onLoadSuccess={({ numPages: n }) => setNumPages(n)}
-              loading={<p style={{ color: "#666" }}>Renderizando...</p>}
-              error={<p style={{ color: "#c62828" }}>Error al renderizar el PDF</p>}
+              onLoadError={() => setLoadError(true)}
+              loading={<p style={{ padding: 40, color: "#666" }}>Cargando plano...</p>}
+              error={<p style={{ padding: 40, color: "#c62828" }}>Error al cargar el PDF</p>}
             >
               <Page
                 pageNumber={page}
                 scale={scale}
                 rotate={rotation}
                 width={fullscreen ? window.innerWidth - 40 : Math.min(window.innerWidth * 0.85, 900)}
+                loading={<p style={{ padding: 20, color: "#666" }}>Renderizando página...</p>}
               />
             </Document>
           )}
