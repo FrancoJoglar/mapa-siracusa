@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { Cuartel, Edificacion, SectorGeo, UnidadRiego, Equipo } from "../lib/types";
 import MapaCuarteles from "../components/map/MapaCuarteles";
+import VisorPDF from "../components/ui/VisorPDF";
 
 export default function MapaPage() {
   const [cuarteles, setCuarteles] = useState<Cuartel[]>([]);
@@ -11,6 +12,13 @@ export default function MapaPage() {
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visorPdf, setVisorPdf] = useState<{ url: string; nombre: string } | null>(null);
+
+  // Global handler for plano links in popups
+  useEffect(() => {
+    (window as any).__openPlano = (url: string, nombre: string) => setVisorPdf({ url, nombre });
+    return () => { delete (window as any).__openPlano; };
+  }, []);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -101,7 +109,12 @@ export default function MapaPage() {
     );
   }
 
-  return <MapaCuarteles cuarteles={cuarteles} edificaciones={edificaciones} sectores={sectores} unidades={unidades} equipos={equipos} />;
+  return (
+    <>
+      <MapaCuarteles cuarteles={cuarteles} edificaciones={edificaciones} sectores={sectores} unidades={unidades} equipos={equipos} />
+      {visorPdf && <VisorPDF url={visorPdf.url} nombre={visorPdf.nombre} onClose={() => setVisorPdf(null)} />}
+    </>
+  );
 }
 
 const centerStyle: React.CSSProperties = {
