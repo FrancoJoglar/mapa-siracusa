@@ -91,7 +91,7 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
     }
   }, [pdf, pageNum]);
 
-  const zoomIn = () => setScale(s => Math.min(4, Math.round((s + 0.25) * 100) / 100));
+  const zoomIn = () => setScale(s => Math.min(6, Math.round((s + 0.25) * 100) / 100));
   const zoomOut = () => setScale(s => Math.max(0.25, Math.round((s - 0.25) * 100) / 100));
   const zoomTo = (s: number) => setScale(s);
 
@@ -130,7 +130,8 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
               <span style={{ fontSize: 11, color: "#666", minWidth: 36, textAlign: "center" }}>{Math.round(scale * 100)}%</span>
               <button onClick={() => zoomTo(0.5)} style={{ ...btn, fontWeight: scale === 0.5 ? 700 : 400 }}>50%</button>
               <button onClick={() => zoomTo(1)} style={{ ...btn, fontWeight: scale === 1 ? 700 : 400 }}>100%</button>
-              <button onClick={() => zoomTo(1.5)} style={{ ...btn, fontWeight: scale === 1.5 ? 700 : 400 }}>150%</button>
+              <button onClick={() => zoomTo(2)} style={{ ...btn, fontWeight: scale === 2 ? 700 : 400 }}>200%</button>
+              <button onClick={() => zoomTo(3)} style={{ ...btn, fontWeight: scale === 3 ? 700 : 400 }}>300%</button>
               <span style={{ width: 1, height: 20, background: "#ddd", margin: "0 4px" }} />
               <button onClick={() => setRotation(r => (r + 90) % 360)} style={btn} title="Rotar der">🔄 +90°</button>
               <button onClick={() => setRotation(r => (r - 90 + 360) % 360)} style={btn} title="Rotar izq">🔄 −90°</button>
