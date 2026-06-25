@@ -433,7 +433,7 @@ function popupCuartelHtml(c: Cuartel): string {
   if (c.geojson?.geometry) {
     try {
       const areaCalc = turf.area(c.geojson.geometry as any) / 10000;
-      supText += (supText ? " (" : "") + areaCalc.toFixed(2) + " ha calc" + (supText ? ")" : "");
+      supText += (supText ? " (" : "") + areaCalc.toFixed(2) + " Ha Poligono" + (supText ? ")" : "");
     } catch {}
   }
   const supRow = supText ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Superficie:</td><td style="padding:3px 0">${supText}</td></tr>` : "";
@@ -449,7 +449,7 @@ function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equipos?: Equipo[]
   if ((s as any).geojson?.geometry) {
     try {
       const areaCalc = turf.area((s as any).geojson.geometry as any) / 10000;
-      haText += (haText ? " (" : "") + areaCalc.toFixed(2) + " ha calc" + (haText ? ")" : "");
+      haText += (haText ? " (" : "") + areaCalc.toFixed(2) + " Ha Poligono" + (haText ? ")" : "");
     } catch {}
   }
   const haRow = haText ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Hectareas:</td><td style="padding:3px 0">${haText}</td></tr>` : "";
