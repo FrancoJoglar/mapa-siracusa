@@ -98,7 +98,33 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
   const zoomOut = () => setScale(s => Math.max(0.25, Math.round((s - 0.25) * 100) / 100));
   const zoomTo = (s: number) => setScale(s);
 
-  // Drag to pan
+  // Mouse wheel zoom (Ctrl+scroll) + Keyboard +/- zoom
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) zoomIn();
+        else zoomOut();
+      }
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "=" || e.key === "+") { e.preventDefault(); zoomIn(); }
+      if (e.key === "-") { e.preventDefault(); zoomOut(); }
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollRef.current) return;
     isDragging.current = true;
@@ -117,15 +143,6 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
   const handleMouseUp = () => {
     isDragging.current = false;
     if (scrollRef.current) scrollRef.current.style.cursor = "grab";
-  };
-
-  // Mouse wheel zoom (Ctrl+scroll)
-  const handleWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      if (e.deltaY < 0) zoomIn();
-      else zoomOut();
-    }
   };
 
   const c: React.CSSProperties = {
@@ -175,7 +192,7 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
             <button onClick={onClose} style={{ ...btn, color: "#c62828", fontWeight: 600 }}>✕</button>
           </div>
         </div>
-        <div ref={(el) => { containerRef.current = el; scrollRef.current = el; }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={handleWheel} style={{ flex: 1, overflow: "auto", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: 16, background: "#f0f0f0", cursor: "grab" }}>
+        <div ref={(el) => { containerRef.current = el; scrollRef.current = el; }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ flex: 1, overflow: "auto", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: 16, background: "#f0f0f0", cursor: "grab" }}>
           {loading && <p style={{ padding: 40, color: "#666" }}>Cargando plano...</p>}
           {error && (
             <div style={{ textAlign: "center", padding: 40 }}>
