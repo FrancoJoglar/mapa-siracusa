@@ -238,7 +238,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
         vista={vista}
       />
       <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
-        <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} style={{ height: "100%", width: "100%" }}>
+        <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} style={{ height: "100%", width: "100%", overflow: "hidden" }}>
           <TileLayer
             key={satelite ? "sat" : "osm"}
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
@@ -351,6 +351,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           )}
 
           {fitBounds && <FlyToBounds bounds={fitBounds} />}
+          <ResizeHandler />
           <Leyenda />
           {vista === "cuarteles" && <BuscadorCuartel cuarteles={cuarteles} />}
         </MapContainer>
@@ -611,6 +612,12 @@ function ControlSatelite({ satelite, onToggle }: { satelite: boolean; onToggle: 
       </div>
     </div>
   );
+}
+
+function ResizeHandler() {
+  const map = useMap();
+  useEffect(() => { setTimeout(() => map.invalidateSize(), 100); }, [map]);
+  return null;
 }
 
 function Leyenda() {
