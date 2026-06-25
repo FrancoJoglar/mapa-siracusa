@@ -108,7 +108,7 @@ export default function AdminSectores() {
               <th style={{ width: 30 }}></th>
               <th>Código</th><th>Equipo</th><th>N°</th><th>Has</th>
               <th>Especie</th><th>Bomba</th><th>Filtro</th>
-              <th>Año</th><th>JC</th><th>m³/ha</th>
+              <th>Año de Plantacion</th><th>JC</th><th>m³/ha</th>
               <th style={{ width: 100 }}>Acciones</th>
             </tr>
           </thead>

@@ -99,7 +99,7 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
                 <option value="Kiwi">Kiwi</option>
               </select>
             </Campo>
-            <Campo label="Año"><input type="number" value={anio || ""} onChange={e => setAnio(Number(e.target.value))} style={inputStyle} /></Campo>
+            <Campo label="Año de Plantacion"><input type="number" value={anio || ""} onChange={e => setAnio(Number(e.target.value))} style={inputStyle} /></Campo>
           </Row>
           <Row>
             <Campo label="Bomba"><input type="text" value={bomba} onChange={e => setBomba(e.target.value)} style={inputStyle} /></Campo>

@@ -457,7 +457,7 @@ function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equipos?: Equipo[]
   const eq = (equipos || []).find(e => e.nombre === s.equipo);
   const planoLink = eq?.plano_url ? `<tr><td colspan="2" style="padding:6px 0 0"><a href="#" onclick="window.__openPlano('${eq.plano_url}','${s.codigo}');return false" style="color:#1565c0;font-weight:600;text-decoration:none">📋 Ver Plano</a></td></tr>` : "";
 
-  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Anio",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}${planoLink}</table></div>`;
+  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Año de Plantacion",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}${planoLink}</table></div>`;
 }
 
 // ====== CONTROLS ======
