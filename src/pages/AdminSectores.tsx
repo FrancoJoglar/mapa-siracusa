@@ -15,7 +15,7 @@ export default function AdminSectores() {
   const { unidades, refetch: refetchUnidades } = useUnidadesRiego();
   const [editing, setEditing] = useState<Sector | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "" });
+  const [filtros, setFiltros] = useState({ equipo: "", especie: "" });
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editUnidad, setEditUnidad] = useState<UnidadRiego | null>(null);
@@ -36,10 +36,8 @@ export default function AdminSectores() {
   const unique = useMemo(() => {
     const eq = new Set<string>();
     const esp = new Set<string>();
-    const jc = new Set<string>();
     sectores.forEach(s => {
       if (s.especie) esp.add(s.especie);
-      if (s.jefe_campo) s.jefe_campo.split("/").forEach(n => jc.add(n.trim()));
       if (s.equipo_id) eq.add(getEquipoNombre(s.equipo_id));
     });
     return {
@@ -49,7 +47,6 @@ export default function AdminSectores() {
         return na - nb;
       }),
       especies: Array.from(esp).sort(),
-      jefes: Array.from(jc).sort(),
     };
   }, [sectores, equipos]);
 
@@ -58,7 +55,6 @@ export default function AdminSectores() {
     const eqName = getEquipoNombre(s.equipo_id);
     if (filtros.equipo && eqName !== filtros.equipo) return false;
     if (filtros.especie && s.especie !== filtros.especie) return false;
-    if (filtros.jc && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jc))) return false;
     return true;
   }), [sectores, filtros, equipos, search]);
 
@@ -90,11 +86,7 @@ export default function AdminSectores() {
           <option value="">Especie</option>
           {unique.especies.map(v => <option key={v} value={v}>{v}</option>)}
         </select>
-        <select value={filtros.jc} onChange={e => setFiltros({ ...filtros, jc: e.target.value })} style={s}>
-          <option value="">Jefe de Campo</option>
-          {unique.jefes.map(v => <option key={v} value={v}>{v}</option>)}
-        </select>
-        <button onClick={() => setFiltros({ equipo: "", especie: "", jc: "" })} style={btnClear}>Limpiar</button>
+        <button onClick={() => setFiltros({ equipo: "", especie: "" })} style={btnClear}>Limpiar</button>
       </div>
 
       <p style={{ color: "#666", fontSize: 13, marginBottom: 8 }}>
@@ -108,7 +100,7 @@ export default function AdminSectores() {
               <th style={{ width: 30 }}></th>
               <th>Código</th><th>Equipo</th><th>N°</th><th>Has</th>
               <th>Especie</th><th>Bomba</th><th>Filtro</th>
-              <th>Año</th><th>JC</th><th>m³/ha</th>
+              <th>Año</th><th>m³/ha</th>
               <th style={{ width: 100 }}>Acciones</th>
             </tr>
           </thead>
@@ -127,7 +119,7 @@ export default function AdminSectores() {
                   <td>{getEquipoNombre(s.equipo_id)}</td><td>{s.numero}</td>
                   <td>{s.hectareas ?? ""}</td><td>{s.especie}</td>
                   <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{s.bomba}</td>
-                  <td>{s.filtro}</td><td>{s.anio ?? ""}</td><td>{s.jefe_campo}</td>
+                  <td>{s.filtro}</td><td>{s.anio ?? ""}</td>
                   <td>{s.m3_ha ?? ""}</td>
                   <td>{isAdmin && <>
                     <button onClick={e => { e.stopPropagation(); setEditing(s); setShowForm(true); }} style={btnSm}>Editar</button>{" "}
