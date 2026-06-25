@@ -618,7 +618,14 @@ function ControlSatelite({ satelite, onToggle }: { satelite: boolean; onToggle: 
 
 function ResizeHandler() {
   const map = useMap();
-  useEffect(() => { setTimeout(() => map.invalidateSize(), 100); }, [map]);
+  useEffect(() => {
+    const el = map.getContainer();
+    if (!el) return;
+    map.invalidateSize();
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [map]);
   return null;
 }
 
