@@ -237,9 +237,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo })}
         vista={vista}
       />
-      <div style={{ flex: 1, position: "relative", minHeight: 0, overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0 }}>
-          <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} style={{ height: "100%", width: "100%" }}>
+      <div style={{ flex: 1 }}>
+        <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} style={{ height: "100%", width: "100%" }}>
           <TileLayer
             key={satelite ? "sat" : "osm"}
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
@@ -352,11 +351,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           )}
 
           {fitBounds && <FlyToBounds bounds={fitBounds} />}
-          <ResizeHandler />
           <Leyenda />
           {vista === "cuarteles" && <BuscadorCuartel cuarteles={cuarteles} />}
         </MapContainer>
-        </div>
       </div>
     </div>
   );
@@ -614,19 +611,6 @@ function ControlSatelite({ satelite, onToggle }: { satelite: boolean; onToggle: 
       </div>
     </div>
   );
-}
-
-function ResizeHandler() {
-  const map = useMap();
-  useEffect(() => {
-    const el = map.getContainer();
-    if (!el) return;
-    map.invalidateSize();
-    const ro = new ResizeObserver(() => map.invalidateSize());
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [map]);
-  return null;
 }
 
 function Leyenda() {
