@@ -22,10 +22,6 @@ export default function PopupCuartel({ cuartel }: Props) {
             label="Superficie"
             value={cuartel.superficie_ha ? `${cuartel.superficie_ha} ha` : ""}
           />
-          <Row
-            label="Plantas"
-            value={cuartel.plantas ? String(cuartel.plantas) : ""}
-          />
           <Row label="Polinizante" value={cuartel.polinizante} />
           <Row label="Jefe de campo" value={cuartel.jefe_campo} />
           <Row label="Centro de costo" value={cuartel.centro_costo} />

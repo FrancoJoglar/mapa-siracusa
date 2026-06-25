@@ -22,7 +22,6 @@ export default function FormularioCuartel({
   const [variedad, setVariedad] = useState(cuartel.variedad || "");
   const [anio, setAnio] = useState(cuartel.anio_plantacion || 0);
   const [superficie, setSuperficie] = useState(cuartel.superficie_ha || 0);
-  const [plantas, setPlantas] = useState(cuartel.plantas || 0);
   const [polinizante, setPolinizante] = useState(cuartel.polinizante || "");
   const [jefeCampo, setJefeCampo] = useState(cuartel.jefe_campo || "");
   const [centroCosto, setCentroCosto] = useState(cuartel.centro_costo || "");
@@ -67,7 +66,6 @@ export default function FormularioCuartel({
         variedad,
         anio_plantacion: anio || null,
         superficie_ha: superficie || null,
-        plantas: plantas || null,
         polinizante,
         jefe_campo: jefeCampo,
         centro_costo: centroCosto,
@@ -135,14 +133,6 @@ export default function FormularioCuartel({
                 step="0.01"
                 value={superficie || ""}
                 onChange={(e) => setSuperficie(Number(e.target.value))}
-                style={inputStyle}
-              />
-            </Campo>
-            <Campo label="Plantas">
-              <input
-                type="number"
-                value={plantas || ""}
-                onChange={(e) => setPlantas(Number(e.target.value))}
                 style={inputStyle}
               />
             </Campo>
