@@ -22,6 +22,9 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
   const [fullscreen, setFullscreen] = useState(false);
   const [rendering, setRendering] = useState(false);
   const renderTaskRef = useRef<any>(null);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
 
@@ -95,6 +98,36 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
   const zoomOut = () => setScale(s => Math.max(0.25, Math.round((s - 0.25) * 100) / 100));
   const zoomTo = (s: number) => setScale(s);
 
+  // Drag to pan
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    isDragging.current = true;
+    const el = scrollRef.current;
+    dragStart.current = { x: e.clientX, y: e.clientY, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop };
+    el.style.cursor = "grabbing";
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current || !scrollRef.current) return;
+    const el = scrollRef.current;
+    el.scrollLeft = dragStart.current.scrollLeft - (e.clientX - dragStart.current.x);
+    el.scrollTop = dragStart.current.scrollTop - (e.clientY - dragStart.current.y);
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+    if (scrollRef.current) scrollRef.current.style.cursor = "grab";
+  };
+
+  // Mouse wheel zoom (Ctrl+scroll)
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      if (e.deltaY < 0) zoomIn();
+      else zoomOut();
+    }
+  };
+
   const c: React.CSSProperties = {
     position: "fixed", inset: 0, zIndex: 5000,
     backgroundColor: fullscreen ? "#000" : "rgba(0,0,0,0.5)",
@@ -142,7 +175,7 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
             <button onClick={onClose} style={{ ...btn, color: "#c62828", fontWeight: 600 }}>✕</button>
           </div>
         </div>
-        <div ref={containerRef} style={{ flex: 1, overflow: "auto", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: 16, background: "#f0f0f0" }}>
+        <div ref={(el) => { containerRef.current = el; scrollRef.current = el; }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={handleWheel} style={{ flex: 1, overflow: "auto", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: 16, background: "#f0f0f0", cursor: "grab" }}>
           {loading && <p style={{ padding: 40, color: "#666" }}>Cargando plano...</p>}
           {error && (
             <div style={{ textAlign: "center", padding: 40 }}>
