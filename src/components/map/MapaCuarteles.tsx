@@ -237,7 +237,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo })}
         vista={vista}
       />
-      <div style={{ flex: 1, position: "relative" }}>
+      <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
         <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} style={{ height: "100%", width: "100%" }}>
           <TileLayer
             key={satelite ? "sat" : "osm"}
