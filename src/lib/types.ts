@@ -21,6 +21,7 @@ export interface Sector {
   bomba: string;
   filtro: string;
   anio: number | null;
+  jefe_campo: string;
   especie: string;
   precipitacion: number | null;
   eficiencia: number | null;
@@ -61,6 +62,7 @@ export interface SectorGeo {
   especie: string;
   equipo: string;
   hectareas: number | null;
+  jefe_campo: string;
   anio: number | null;
   bomba: string;
   filtro: string;

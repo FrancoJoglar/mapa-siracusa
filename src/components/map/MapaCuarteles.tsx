@@ -116,28 +116,19 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
 
   const uniqueSectores = useMemo(() => {
     const e = new Set<string>(); const v = new Set<string>();
-    const eq = new Set<string>();
+    const eq = new Set<string>(); const j = new Set<string>();
     const allCodes: string[] = [];
     const sectorIdSet = new Set(sectores.map(s => s.id));
     cuarteles.forEach(c => {
       if (c.variedad && c.sector_ids?.some(sid => sectorIdSet.has(sid))) {
         v.add(c.variedad);
       }
-      if (c.jefe_campo && c.sector_ids?.some(sid => sectorIdSet.has(sid))) {
-        j.add(c.jefe_campo);
-      }
     });
     sectores.forEach(s => {
       if (s.especie) e.add(s.especie);
       if (s.equipo) eq.add(s.equipo);
+      if (s.jefe_campo) s.jefe_campo.split("/").forEach((jc: string) => j.add(jc.trim()));
       allCodes.push(s.codigo);
-    });
-    // Jefes desde cuarteles asociados
-    const j = new Set<string>();
-    cuarteles.forEach(c => {
-      if (c.jefe_campo && c.sector_ids?.some(sid => sectorIdSet.has(sid))) {
-        j.add(c.jefe_campo);
-      }
     });
     return {
       especies: Array.from(e).sort(), variedades: Array.from(v).sort(),
@@ -185,7 +176,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.anioHasta && (!s.anio || s.anio > filtros.anioHasta)) return false;
       if (filtros.equipo && s.equipo !== filtros.equipo) return false;
       if (filtros.sector && s.codigo !== filtros.sector) return false;
-      if (filtros.jefeCampo && !cuarteles.some(c => c.sector_ids?.includes(s.id) && c.jefe_campo === filtros.jefeCampo)) return false;
+      if (filtros.jefeCampo && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jefeCampo))) return false;
       return true;
     });
   }, [sectores, cuarteles, filtros]);
@@ -466,7 +457,7 @@ function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equipos?: Equipo[]
   const eq = (equipos || []).find(e => e.nombre === s.equipo);
   const planoLink = eq?.plano_url ? `<tr><td colspan="2" style="padding:6px 0 0"><a href="#" onclick="window.__openPlano('${eq.plano_url}','${s.codigo}');return false" style="color:#1565c0;font-weight:600;text-decoration:none">📋 Ver Plano</a></td></tr>` : "";
 
-  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Anio",s.anio)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}${planoLink}</table></div>`;
+  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Anio",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}${planoLink}</table></div>`;
 }
 
 // ====== CONTROLS ======

@@ -125,6 +125,7 @@ describe("useSectores", () => {
       bomba: "Bomba 3",
       filtro: "Mallas 120",
       anio: 2020,
+      jefe_campo: "Juan Perez",
       especie: "Olivo",
       precipitacion: 850.0,
       eficiencia: 0.85,
@@ -151,11 +152,13 @@ describe("useSectores", () => {
 
     await result.current.updateSector("sector-1", {
       hectareas: 30.0,
+      jefe_campo: "Maria Lopez",
       especie: "Avellano",
     });
 
     expect(chain.update).toHaveBeenCalledWith({
       hectareas: 30.0,
+      jefe_campo: "Maria Lopez",
       especie: "Avellano",
     });
     expect(chain.eqAfterUpdate).toHaveBeenCalledWith("id", "sector-1");

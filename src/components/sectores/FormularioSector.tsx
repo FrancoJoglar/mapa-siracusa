@@ -20,6 +20,7 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
   const [bomba, setBomba] = useState(sector?.bomba || "");
   const [filtro, setFiltro] = useState(sector?.filtro || "");
   const [anio, setAnio] = useState(sector?.anio ?? 0);
+  const [jefeCampo, setJefeCampo] = useState(sector?.jefe_campo || "");
   const [especie, setEspecie] = useState(sector?.especie || "");
   const [precipitacion, setPrecipitacion] = useState(sector?.precipitacion ?? 0);
   const [eficiencia, setEficiencia] = useState(sector?.eficiencia ?? 0);
@@ -44,6 +45,7 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
         hectareas: hectareas || null,
         caseta, bomba, filtro,
         anio: anio || null,
+        jefe_campo: jefeCampo,
         especie, descripcion,
         precipitacion: precipitacion || null,
         eficiencia: eficiencia || null,
@@ -105,6 +107,7 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
             <Campo label="Caseta"><input type="text" value={caseta} onChange={e => setCaseta(e.target.value)} style={inputStyle} /></Campo>
           </Row>
           <Row>
+            <Campo label="Jefe de Campo"><input type="text" value={jefeCampo} onChange={e => setJefeCampo(e.target.value)} style={inputStyle} /></Campo>
             <Campo label="Precipitación"><input type="number" step="0.01" value={precipitacion || ""} onChange={e => setPrecipitacion(Number(e.target.value))} style={inputStyle} /></Campo>
             <Campo label="Eficiencia"><input type="number" step="0.01" value={eficiencia || ""} onChange={e => setEficiencia(Number(e.target.value))} style={inputStyle} /></Campo>
           </Row>
