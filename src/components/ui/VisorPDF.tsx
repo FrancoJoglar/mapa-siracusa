@@ -25,6 +25,7 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
   const scrollRef = useRef<HTMLDivElement>(null);
+  const zoomPointRef = useRef<{ rx: number; ry: number } | null>(null);
 
   const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
 
@@ -81,6 +82,18 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
     return () => { cancelled = true; if (renderTaskRef.current) try { renderTaskRef.current.cancel(); } catch {} };
   }, [pdf, pageNum, scale, rotation]);
 
+  // After render completes, adjust scroll to keep zoom point fixed
+  useEffect(() => {
+    if (!rendering && zoomPointRef.current && scrollRef.current && canvasRef.current) {
+      const el = scrollRef.current;
+      const canvas = canvasRef.current;
+      const { rx, ry } = zoomPointRef.current;
+      el.scrollLeft = rx * canvas.offsetWidth - el.clientWidth / 2;
+      el.scrollTop = ry * canvas.offsetHeight - el.clientHeight / 2;
+      zoomPointRef.current = null;
+    }
+  }, [rendering]);
+
   // Auto-fit on first load
   useEffect(() => {
     if (!pdf || !containerRef.current) return;
@@ -106,6 +119,13 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
+        const el = scrollRef.current;
+        if (el && canvasRef.current) {
+          const rect = el.getBoundingClientRect();
+          const rx = (e.clientX - rect.left + el.scrollLeft) / canvasRef.current.offsetWidth;
+          const ry = (e.clientY - rect.top + el.scrollTop) / canvasRef.current.offsetHeight;
+          zoomPointRef.current = { rx, ry };
+        }
         if (e.deltaY < 0) zoomIn();
         else zoomOut();
       }
