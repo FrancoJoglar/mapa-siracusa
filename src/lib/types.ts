@@ -143,3 +143,13 @@ export interface Sonda {
   geojson?: Feature;
   created_at: string;
 }
+
+export interface Georreferencia {
+  id: string;
+  equipo_id: string;
+  bounds: { sw: [number, number]; ne: [number, number] };
+  rotation: number;
+  opacity: number;
+  created_at: string;
+  updated_at: string;
+}
