@@ -238,7 +238,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
         vista={vista}
       />
       <div style={{ flex: 1 }}>
-        <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} style={{ height: "100%", width: "100%" }}>
+        <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} zoomAnimation={false} style={{ height: "100%", width: "100%" }}>
           <TileLayer
             key={satelite ? "sat" : "osm"}
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
