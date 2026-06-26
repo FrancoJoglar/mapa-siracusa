@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { MapContainer, TileLayer } from "react-leaflet";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import * as pdfjsLib from "pdfjs-dist";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -14,14 +14,135 @@ interface Props {
   onClose: () => void;
 }
 
+function OverlayManager({ imageUrl, opacity, rotation, scale }: { imageUrl: string; opacity: number; rotation: number; scale: number }) {
+  const map = useMap();
+  const overlayRef = useRef<L.ImageOverlay | null>(null);
+  const boundsRef = useRef<L.LatLngBounds | null>(null);
+  const dragging = useRef(false);
+  const dragStart = useRef<L.LatLng | null>(null);
+  const offsetRef = useRef(0.0008);
+
+  // Create/update overlay
+  useEffect(() => {
+    if (!imageUrl) return;
+    const m = map;
+
+    // Use stored bounds or default centered
+    let b: L.LatLngBounds;
+    if (boundsRef.current) {
+      b = boundsRef.current;
+    } else {
+      const c = m.getCenter();
+      const o = offsetRef.current * scale;
+      b = L.latLngBounds([c.lat - o, c.lng - o], [c.lat + o, c.lng + o]);
+      boundsRef.current = b;
+    }
+
+    if (overlayRef.current) m.removeLayer(overlayRef.current);
+    const ov = L.imageOverlay(imageUrl, b, { opacity, interactive: true });
+    ov.addTo(m);
+    overlayRef.current = ov;
+
+    // Apply rotation
+    setTimeout(() => {
+      const img = ov.getElement();
+      if (img) {
+        img.style.transition = "transform 0.1s";
+        img.style.transformOrigin = "center center";
+        img.style.transform = `rotate(${rotation}deg)`;
+      }
+    }, 50);
+  }, [imageUrl]);
+
+  // Update opacity
+  useEffect(() => {
+    if (overlayRef.current) overlayRef.current.setOpacity(opacity);
+  }, [opacity]);
+
+  // Update rotation
+  useEffect(() => {
+    const ov = overlayRef.current;
+    if (!ov) return;
+    const img = ov.getElement();
+    if (img) {
+      img.style.transformOrigin = "center center";
+      img.style.transform = `rotate(${rotation}deg)`;
+    }
+  }, [rotation]);
+
+  // Scale update
+  useEffect(() => {
+    if (!boundsRef.current || !overlayRef.current) return;
+    const b = boundsRef.current;
+    const c = b.getCenter();
+    const o = offsetRef.current * scale;
+    const newBounds = L.latLngBounds([c.lat - o, c.lng - o], [c.lat + o, c.lng + o]);
+    boundsRef.current = newBounds;
+    overlayRef.current.setBounds(newBounds);
+  }, [scale]);
+
+  // Drag to move
+  useEffect(() => {
+    const onDown = (e: L.LeafletMouseEvent) => {
+      dragging.current = true;
+      dragStart.current = e.latlng;
+      map.dragging.disable();
+      map.getContainer().style.cursor = "grabbing";
+    };
+    const onUp = () => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      dragStart.current = null;
+      map.dragging.enable();
+      map.getContainer().style.cursor = "";
+    };
+    const onMove = (e: L.LeafletMouseEvent) => {
+      if (!dragging.current || !dragStart.current || !boundsRef.current || !overlayRef.current) return;
+      const delta = L.latLng(
+        e.latlng.lat - dragStart.current.lat,
+        e.latlng.lng - dragStart.current.lng
+      );
+      dragStart.current = e.latlng;
+      const b = boundsRef.current;
+      const newBounds = L.latLngBounds(
+        [b.getSouthWest().lat + delta.lat, b.getSouthWest().lng + delta.lng],
+        [b.getNorthEast().lat + delta.lat, b.getNorthEast().lng + delta.lng]
+      );
+      boundsRef.current = newBounds;
+      overlayRef.current.setBounds(newBounds);
+    };
+
+    const ov = overlayRef.current;
+    if (!ov) return;
+    const el = ov.getElement();
+    if (!el) return;
+    el.addEventListener("mousedown", (e: any) => { onDown(e as any); map.fireEvent("mousedown", e); });
+    map.on("mousemove", onMove);
+    map.on("mouseup", onUp);
+
+    return () => {
+      map.off("mousemove", onMove);
+      map.off("mouseup", onUp);
+    };
+  }, [map, imageUrl]);
+
+  // Expose bounds ref for parent
+  useEffect(() => {
+    (window as any).__geoBounds = () => boundsRef.current;
+    (window as any).__geoOverlay = () => overlayRef.current;
+  }, []);
+
+  return null;
+}
+
 export default function Georreferenciador({ planoUrl, equipoCodigo, initialCenter, onSave, onClose }: Props) {
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.6);
   const [rotation, setRotation] = useState(0);
+  const [scale, setScale] = useState(1);
   const [saving, setSaving] = useState(false);
-  const mapRef = useRef<L.Map | null>(null);
-  const overlayRef = useRef<any>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Render PDF to image
   useEffect(() => {
@@ -42,44 +163,14 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       .catch(() => setLoading(false));
   }, [planoUrl]);
 
-  // When map is ready, add the image overlay
-  const handleMapReady = () => {
-    const map = mapRef.current;
-    if (!map || !imageUrl) return;
-    if (overlayRef.current) map.removeLayer(overlayRef.current);
-
-    const center = map.getCenter();
-    const offset = 0.001;
-    const bounds: L.LatLngBoundsExpression = [
-      [center.lat - offset, center.lng - offset],
-      [center.lat + offset, center.lng + offset],
-    ];
-    const overlay = L.imageOverlay(imageUrl, bounds, { opacity });
-    overlay.addTo(map);
-    overlayRef.current = overlay;
-  };
-
-  useEffect(() => {
-    handleMapReady();
-  }, [imageUrl, opacity]);
-
-  // Update rotation via CSS
-  useEffect(() => {
-    if (!overlayRef.current) return;
-    const img = overlayRef.current._image;
-    if (!img) return;
-    img.style.transformOrigin = "center center";
-    img.style.transform = `rotate(${rotation}deg)`;
-  }, [rotation]);
-
   const handleSave = () => {
-    if (!overlayRef.current) return;
+    const b = (window as any).__geoBounds?.();
+    if (!b) return alert("Esperá que cargue el mapa...");
     setSaving(true);
-    const bounds = overlayRef.current.getBounds();
     const data = {
       bounds: {
-        sw: [bounds.getSouthWest().lat, bounds.getSouthWest().lng],
-        ne: [bounds.getNorthEast().lat, bounds.getNorthEast().lng],
+        sw: [b.getSouthWest().lat, b.getSouthWest().lng],
+        ne: [b.getNorthEast().lat, b.getNorthEast().lng],
       },
       rotation,
       opacity,
@@ -94,43 +185,50 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   };
   const modalStyle: React.CSSProperties = {
     background: "#fff", borderRadius: 8, overflow: "hidden", display: "flex", flexDirection: "column",
-    width: "90vw", height: "90vh", maxWidth: 1100,
+    width: "95vw", height: "95vh", maxWidth: 1200,
   };
   const btn: React.CSSProperties = {
-    background: "none", border: "1px solid #ccc", borderRadius: 4,
-    padding: "4px 10px", cursor: "pointer", fontSize: 12, marginLeft: 4,
+    background: "#fff", border: "1px solid #ccc", borderRadius: 4,
+    padding: "4px 10px", cursor: "pointer", fontSize: 12,
   };
+  const primaryBtn: React.CSSProperties = { ...btn, background: "#1565c0", color: "#fff", border: "none", marginLeft: 4 };
 
   return (
     <div style={ctr} onClick={onClose}>
       <div style={modalStyle} onClick={e => e.stopPropagation()}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderBottom: "1px solid #ddd", fontSize: 14, fontWeight: 600 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderBottom: "1px solid #ddd", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
           <span>Georreferenciar: {equipoCodigo}</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+            <button onClick={() => setScale(s => Math.max(0.2, s - 0.1))} style={btn} title="Reducir">🔽</button>
+            <span style={{ fontSize: 11, color: "#666", minWidth: 36, textAlign: "center" }}>{(scale*100).toFixed(0)}%</span>
+            <button onClick={() => setScale(s => Math.min(5, s + 0.1))} style={btn} title="Agrandar">🔼</button>
+            <span style={{ color: "#ddd" }}>|</span>
+            <button onClick={() => setRotation(r => (r + 90) % 360)} style={btn} title="Rotar der">🔄 +90°</button>
+            <button onClick={() => setRotation(r => (r - 90 + 360) % 360)} style={btn} title="Rotar izq">🔄 −90°</button>
+            <span style={{ color: "#ddd" }}>|</span>
             <label style={{ fontSize: 12 }}>Op {Math.round(opacity * 100)}%
               <input type="range" min={0.1} max={1} step={0.05} value={opacity} onChange={e => setOpacity(Number(e.target.value))} style={{ width: 60, marginLeft: 4 }} />
             </label>
-            <button onClick={() => setRotation(r => (r + 90) % 360)} style={btn}>🔄 +90°</button>
-            <button onClick={() => setRotation(r => (r - 90 + 360) % 360)} style={btn}>🔄 −90°</button>
-            <button onClick={handleSave} disabled={saving || !imageUrl} style={{ ...btn, background: "#1565c0", color: "#fff", border: "none" }}>
-              {saving ? "Guardando..." : "Guardar"}
+            <span style={{ color: "#ddd" }}>|</span>
+            <button onClick={handleSave} disabled={saving || !imageUrl} style={primaryBtn}>
+              {saving ? "Guardando..." : "Guardar Georreferencia"}
             </button>
-            <button onClick={onClose} style={{ ...btn, color: "#c62828" }}>✕ Cerrar</button>
+            <button onClick={onClose} style={{ ...btn, color: "#c62828", fontWeight: 600 }}>✕ Cerrar</button>
           </div>
         </div>
         <div style={{ flex: 1, position: "relative" }}>
-          {loading && <p style={{ padding: 40, textAlign: "center", color: "#666" }}>Cargando plano...</p>}
+          {loading && <p style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", color: "#666", zIndex: 10 }}>Cargando plano...</p>}
           <MapContainer
             center={initialCenter}
             zoom={15}
             style={{ height: "100%", width: "100%" }}
-            ref={mapRef as any}
-            whenReady={() => handleMapReady()}
+            whenReady={() => setMapReady(true)}
           >
             <TileLayer
               attribution='&copy; Esri'
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             />
+            {mapReady && imageUrl && <OverlayManager imageUrl={imageUrl} opacity={opacity} rotation={rotation} scale={scale} />}
           </MapContainer>
         </div>
       </div>
