@@ -291,7 +291,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                 if (c) {
                   registerLayer(fId, layer, baseStyle, 'cuartel');
                   layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
-                  if (showCuartelLabels) layer.bindTooltip(c.nombre, { sticky: true, className: "cuartel-label" });
+                  layer.bindTooltip(c.nombre, showCuartelLabels
+                    ? { direction: "center", permanent: true, className: "cuartel-label", opacity: 0.9 }
+                    : { sticky: true, className: "cuartel-label" });
                 } else {
                   registerLayer(fId, layer, baseStyle, 'cuartel');
                 }
@@ -320,7 +322,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                   if (c) {
                     registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
                     layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
-                    if (showCuartelLabels) layer.bindTooltip(c.nombre, { sticky: true, className: "cuartel-label", opacity: 0.7 });
+                    layer.bindTooltip(c.nombre, showCuartelLabels
+                      ? { direction: "center", permanent: true, className: "cuartel-label", opacity: 0.7 }
+                      : { sticky: true, className: "cuartel-label", opacity: 0.7 });
                   } else {
                     registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
                   }
