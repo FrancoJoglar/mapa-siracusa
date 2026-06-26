@@ -104,3 +104,42 @@ export interface FiltrosCuartel {
   sector: string;
   jefeCampo: string;
 }
+
+export interface Tuberia {
+  id: string;
+  codigo: string;
+  equipo_id: string;
+  nivel: string;
+  nombre: string;
+  material: string;
+  diametro_mm: number | null;
+  geojson?: Feature;
+  created_at: string;
+}
+
+export interface Valvula {
+  id: string;
+  codigo: string;
+  tuberia_id: string;
+  tipo: string;
+  diametro_mm: number | null;
+  geojson?: Feature;
+  created_at: string;
+}
+
+export interface Antena {
+  id: string;
+  codigo: string;
+  tipo: string;
+  geojson?: Feature;
+  created_at: string;
+}
+
+export interface Sonda {
+  id: string;
+  codigo: string;
+  tipo: string;
+  profundidad_m: number | null;
+  geojson?: Feature;
+  created_at: string;
+}

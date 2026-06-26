@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Cuartel, Edificacion, SectorGeo, UnidadRiego, Equipo } from "../lib/types";
+import { Cuartel, Edificacion, SectorGeo, UnidadRiego, Equipo, Tuberia, Valvula, Antena, Sonda } from "../lib/types";
 import MapaCuarteles from "../components/map/MapaCuarteles";
 import VisorPDF from "../components/ui/VisorPDF";
 
@@ -10,6 +10,10 @@ export default function MapaPage() {
   const [edificaciones, setEdificaciones] = useState<Edificacion[]>([]);
   const [unidades, setUnidades] = useState<UnidadRiego[]>([]);
   const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [tuberias, setTuberias] = useState<Tuberia[]>([]);
+  const [valvulas, setValvulas] = useState<Valvula[]>([]);
+  const [antenas, setAntenas] = useState<Antena[]>([]);
+  const [sondas, setSondas] = useState<Sonda[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visorPdf, setVisorPdf] = useState<{ url: string; nombre: string } | null>(null);
@@ -25,12 +29,16 @@ export default function MapaPage() {
       setLoading(true);
       setError(null);
       try {
-        const [cuartelesRes, edificacionesRes, sectoresRes, unidadesRes, equiposRes] = await Promise.all([
+        const [cuartelesRes, edificacionesRes, sectoresRes, unidadesRes, equiposRes, tuberiasRes, valvulasRes, antenasRes, sondasRes] = await Promise.all([
           supabase.rpc("get_cuarteles_con_sectores"),
           supabase.rpc("get_edificaciones_geojson"),
           supabase.rpc("get_sectores_geojson"),
           supabase.rpc("get_unidades_riego_geojson"),
           supabase.from("equipos").select("*").order("codigo"),
+          supabase.from("tuberias").select("*"),
+          supabase.from("valvulas").select("*"),
+          supabase.from("antenas").select("*"),
+          supabase.from("sondas").select("*"),
         ]);
 
         if (cuartelesRes.error) throw cuartelesRes.error;
@@ -82,6 +90,10 @@ export default function MapaPage() {
         setSectores(parsedSectores);
         setUnidades(parsedUnidades);
         setEquipos(equiposRes.data || []);
+        setTuberias((tuberiasRes.data || []).map((r: any) => ({ ...r, geojson: r.geometria ? { type: "Feature", geometry: r.geometria, properties: {} } : undefined })));
+        setValvulas((valvulasRes.data || []).map((r: any) => ({ ...r, geojson: r.geometria ? { type: "Feature", geometry: r.geometria, properties: {} } : undefined })));
+        setAntenas((antenasRes.data || []).map((r: any) => ({ ...r, geojson: r.geometria ? { type: "Feature", geometry: r.geometria, properties: {} } : undefined })));
+        setSondas((sondasRes.data || []).map((r: any) => ({ ...r, geojson: r.geometria ? { type: "Feature", geometry: r.geometria, properties: {} } : undefined })));
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -111,7 +123,7 @@ export default function MapaPage() {
 
   return (
     <>
-      <MapaCuarteles cuarteles={cuarteles} edificaciones={edificaciones} sectores={sectores} unidades={unidades} equipos={equipos} />
+      <MapaCuarteles cuarteles={cuarteles} edificaciones={edificaciones} sectores={sectores} unidades={unidades} equipos={equipos} tuberias={tuberias} valvulas={valvulas} antenas={antenas} sondas={sondas} />
       {visorPdf && <VisorPDF url={visorPdf.url} nombre={visorPdf.nombre} onClose={() => setVisorPdf(null)} />}
     </>
   );

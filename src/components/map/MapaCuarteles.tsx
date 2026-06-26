@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { Cuartel, Edificacion, SectorGeo, FiltrosCuartel, UnidadRiego, Equipo } from "../../lib/types";
+import { Cuartel, Edificacion, SectorGeo, FiltrosCuartel, UnidadRiego, Equipo, Tuberia, Valvula, Antena, Sonda } from "../../lib/types";
 import {
   COLOR_EDIFICACION, colorPorEspecie, COLOR_POR_ESPECIE,
 } from "../../lib/colors";
@@ -22,6 +22,10 @@ interface Props {
   sectores: SectorGeo[];
   unidades: UnidadRiego[];
   equipos?: Equipo[];
+  tuberias?: Tuberia[];
+  valvulas?: Valvula[];
+  antenas?: Antena[];
+  sondas?: Sonda[];
 }
 
 const FILTROS_VACIOS: FiltrosCuartel = {
@@ -32,11 +36,15 @@ const FILTROS_VACIOS: FiltrosCuartel = {
 type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions; kind: 'cuartel' | 'sector' | 'unidad' };
 type LayersMap = Map<string, LayerEntry>;
 
-export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unidades, equipos = [] }: Props) {
+export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unidades, equipos = [], tuberias = [], valvulas = [], antenas = [], sondas = [] }: Props) {
   const [filtros, setFiltros] = useState<FiltrosCuartel>(FILTROS_VACIOS);
   const [vista, setVista] = useState<Vista>("sectores");
   const [mostrarEdif, setMostrarEdif] = useState(true);
   const [mostrarUnidades, setMostrarUnidades] = useState(false);
+  const [mostrarTuberias, setMostrarTuberias] = useState(true);
+  const [mostrarValvulas, setMostrarValvulas] = useState(true);
+  const [mostrarAntenas, setMostrarAntenas] = useState(true);
+  const [mostrarSondas, setMostrarSondas] = useState(true);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
   const [satelite, setSatelite] = useState(true);
   const [medir, setMedir] = useState(false);
@@ -252,6 +260,10 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           <ToggleVista vista={vista} onChange={cambiarVista} />
           <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
           <ToggleUnidades visible={mostrarUnidades} onToggle={() => setMostrarUnidades(!mostrarUnidades)} />
+          <ToggleTuberias visible={mostrarTuberias} onToggle={() => setMostrarTuberias(!mostrarTuberias)} />
+          <ToggleValvulas visible={mostrarValvulas} onToggle={() => setMostrarValvulas(!mostrarValvulas)} />
+          <ToggleAntenas visible={mostrarAntenas} onToggle={() => setMostrarAntenas(!mostrarAntenas)} />
+          <ToggleSondas visible={mostrarSondas} onToggle={() => setMostrarSondas(!mostrarSondas)} />
           <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
           <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
           {medir && <MedirControls />}
@@ -342,6 +354,31 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
               layer.bindPopup(`<div style="font-size:13px"><strong>${feature.properties.codigo}</strong><br/>Cuartel: ${feature.properties.cuartel}<br/>Sector: ${feature.properties.sector}</div>`, { maxWidth: 250 });
             }} />
           )}
+
+          {mostrarTuberias && tuberias.length > 0 && tuberias.map(t => t.geojson && (
+            <GeoJSON key={"tub-" + t.id} data={t.geojson} style={{
+              color: t.nivel === "matriz" ? "#1565c0" : t.nivel === "impulsion" ? "#2e7d32" : "#c62828",
+              weight: 3, opacity: 0.85,
+            }} />
+          ))}
+
+          {mostrarValvulas && valvulas.length > 0 && valvulas.map(v => v.geojson && (
+            <GeoJSON key={"val-" + v.id} data={v.geojson} pointToLayer={(_f, latlng) =>
+              L.circleMarker(latlng, { radius: 5, color: "#e65100", fillColor: "#ff8a65", fillOpacity: 0.9 })
+            } />
+          ))}
+
+          {mostrarAntenas && antenas.length > 0 && antenas.map(a => a.geojson && (
+            <GeoJSON key={"ant-" + a.id} data={a.geojson} pointToLayer={(_f, latlng) =>
+              L.circleMarker(latlng, { radius: 6, color: "#1565c0", fillColor: "#42a5f5", fillOpacity: 0.9 })
+            } />
+          ))}
+
+          {mostrarSondas && sondas.length > 0 && sondas.map(s => s.geojson && (
+            <GeoJSON key={"son-" + s.id} data={s.geojson} pointToLayer={(_f, latlng) =>
+              L.circleMarker(latlng, { radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 0.9 })
+            } />
+          ))}
 
           {mostrarEdif && edificaciones.length > 0 && (
             <GeoJSON key="edificaciones" data={geoJsonEdif} onEachFeature={(feature: any, layer: any) => {
@@ -501,6 +538,58 @@ function ToggleUnidades({ visible, onToggle }: { visible: boolean; onToggle: () 
           padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
           background: visible ? "#2e7d32" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
         }}>Unidades</button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleTuberias({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 280 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          background: visible ? "#1565c0" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
+        }}>Matrices</button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleValvulas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 320 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          background: visible ? "#e65100" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
+        }}>Valvulas</button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleAntenas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 360 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          background: visible ? "#1565c0" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
+        }}>Antenas</button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleSondas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 400 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          background: visible ? "#2e7d32" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
+        }}>Sondas</button>
       </div>
     </div>
   );
