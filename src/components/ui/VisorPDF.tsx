@@ -192,7 +192,7 @@ export default function VisorPDF({ url, nombre, onClose }: Props) {
             <button onClick={onClose} style={{ ...btn, color: "#c62828", fontWeight: 600 }}>✕</button>
           </div>
         </div>
-        <div ref={(el) => { containerRef.current = el; scrollRef.current = el; }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ flex: 1, overflow: "auto", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: 16, background: "#f0f0f0", cursor: "grab" }}>
+        <div ref={(el) => { containerRef.current = el; scrollRef.current = el; }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ flex: 1, overflow: "auto", display: "flex", justifyContent: "flex-start", alignItems: "flex-start", padding: 16, background: "#f0f0f0", cursor: "grab" }}>
           {loading && <p style={{ padding: 40, color: "#666" }}>Cargando plano...</p>}
           {error && (
             <div style={{ textAlign: "center", padding: 40 }}>
