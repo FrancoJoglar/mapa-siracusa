@@ -97,3 +97,7 @@ path.leaflet-interactive:focus-visible {
 .cuartel-label::before {
   border-top-color: rgba(0, 0, 0, 0.7);
 }
+
+/* Fix zoom expanding only to NE instead of center */
+.leaflet-map-pane, .leaflet-pane { transform-origin: 0 0 !important; }
+.leaflet-zoom-animated { transform-origin: 0 0 !important; }
