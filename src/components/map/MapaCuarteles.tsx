@@ -45,6 +45,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [mostrarValvulas, setMostrarValvulas] = useState(true);
   const [mostrarAntenas, setMostrarAntenas] = useState(true);
   const [mostrarSondas, setMostrarSondas] = useState(true);
+  const [showEquiposRiego, setShowEquiposRiego] = useState(false);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
   const [satelite, setSatelite] = useState(true);
   const [medir, setMedir] = useState(false);
@@ -260,10 +261,13 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           <ToggleVista vista={vista} onChange={cambiarVista} />
           <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
           <ToggleUnidades visible={mostrarUnidades} onToggle={() => setMostrarUnidades(!mostrarUnidades)} />
-          <ToggleTuberias visible={mostrarTuberias} onToggle={() => setMostrarTuberias(!mostrarTuberias)} />
-          <ToggleValvulas visible={mostrarValvulas} onToggle={() => setMostrarValvulas(!mostrarValvulas)} />
-          <ToggleAntenas visible={mostrarAntenas} onToggle={() => setMostrarAntenas(!mostrarAntenas)} />
-          <ToggleSondas visible={mostrarSondas} onToggle={() => setMostrarSondas(!mostrarSondas)} />
+          <ToggleEquiposRiego expanded={showEquiposRiego} onToggle={() => setShowEquiposRiego(v => !v)} />
+          {showEquiposRiego && <>
+            <ToggleTuberias visible={mostrarTuberias} onToggle={() => setMostrarTuberias(!mostrarTuberias)} />
+            <ToggleValvulas visible={mostrarValvulas} onToggle={() => setMostrarValvulas(!mostrarValvulas)} />
+            <ToggleAntenas visible={mostrarAntenas} onToggle={() => setMostrarAntenas(!mostrarAntenas)} />
+            <ToggleSondas visible={mostrarSondas} onToggle={() => setMostrarSondas(!mostrarSondas)} />
+          </>}
           <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
           <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
           {medir && <MedirControls />}
@@ -543,12 +547,25 @@ function ToggleUnidades({ visible, onToggle }: { visible: boolean; onToggle: () 
   );
 }
 
-function ToggleTuberias({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+function ToggleEquiposRiego({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
   return (
     <div className="leaflet-top leaflet-right" style={{ top: 280 }}>
       <div className="leaflet-control">
         <button onClick={onToggle} style={{
-          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 600,
+          background: "#37474f", color: "white", border: "1px solid #546e7a",
+        }}>Equipos de Riego {expanded ? "▲" : "▼"}</button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleTuberias({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 318 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
           background: visible ? "#1565c0" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
         }}>Matrices</button>
       </div>
@@ -558,12 +575,12 @@ function ToggleTuberias({ visible, onToggle }: { visible: boolean; onToggle: () 
 
 function ToggleValvulas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 320 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 318 }}>
       <div className="leaflet-control">
         <button onClick={onToggle} style={{
-          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
           background: visible ? "#e65100" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
-        }}>Valvulas</button>
+        }}>Válvulas</button>
       </div>
     </div>
   );
@@ -571,10 +588,10 @@ function ToggleValvulas({ visible, onToggle }: { visible: boolean; onToggle: () 
 
 function ToggleAntenas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 360 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 352 }}>
       <div className="leaflet-control">
         <button onClick={onToggle} style={{
-          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
           background: visible ? "#1565c0" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
         }}>Antenas</button>
       </div>
@@ -584,10 +601,10 @@ function ToggleAntenas({ visible, onToggle }: { visible: boolean; onToggle: () =
 
 function ToggleSondas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 400 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 386 }}>
       <div className="leaflet-control">
         <button onClick={onToggle} style={{
-          padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
+          padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
           background: visible ? "#2e7d32" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
         }}>Sondas</button>
       </div>
