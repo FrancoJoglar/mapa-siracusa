@@ -13,6 +13,8 @@ interface Props {
   onClose: () => void;
 }
 
+const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
+
 export default function Georreferenciador({ planoUrl, equipoCodigo, initialCenter, onSave, onClose }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -27,6 +29,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   const [ready, setReady] = useState(false);
   const [showHint, setShowHint] = useState(true);
 
+  const equipoNum = equipoCodigo.replace("Equipo ", "").trim();
+
   // --- Init map ---
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -39,9 +43,66 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     return () => { m.remove(); mapRef.current = null; };
   }, []);
 
+  // --- Load reference polygons (sectores + cuarteles of this equipo) ---
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !ready) return;
+    const group = L.layerGroup().addTo(m);
+
+    // Fetch sectores
+    const supabaseUrl = "https://nnelrvctqjbwfucccxfh.supabase.co";
+    const codePrefix = `E${equipoNum}S`;
+    fetch(`${supabaseUrl}/rest/v1/sectores?codigo=like.${codePrefix}*&select=codigo,geometria`, {
+      headers: { "apikey": ANON, "Authorization": "Bearer " + ANON },
+    })
+    .then(r => r.json())
+    .then((data: any[]) => {
+      if (!Array.isArray(data)) return;
+      data.forEach(s => {
+        if (!s.geometria) return;
+        L.geoJSON(s.geometria, {
+          style: { color: "#e65100", weight: 2, fill: false, opacity: 0.7 },
+          pmIgnore: true,
+        }).addTo(group);
+        // Label
+        if (s.geometria?.coordinates) {
+          try {
+            const layer = L.geoJSON(s.geometria as any);
+            layer.eachLayer((l: any) => {
+              const center = l.getBounds()?.getCenter();
+              if (center) L.circleMarker(center, { radius: 0, opacity: 0 }).bindTooltip(s.codigo, { permanent: true, direction: "center", className: "cuartel-tooltip" }).addTo(group);
+            });
+          } catch {}
+        }
+      });
+    })
+    .catch(() => {});
+
+    // Fetch cuarteles via RPC
+    fetch(`${supabaseUrl}/rest/v1/rpc/get_cuarteles_con_sectores`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": ANON, "Authorization": "Bearer " + ANON },
+    })
+    .then(r => r.json())
+    .then((data: any[]) => {
+      if (!Array.isArray(data)) return;
+      data.forEach(c => {
+        if (!c.geojson) return;
+        const isInEquipo = c.equipo_riego?.split(" - ")?.some((eq: string) => eq === equipoNum);
+        if (!isInEquipo) return;
+        L.geoJSON(c.geojson, {
+          style: { color: "#ff9800", weight: 1.5, fillOpacity: 0.1, fillColor: "#ff9800", opacity: 0.5 },
+          pmIgnore: true,
+        }).addTo(group);
+      });
+    })
+    .catch(() => {});
+
+    return () => { m.removeLayer(group); };
+  }, [ready, equipoNum]);
+
   // --- Render PDF to image ---
   useEffect(() => {
-    const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
     fetch(planoUrl, { headers: { "apikey": ANON, "Authorization": "Bearer " + ANON } })
       .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
       .then(buf => pdfjsLib.getDocument({ data: buf }).promise)
@@ -58,8 +119,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       .catch(e => { console.error("PDF error:", e); setLoading(false); });
   }, [planoUrl]);
 
-  // --- Create / update overlay ---
-  const addOrUpdateOverlay = () => {
+  // --- Create overlay ---
+  const addOverlay = () => {
     const m = mapRef.current;
     if (!m || !imageUrl || !ready) return;
 
@@ -75,7 +136,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     ov.addTo(m);
     overlayRef.current = ov;
 
-    const img: HTMLElement | undefined = ov.getElement();
+    const img = ov.getElement();
     if (img) {
       img.style.transformOrigin = "center center";
       img.style.transform = `rotate(${rotation}deg)`;
@@ -83,119 +144,100 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       img.style.cursor = "grab";
     }
 
-    // --- Drag to move (only when clicking inside the overlay) ---
+    // Drag
     let dragging = false;
-    let startLatLng: L.LatLng | null = null;
-
-    const onImageDown = (e: MouseEvent) => {
+    let startLL: L.LatLng | null = null;
+    const onDn = (e: MouseEvent) => {
       e.stopPropagation();
       dragging = true;
-      startLatLng = m.mouseEventToLatLng(e);
+      startLL = m.mouseEventToLatLng(e);
       m.dragging.disable();
       if (img) img.style.cursor = "grabbing";
       setShowHint(false);
     };
-
-    const onMapMove = (e: L.LeafletMouseEvent) => {
-      if (!dragging || !startLatLng || !ov || !boundsRef.current) return;
-      const dLat = e.latlng.lat - startLatLng.lat;
-      const dLng = e.latlng.lng - startLatLng.lng;
-      startLatLng = e.latlng;
-      const b = boundsRef.current;
-      const nb = L.latLngBounds(
-        [b.getSouthWest().lat + dLat, b.getSouthWest().lng + dLng],
-        [b.getNorthEast().lat + dLat, b.getNorthEast().lng + dLng]
+    const onMv = (e: L.LeafletMouseEvent) => {
+      if (!dragging || !startLL || !ov || !boundsRef.current) return;
+      boundsRef.current = L.latLngBounds(
+        [boundsRef.current.getSouthWest().lat + e.latlng.lat - startLL.lat, boundsRef.current.getSouthWest().lng + e.latlng.lng - startLL.lng],
+        [boundsRef.current.getNorthEast().lat + e.latlng.lat - startLL.lat, boundsRef.current.getNorthEast().lng + e.latlng.lng - startLL.lng]
       );
-      boundsRef.current = nb;
-      ov.setBounds(nb);
+      startLL = e.latlng;
+      ov.setBounds(boundsRef.current);
     };
+    const onUp = () => { dragging = false; startLL = null; m.dragging.enable(); if (img) img.style.cursor = "grab"; };
 
-    const onMapUp = () => {
-      if (!dragging) return;
-      dragging = false;
-      startLatLng = null;
-      m.dragging.enable();
-      if (img) img.style.cursor = "grab";
-    };
-
-    if (img) img.addEventListener("mousedown", onImageDown);
-    m.on("mousemove", onMapMove);
-    m.on("mouseup", onMapUp);
-
-    // Store cleanup
-    (ov as any)._cleanup = () => {
-      if (img) img.removeEventListener("mousedown", onImageDown);
-      m.off("mousemove", onMapMove);
-      m.off("mouseup", onMapUp);
-    };
+    if (img) img.addEventListener("mousedown", onDn);
+    m.on("mousemove", onMv);
+    m.on("mouseup", onUp);
+    (ov as any)._clean = () => { if (img) img.removeEventListener("mousedown", onDn); m.off("mousemove", onMv); m.off("mouseup", onUp); };
   };
 
-  useEffect(() => { addOrUpdateOverlay(); }, [imageUrl, ready]);
+  useEffect(() => { addOverlay(); }, [imageUrl, ready]);
 
   // Opacity
-  useEffect(() => {
-    if (overlayRef.current) overlayRef.current.setOpacity(opacity);
-  }, [opacity]);
+  useEffect(() => { if (overlayRef.current) overlayRef.current.setOpacity(opacity); }, [opacity]);
 
   // Rotation
   useEffect(() => {
-    const ov = overlayRef.current;
-    if (!ov) return;
-    const img = ov.getElement();
+    const img = overlayRef.current?.getElement();
     if (img) { img.style.transformOrigin = "center center"; img.style.transform = `rotate(${rotation}deg)`; }
   }, [rotation]);
 
-  // Scale (keep center position from current bounds)
+  // Scale
   useEffect(() => {
     if (!boundsRef.current || !overlayRef.current) return;
     const c = boundsRef.current.getCenter();
-    const o = 0.0008 * scale;
-    boundsRef.current = L.latLngBounds([c.lat - o, c.lng - o], [c.lat + o, c.lng + o]);
+    boundsRef.current = L.latLngBounds(
+      [c.lat - 0.0008 * scale, c.lng - 0.0008 * scale],
+      [c.lat + 0.0008 * scale, c.lng + 0.0008 * scale]
+    );
     overlayRef.current.setBounds(boundsRef.current);
   }, [scale]);
 
-  // Cleanup overlay
+  // Nudge tool
+  const nudge = (dLat: number, dLng: number) => {
+    if (!boundsRef.current || !overlayRef.current) return;
+    setShowHint(false);
+    boundsRef.current = L.latLngBounds(
+      [boundsRef.current.getSouthWest().lat + dLat, boundsRef.current.getSouthWest().lng + dLng],
+      [boundsRef.current.getNorthEast().lat + dLat, boundsRef.current.getNorthEast().lng + dLng]
+    );
+    overlayRef.current.setBounds(boundsRef.current);
+  };
+
+  // Cleanup
   useEffect(() => () => {
-    if (overlayRef.current) {
-      const ov = overlayRef.current as any;
-      if (ov._cleanup) ov._cleanup();
-      overlayRef.current = null;
-    }
+    const ov = overlayRef.current as any;
+    if (ov?._clean) ov._clean();
   }, []);
 
   const handleSave = () => {
     const b = boundsRef.current;
     if (!b) return alert("Espera que cargue el mapa...");
     setSaving(true);
-    onSave({
-      bounds: { sw: [b.getSouthWest().lat, b.getSouthWest().lng], ne: [b.getNorthEast().lat, b.getNorthEast().lng] },
-      rotation, opacity,
-    });
+    onSave({ bounds: { sw: [b.getSouthWest().lat, b.getSouthWest().lng], ne: [b.getNorthEast().lat, b.getNorthEast().lng] }, rotation, opacity });
   };
 
-  const ctr: React.CSSProperties = {
-    position: "fixed", inset: 0, zIndex: 5000,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    display: "flex", justifyContent: "center", alignItems: "center",
-  };
-  const modalStyle: React.CSSProperties = {
-    background: "#fff", borderRadius: 8, overflow: "hidden", display: "flex", flexDirection: "column",
-    width: "95vw", height: "95vh", maxWidth: 1200,
-  };
-  const btn: React.CSSProperties = {
-    background: "#fff", border: "1px solid #ccc", borderRadius: 4,
-    padding: "4px 10px", cursor: "pointer", fontSize: 12,
-  };
+  const ctr: React.CSSProperties = { position: "fixed", inset: 0, zIndex: 5000, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" };
+  const modalStyle: React.CSSProperties = { background: "#fff", borderRadius: 8, overflow: "hidden", display: "flex", flexDirection: "column", width: "95vw", height: "95vh", maxWidth: 1200 };
+  const btn: React.CSSProperties = { background: "#fff", border: "1px solid #ccc", borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: 12 };
+  const redBtn: React.CSSProperties = { ...btn, background: "#1565c0", color: "#fff", border: "none" };
 
   return (
     <div style={ctr} onClick={onClose}>
       <div style={modalStyle} onClick={e => e.stopPropagation()}>
+        {/* HEADER */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderBottom: "1px solid #ddd", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
-          <span>Georreferenciar: {equipoCodigo}</span>
+          <span>Georreferenciar: {equipoCodigo} — Ref: naranjo=sectores, naranjo claro=cuarteles</span>
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
             <button onClick={() => setScale(s => Math.max(0.2, s - 0.1))} style={btn} title="Reducir">🔽</button>
             <span style={{ fontSize: 11, color: "#666", minWidth: 36, textAlign: "center" }}>{(scale*100).toFixed(0)}%</span>
             <button onClick={() => setScale(s => Math.min(5, s + 0.1))} style={btn} title="Agrandar">🔼</button>
+            <span style={{ color: "#ddd" }}>|</span>
+            <button onClick={() => nudge(0.0001, 0)} style={btn} title="Mover arriba">⬆</button>
+            <button onClick={() => nudge(0, -0.0001)} style={btn} title="Mover izquierda">⬅</button>
+            <button onClick={() => nudge(0, 0.0001)} style={btn} title="Mover derecha">➡</button>
+            <button onClick={() => nudge(-0.0001, 0)} style={btn} title="Mover abajo">⬇</button>
             <span style={{ color: "#ddd" }}>|</span>
             <button onClick={() => setRotation(r => (r + 90) % 360)} style={btn} title="Rotar der">🔄 +90°</button>
             <button onClick={() => setRotation(r => (r - 90 + 360) % 360)} style={btn} title="Rotar izq">🔄 −90°</button>
@@ -204,17 +246,16 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
               <input type="range" min={0.1} max={1} step={0.05} value={opacity} onChange={e => setOpacity(Number(e.target.value))} style={{ width: 60, marginLeft: 4 }} />
             </label>
             <span style={{ color: "#ddd" }}>|</span>
-            <button onClick={handleSave} disabled={saving || !imageUrl} style={{ ...btn, background: "#1565c0", color: "#fff", border: "none" }}>
-              {saving ? "Guardando..." : "Guardar Georreferencia"}
-            </button>
+            <button onClick={handleSave} disabled={saving || !imageUrl} style={redBtn}>{saving ? "Guardando..." : "Guardar Georreferencia"}</button>
             <button onClick={onClose} style={{ ...btn, color: "#c62828", fontWeight: 600 }}>✕ Cerrar</button>
           </div>
         </div>
+        {/* MAP */}
         <div ref={containerRef} style={{ flex: 1, position: "relative" }}>
           {loading && <p style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", color: "#666", zIndex: 10 }}>Cargando plano...</p>}
           {showHint && !loading && imageUrl && (
             <p style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.7)", color: "#fff", padding: "4px 12px", borderRadius: 4, fontSize: 12, zIndex: 10, pointerEvents: "none" }}>
-              Arrastrá el plano naranjo para posicionarlo sobre el mapa
+              Arrastrá el plano naranjo para calzarlo con los polígonos de referencia
             </p>
           )}
         </div>
