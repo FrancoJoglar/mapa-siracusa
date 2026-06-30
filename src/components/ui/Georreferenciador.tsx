@@ -202,12 +202,22 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
           <div ref={mapContainerRef} style={{ position: "absolute", inset: 0, zIndex: 1 }} />
           {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, background: "rgba(255,255,255,0.7)" }}><p style={{ color: "#666", fontSize: 14 }}>Cargando plano...</p></div>}
           {imageUrl && !loading && (
-            <div onMouseDown={handleMouseDown} style={{
+            <div style={{
               position: "absolute", left: posX, top: posY,
               transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${zoom / 100})`,
-              transformOrigin: "center center", zIndex: 10, cursor: "grab", pointerEvents: "auto",
+              transformOrigin: "center center", zIndex: 10, pointerEvents: "none",
             }}>
               <img src={transparentBg ? imageUrl : (imageUrlRaw || imageUrl)} alt="Plano" style={{ display: "block", maxWidth: "none", border: "3px dashed #e65100", opacity }} />
+              {/* Crosshair handle in center — only this is draggable */}
+              <div onMouseDown={handleMouseDown} title="Arrastrar para mover el plano"
+                style={{
+                  position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+                  width: 32, height: 32, cursor: "grab", pointerEvents: "auto",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "rgba(229, 115, 0, 0.85)", borderRadius: "50%",
+                }}>
+                <svg width="16" height="16" viewBox="0 0 16 16"><path d="M7 0H9V7H16V9H9V16H7V9H0V7H7V0Z" fill="#fff"/></svg>
+              </div>
             </div>
           )}
           {!loading && imageUrl && (
