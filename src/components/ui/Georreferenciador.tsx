@@ -220,7 +220,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
                 top: position.y,
                 transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${zoom / 100})`,
                 transformOrigin: "center center",
-                zIndex: 5,
+                zIndex: 100,
                 cursor: "grab",
                 pointerEvents: "auto",
               }}
