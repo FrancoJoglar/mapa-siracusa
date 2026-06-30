@@ -132,7 +132,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       boundsRef.current = L.latLngBounds([c.lat - o, c.lng - o], [c.lat + o, c.lng + o]);
     }
 
-    const ov = L.imageOverlay(imageUrl, boundsRef.current, { opacity });
+    const ov = L.imageOverlay(imageUrl, boundsRef.current, { opacity, interactive: true });
     ov.addTo(m);
     overlayRef.current = ov;
 
