@@ -17,6 +17,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const overlayRef = useRef<L.ImageOverlay | null>(null);
+  const boundsRef = useRef<L.LatLngBounds | null>(null);
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.6);
@@ -24,14 +25,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   const [scale, setScale] = useState(1);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
-  const boundsRef = useRef<L.LatLngBounds | null>(null);
-  const dragging = useRef(false);
-  const dragStart = useRef<L.LatLng | null>(null);
+  const [showHint, setShowHint] = useState(true);
 
-  // Create Leaflet map manually (avoid react-leaflet)
+  // --- Init map ---
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    const m = L.map(containerRef.current, { center: initialCenter, zoom: 15 });
+    const m = L.map(containerRef.current, { center: initialCenter, zoom: 15, zoomControl: true });
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
       attribution: "&copy; Esri",
     }).addTo(m);
@@ -40,7 +39,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     return () => { m.remove(); mapRef.current = null; };
   }, []);
 
-  // Render PDF to image
+  // --- Render PDF to image ---
   useEffect(() => {
     const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
     fetch(planoUrl, { headers: { "apikey": ANON, "Authorization": "Bearer " + ANON } })
@@ -59,11 +58,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       .catch(e => { console.error("PDF error:", e); setLoading(false); });
   }, [planoUrl]);
 
-  // Create overlay when image is ready
-  useEffect(() => {
+  // --- Create / update overlay ---
+  const addOrUpdateOverlay = () => {
     const m = mapRef.current;
     if (!m || !imageUrl || !ready) return;
-    if (overlayRef.current) m.removeLayer(overlayRef.current);
+
+    if (overlayRef.current) { m.removeLayer(overlayRef.current); overlayRef.current = null; }
 
     if (!boundsRef.current) {
       const c = m.getCenter();
@@ -71,61 +71,37 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       boundsRef.current = L.latLngBounds([c.lat - o, c.lng - o], [c.lat + o, c.lng + o]);
     }
 
-    const ov = L.imageOverlay(imageUrl, boundsRef.current, { opacity, interactive: true });
+    const ov = L.imageOverlay(imageUrl, boundsRef.current, { opacity });
     ov.addTo(m);
     overlayRef.current = ov;
 
-    setTimeout(() => {
-      const img = ov.getElement();
-      if (img) {
-        img.style.transformOrigin = "center center";
-        img.style.transform = `rotate(${rotation}deg)`;
-        img.style.border = "2px dashed #e65100";
-      }
-    }, 100);
-  }, [imageUrl, ready]);
+    const img: HTMLElement | undefined = ov.getElement();
+    if (img) {
+      img.style.transformOrigin = "center center";
+      img.style.transform = `rotate(${rotation}deg)`;
+      img.style.border = "2px dashed #e65100";
+      img.style.cursor = "grab";
+    }
 
-  // Update opacity
-  useEffect(() => { if (overlayRef.current) overlayRef.current.setOpacity(opacity); }, [opacity]);
+    // --- Drag to move (only when clicking inside the overlay) ---
+    let dragging = false;
+    let startLatLng: L.LatLng | null = null;
 
-  // Update rotation
-  useEffect(() => {
-    const ov = overlayRef.current;
-    if (!ov) return;
-    const img = ov.getElement();
-    if (img) { img.style.transformOrigin = "center center"; img.style.transform = `rotate(${rotation}deg)`; }
-  }, [rotation]);
-
-  // Scale
-  useEffect(() => {
-    if (!boundsRef.current || !overlayRef.current) return;
-    const b = boundsRef.current;
-    const c = b.getCenter();
-    const o = 0.0008 * scale;
-    boundsRef.current = L.latLngBounds([c.lat - o, c.lng - o], [c.lat + o, c.lng + o]);
-    overlayRef.current.setBounds(boundsRef.current);
-  }, [scale]);
-
-  // Drag handling
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m) return;
-
-    const onDown = () => { dragging.current = true; m.dragging.disable(); };
-    const onUp = () => {
-      if (!dragging.current) return;
-      dragging.current = false;
-      m.dragging.enable();
+    const onImageDown = (e: MouseEvent) => {
+      e.stopPropagation();
+      dragging = true;
+      startLatLng = m.mouseEventToLatLng(e);
+      m.dragging.disable();
+      if (img) img.style.cursor = "grabbing";
+      setShowHint(false);
     };
-    const onMove = (e: L.LeafletMouseEvent) => {
-      if (!dragging.current || !overlayRef.current) return;
+
+    const onMapMove = (e: L.LeafletMouseEvent) => {
+      if (!dragging || !startLatLng || !ov || !boundsRef.current) return;
+      const dLat = e.latlng.lat - startLatLng.lat;
+      const dLng = e.latlng.lng - startLatLng.lng;
+      startLatLng = e.latlng;
       const b = boundsRef.current;
-      if (!b) return;
-      const ov = overlayRef.current;
-      if (!dragStart.current) { dragStart.current = e.latlng; return; }
-      const dLat = e.latlng.lat - dragStart.current.lat;
-      const dLng = e.latlng.lng - dragStart.current.lng;
-      dragStart.current = e.latlng;
       const nb = L.latLngBounds(
         [b.getSouthWest().lat + dLat, b.getSouthWest().lng + dLng],
         [b.getNorthEast().lat + dLat, b.getNorthEast().lng + dLng]
@@ -134,12 +110,58 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       ov.setBounds(nb);
     };
 
-    m.on("mousedown", onDown);
-    m.on("mouseup", onUp);
-    m.on("mousemove", onMove);
+    const onMapUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      startLatLng = null;
+      m.dragging.enable();
+      if (img) img.style.cursor = "grab";
+    };
 
-    return () => { m.off("mousedown", onDown); m.off("mouseup", onUp); m.off("mousemove", onMove); };
-  }, [ready]);
+    if (img) img.addEventListener("mousedown", onImageDown);
+    m.on("mousemove", onMapMove);
+    m.on("mouseup", onMapUp);
+
+    // Store cleanup
+    (ov as any)._cleanup = () => {
+      if (img) img.removeEventListener("mousedown", onImageDown);
+      m.off("mousemove", onMapMove);
+      m.off("mouseup", onMapUp);
+    };
+  };
+
+  useEffect(() => { addOrUpdateOverlay(); }, [imageUrl, ready]);
+
+  // Opacity
+  useEffect(() => {
+    if (overlayRef.current) overlayRef.current.setOpacity(opacity);
+  }, [opacity]);
+
+  // Rotation
+  useEffect(() => {
+    const ov = overlayRef.current;
+    if (!ov) return;
+    const img = ov.getElement();
+    if (img) { img.style.transformOrigin = "center center"; img.style.transform = `rotate(${rotation}deg)`; }
+  }, [rotation]);
+
+  // Scale (keep center position from current bounds)
+  useEffect(() => {
+    if (!boundsRef.current || !overlayRef.current) return;
+    const c = boundsRef.current.getCenter();
+    const o = 0.0008 * scale;
+    boundsRef.current = L.latLngBounds([c.lat - o, c.lng - o], [c.lat + o, c.lng + o]);
+    overlayRef.current.setBounds(boundsRef.current);
+  }, [scale]);
+
+  // Cleanup overlay
+  useEffect(() => () => {
+    if (overlayRef.current) {
+      const ov = overlayRef.current as any;
+      if (ov._cleanup) ov._cleanup();
+      overlayRef.current = null;
+    }
+  }, []);
 
   const handleSave = () => {
     const b = boundsRef.current;
@@ -190,6 +212,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
         </div>
         <div ref={containerRef} style={{ flex: 1, position: "relative" }}>
           {loading && <p style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", color: "#666", zIndex: 10 }}>Cargando plano...</p>}
+          {showHint && !loading && imageUrl && (
+            <p style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.7)", color: "#fff", padding: "4px 12px", borderRadius: 4, fontSize: 12, zIndex: 10, pointerEvents: "none" }}>
+              Arrastrá el plano naranjo para posicionarlo sobre el mapa
+            </p>
+          )}
         </div>
       </div>
     </div>
