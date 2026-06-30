@@ -54,6 +54,15 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     return () => { m.remove(); mapRef.current = null; };
   }, []);
 
+  // Keep plane anchored to geographic position when map moves/zooms
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !ready) return;
+    const handler = () => forceRender(n => n + 1);
+    m.on("move zoom", handler);
+    return () => { m.off("move zoom", handler); };
+  }, [ready]);
+
   // --- Reference polygons ---
   useEffect(() => {
     const m = mapRef.current;
