@@ -24,7 +24,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.6);
   const [rotation, setRotation] = useState(0);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(10);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
   const [showHint, setShowHint] = useState(true);
@@ -256,8 +256,10 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
             <button onClick={() => nudge(0, 0.0001)} style={btn} title="Der">➡</button>
             <button onClick={() => nudge(-0.0001, 0)} style={btn} title="Abajo">⬇</button>
             <span style={{ color: "#ddd" }}>|</span>
-            <button onClick={() => setRotation(r => (r + 90) % 360)} style={btn}>🔄 +90°</button>
-            <button onClick={() => setRotation(r => (r - 90 + 360) % 360)} style={btn}>🔄 −90°</button>
+            <button onClick={() => setRotation(r => (r - 5 + 360) % 360)} style={btn}>⟲</button>
+            <input type="range" min={0} max={359} value={rotation} onChange={e => setRotation(Number(e.target.value))} title={`Rotación: ${rotation}°`} style={{ width: 60, accentColor: "#1565c0" }} />
+            <span style={{ fontSize: 11, color: "#666", minWidth: 28, textAlign: "center" }}>{rotation}°</span>
+            <button onClick={() => setRotation(r => (r + 5) % 360)} style={btn}>⟳</button>
             <span style={{ color: "#ddd" }}>|</span>
             <label style={{ fontSize: 12 }}>Op {Math.round(opacity * 100)}%
               <input type="range" min={0.1} max={1} step={0.05} value={opacity} onChange={e => setOpacity(Number(e.target.value))} style={{ width: 60, marginLeft: 4 }} /></label>
