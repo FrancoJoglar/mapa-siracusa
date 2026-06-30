@@ -25,6 +25,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   const [opacity, setOpacity] = useState(0.6);
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(100);
+  const [mapZoom, setMapZoom] = useState(15);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
   const [transparentBg, setTransparentBg] = useState(true);
@@ -58,8 +59,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !ready) return;
-    const handler = () => forceRender(n => n + 1);
+    const handler = () => {
+      forceRender(n => n + 1);
+      setMapZoom(m.getZoom());
+    };
     m.on("move zoom", handler);
+    setMapZoom(m.getZoom()); // initial value
     return () => { m.off("move zoom", handler); };
   }, [ready]);
 
@@ -213,7 +218,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
           {imageUrl && !loading && (
             <div style={{
               position: "absolute", left: posX, top: posY,
-              transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${zoom / 100})`,
+              transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${(zoom / 100) * Math.pow(2, mapZoom - 15)})`,
               transformOrigin: "center center", zIndex: 10, pointerEvents: "none",
             }}>
               <img src={transparentBg ? imageUrl : (imageUrlRaw || imageUrl)} alt="Plano" style={{ display: "block", maxWidth: "none", border: "3px dashed #e65100", opacity }} />
