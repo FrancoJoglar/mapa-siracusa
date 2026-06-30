@@ -75,6 +75,18 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
         const canvas = document.createElement("canvas");
         canvas.width = vp.width; canvas.height = vp.height;
         await page.render({ canvas, viewport: vp }).promise;
+        // Remove white background: make white/near-white pixels transparent
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const d = imgData.data;
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240) {
+              d[i + 3] = 0; // alpha = transparent
+            }
+          }
+          ctx.putImageData(imgData, 0, 0);
+        }
         setImageUrl(canvas.toDataURL("image/png"));
         setLoading(false);
       })
@@ -155,15 +167,15 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
         }}>
           <span style={{ whiteSpace: "nowrap" }}>Georreferenciar: {equipoCodigo}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-            <button onClick={() => setZoom(z => Math.max(10, z - 10))} style={btn}>🔽</button>
+            <button onClick={() => setZoom(z => Math.max(10, z - 1))} style={btn}>🔽</button>
             <span style={{ fontSize: 11, minWidth: 42, textAlign: "center" }}>{zoom}%</span>
-            <button onClick={() => setZoom(z => Math.min(2000, z + 10))} style={btn}>🔼</button>
-            <input type="range" min={10} max={2000} step={10} value={zoom} onChange={e => setZoom(Number(e.target.value))} style={{ width: 50, accentColor: "#1565c0" }} />
+            <button onClick={() => setZoom(z => Math.min(2000, z + 1))} style={btn}>🔼</button>
+            <input type="range" min={10} max={2000} step={1} value={zoom} onChange={e => setZoom(Number(e.target.value))} style={{ width: 50, accentColor: "#1565c0" }} />
             <span style={{ color: "#ddd" }}>|</span>
-            <button onClick={() => setRotation(r => (r - 5 + 360) % 360)} style={btn}>⟲</button>
+            <button onClick={() => setRotation(r => (r - 1 + 360) % 360)} style={btn}>⟲</button>
             <input type="range" min={0} max={359} value={rotation} onChange={e => setRotation(Number(e.target.value))} title={`Rotación: ${rotation}°`} style={{ width: 50, accentColor: "#1565c0" }} />
             <span style={{ fontSize: 11, minWidth: 28, textAlign: "center" }}>{rotation}°</span>
-            <button onClick={() => setRotation(r => (r + 5) % 360)} style={btn}>⟳</button>
+            <button onClick={() => setRotation(r => (r + 1) % 360)} style={btn}>⟳</button>
             <span style={{ color: "#ddd" }}>|</span>
             <button onClick={() => nudge(-0.00005, 0)} style={btn}>⬆</button>
             <button onClick={() => nudge(0, -0.00005)} style={btn}>⬅</button>
