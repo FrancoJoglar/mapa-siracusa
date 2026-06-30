@@ -86,9 +86,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   // --- Center overlay initially ---
   useEffect(() => {
     if (!ready || !containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
+    const parent = containerRef.current.parentElement;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
     setPosition({ x: rect.width / 2, y: rect.height / 2 });
-  }, [ready, containerRef]);
+  }, [ready]);
 
   // --- Drag to move ---
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -113,12 +115,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   const getGeoBounds = () => {
     const m = mapRef.current;
     const img = imgRef.current?.querySelector("img");
-    if (!m || !img) return null;
-    const container = containerRef.current;
-    if (!container) return null;
+    if (!m || !img || !containerRef.current) return null;
+    const parent = containerRef.current.parentElement;
+    if (!parent) return null;
 
     const imgRect = img.getBoundingClientRect();
-    const ctrRect = container.getBoundingClientRect();
+    const ctrRect = parent.getBoundingClientRect();
     
     const imgLeft = imgRect.left - ctrRect.left;
     const imgTop = imgRect.top - ctrRect.top;
@@ -201,11 +203,26 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
         </div>
 
         {/* Map + Overlay */}
-        <div ref={containerRef} style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+          {/* Map container */}
+          <div ref={containerRef} style={{ position: "absolute", inset: 0, zIndex: 1 }} />
           {/* Loading */}
-          {loading && (
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10, background: "rgba(255,255,255,0.7)" }}>
-              <p style={{ color: "#666", fontSize: 14 }}>Cargando plano...</p>
+          {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, background: "rgba(255,255,255,0.7)" }}><p style={{ color: "#666", fontSize: 14 }}>Cargando plano...</p></div>}
+          {/* Overlay image on top of map */}
+          {imageUrl && !loading && (
+            <div ref={imgRef} onMouseDown={handleMouseDown}
+              style={{
+                position: "absolute", left: position.x, top: position.y,
+                transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${zoom / 100})`,
+                transformOrigin: "center center", zIndex: 10, cursor: "grab", pointerEvents: "auto",
+              }}>
+              <img src={imageUrl} alt="Plano" style={{ display: "block", maxWidth: "none", border: "3px dashed #e65100", opacity }} />
+            </div>
+          )}
+          {/* Instructions */}
+          {!loading && imageUrl && (
+            <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", color: "#fff", padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 200, pointerEvents: "none", whiteSpace: "nowrap" }}>
+              Arrastrá el plano para posicionarlo. Usá los controles de arriba para escalar, rotar y ajustar.
             </div>
           )}
 
