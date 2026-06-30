@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -16,9 +16,8 @@ interface Props {
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
 
 export default function Georreferenciador({ planoUrl, equipoCodigo, initialCenter, onSave, onClose }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const imgRef = useRef<HTMLDivElement>(null);
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.6);
@@ -26,19 +25,26 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   const [zoom, setZoom] = useState(100);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const dragInfo = useRef({ dragging: false, startX: 0, startY: 0, posX: 0, posY: 0 });
+  const geoCenterRef = useRef<L.LatLng>(L.latLng(initialCenter[0], initialCenter[1]));
+  const [, forceRender] = useState(0);
   const equipoNum = equipoCodigo.replace("Equipo ", "").trim();
+  const dragInfo = useRef({ dragging: false, startLatLng: L.latLng(0, 0) });
+  const nudgeRef = useRef<(dLat: number, dLng: number) => void>(() => {});
+  const nudge = useCallback<(dLat: number, dLng: number) => void>((dLat: number, dLng: number) => {
+    geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
+    forceRender(n => n + 1);
+  }, []);
+  nudgeRef.current = nudge;
 
   // --- Init map ---
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
-    const m = L.map(containerRef.current, {
+    if (!mapContainerRef.current || mapRef.current) return;
+    const m = L.map(mapContainerRef.current, {
       center: initialCenter, zoom: 15, zoomControl: true,
       dragging: true, scrollWheelZoom: true, doubleClickZoom: true,
     });
-    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { 
-      attribution: "&copy; Esri" 
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      attribution: "&copy; Esri",
     }).addTo(m);
     mapRef.current = m;
     setTimeout(() => { m.invalidateSize(); setReady(true); }, 200);
@@ -50,19 +56,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     const m = mapRef.current;
     if (!m || !ready) return;
     const group = L.layerGroup().addTo(m);
-    const supabaseUrl = "https://nnelrvctqjbwfucccxfh.supabase.co";
-    const fetchHeaders = { "apikey": ANON, "Authorization": "Bearer " + ANON };
-    
-    fetch(`${supabaseUrl}/rest/v1/sectores?codigo=like.E${equipoNum}S*&select=codigo,geometria`, { headers: fetchHeaders })
-      .then(r => r.json()).then((data: any[]) => {
-        data?.forEach(s => { if (s.geometria) L.geoJSON(s.geometria, { style: { color: "#e65100", weight: 2.5, fill: false, opacity: 0.8 } }).addTo(group); });
-      }).catch(() => {});
-    
-    fetch(`${supabaseUrl}/rest/v1/rpc/get_cuarteles_con_sectores`, { method: "POST", headers: { ...fetchHeaders, "Content-Type": "application/json" } })
-      .then(r => r.json()).then((data: any[]) => {
-        data?.forEach(c => { if (c.geojson && c.equipo_riego?.split(" - ")?.some((eq: string) => eq === equipoNum)) L.geoJSON(c.geojson, { style: { color: "#ff9800", weight: 1.5, fillOpacity: 0.1, fillColor: "#ff9800", opacity: 0.5 } }).addTo(group); });
-      }).catch(() => {});
-    
+    const h = { "apikey": ANON, "Authorization": "Bearer " + ANON };
+    fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/sectores?codigo=like.E${equipoNum}S*&select=codigo,geometria`, { headers: h })
+      .then(r => r.json()).then((data: any[]) => { data?.forEach(s => { if (s.geometria) L.geoJSON(s.geometria, { style: { color: "#e65100", weight: 2.5, fill: false, opacity: 0.8 } }).addTo(group); }); }).catch(() => {});
+    fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/rpc/get_cuarteles_con_sectores`, { method: "POST", headers: { ...h, "Content-Type": "application/json" } })
+      .then(r => r.json()).then((data: any[]) => { data?.forEach(c => { if (c.geojson && c.equipo_riego?.split(" - ")?.some((eq: string) => eq === equipoNum)) L.geoJSON(c.geojson, { style: { color: "#ff9800", weight: 1.5, fillOpacity: 0.1, fillColor: "#ff9800", opacity: 0.5 } }).addTo(group); }); }).catch(() => {});
     return () => { m.removeLayer(group); };
   }, [ready, equipoNum]);
 
@@ -83,27 +81,25 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       .catch(() => setLoading(false));
   }, [planoUrl]);
 
-  // --- Center overlay initially ---
-  useEffect(() => {
-    if (!ready || !containerRef.current) return;
-    const parent = containerRef.current.parentElement;
-    if (!parent) return;
-    const rect = parent.getBoundingClientRect();
-    setPosition({ x: rect.width / 2, y: rect.height / 2 });
-  }, [ready]);
-
-  // --- Drag to move ---
+  // --- Drag overlay (moves geographic center) ---
   const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    dragInfo.current = { dragging: true, startX: e.clientX, startY: e.clientY, posX: position.x, posY: position.y };
+    e.preventDefault(); e.stopPropagation();
+    const m = mapRef.current;
+    if (!m) return;
+    dragInfo.current = { dragging: true, startLatLng: m.containerPointToLatLng([e.clientX, e.clientY]) };
   };
-  
+
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragInfo.current.dragging) return;
-      const dx = e.clientX - dragInfo.current.startX;
-      const dy = e.clientY - dragInfo.current.startY;
-      setPosition({ x: dragInfo.current.posX + dx, y: dragInfo.current.posY + dy });
+      const m = mapRef.current;
+      if (!m) return;
+      const curLL = m.containerPointToLatLng([e.clientX, e.clientY]);
+      const dLat = curLL.lat - dragInfo.current.startLatLng.lat;
+      const dLng = curLL.lng - dragInfo.current.startLatLng.lng;
+      geoCenterRef.current = L.latLng(geoCenterRef.current.lat - dLat, geoCenterRef.current.lng - dLng);
+      dragInfo.current.startLatLng = curLL;
+      forceRender(n => n + 1);
     };
     const onUp = () => { dragInfo.current.dragging = false; };
     window.addEventListener("mousemove", onMove);
@@ -111,32 +107,26 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
   }, []);
 
-  // --- Convert pixel position back to lat/lng bounds for saving ---
-  const getGeoBounds = () => {
+  // --- Convert geo center to pixel position ---
+  const getPixelPos = () => {
     const m = mapRef.current;
-    const img = imgRef.current?.querySelector("img");
-    if (!m || !img || !containerRef.current) return null;
-    const parent = containerRef.current.parentElement;
-    if (!parent) return null;
-
-    const imgRect = img.getBoundingClientRect();
-    const ctrRect = parent.getBoundingClientRect();
-    
-    const imgLeft = imgRect.left - ctrRect.left;
-    const imgTop = imgRect.top - ctrRect.top;
-    const imgRight = imgLeft + imgRect.width;
-    const imgBottom = imgTop + imgRect.height;
-
-    const sw = m.containerPointToLatLng([imgLeft, imgBottom]);
-    const ne = m.containerPointToLatLng([imgRight, imgTop]);
-    return { sw: [sw.lat, sw.lng], ne: [ne.lat, ne.lng] };
+    if (!m) return { x: 0, y: 0 };
+    const pt = m.latLngToContainerPoint(geoCenterRef.current);
+    return { x: pt.x, y: pt.y };
   };
 
+  const { x: posX, y: posY } = getPixelPos();
+
+  // --- Save ---
   const handleSave = () => {
-    const b = getGeoBounds();
-    if (!b) return alert("Espera que cargue el mapa...");
+    if (!imageUrl) return alert("Espera que cargue el plano...");
     setSaving(true);
-    onSave({ bounds: b, rotation, opacity });
+    const ctr = geoCenterRef.current;
+    const d = 0.0008 * (100 / zoom);
+    onSave({
+      bounds: { sw: [ctr.lat - d, ctr.lng - d], ne: [ctr.lat + d, ctr.lng + d] },
+      rotation, opacity,
+    });
   };
 
   const ctr: React.CSSProperties = {
@@ -158,7 +148,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   return (
     <div style={ctr} onClick={onClose}>
       <div style={modalStyle} onClick={e => e.stopPropagation()}>
-        {/* Header */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "8px 16px", borderBottom: "1px solid #ddd",
@@ -166,98 +155,43 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
         }}>
           <span style={{ whiteSpace: "nowrap" }}>Georreferenciar: {equipoCodigo}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-            {/* Scale */}
             <button onClick={() => setZoom(z => Math.max(10, z - 10))} style={btn}>🔽</button>
             <span style={{ fontSize: 11, minWidth: 42, textAlign: "center" }}>{zoom}%</span>
             <button onClick={() => setZoom(z => Math.min(2000, z + 10))} style={btn}>🔼</button>
-            <input type="range" min={10} max={2000} step={10} value={zoom}
-              onChange={e => setZoom(Number(e.target.value))}
-              style={{ width: 50, accentColor: "#1565c0" }} />
+            <input type="range" min={10} max={2000} step={10} value={zoom} onChange={e => setZoom(Number(e.target.value))} style={{ width: 50, accentColor: "#1565c0" }} />
             <span style={{ color: "#ddd" }}>|</span>
-            {/* Rotation */}
             <button onClick={() => setRotation(r => (r - 5 + 360) % 360)} style={btn}>⟲</button>
-            <input type="range" min={0} max={359} value={rotation}
-              onChange={e => setRotation(Number(e.target.value))}
-              title={`Rotación: ${rotation}°`} style={{ width: 50, accentColor: "#1565c0" }} />
+            <input type="range" min={0} max={359} value={rotation} onChange={e => setRotation(Number(e.target.value))} title={`Rotación: ${rotation}°`} style={{ width: 50, accentColor: "#1565c0" }} />
             <span style={{ fontSize: 11, minWidth: 28, textAlign: "center" }}>{rotation}°</span>
             <button onClick={() => setRotation(r => (r + 5) % 360)} style={btn}>⟳</button>
             <span style={{ color: "#ddd" }}>|</span>
-            {/* Nudge */}
-            <button onClick={() => setPosition(p => ({ x: p.x, y: p.y - 3 }))} style={btn}>⬆</button>
-            <button onClick={() => setPosition(p => ({ x: p.x - 3, y: p.y }))} style={btn}>⬅</button>
-            <button onClick={() => setPosition(p => ({ x: p.x + 3, y: p.y }))} style={btn}>➡</button>
-            <button onClick={() => setPosition(p => ({ x: p.x, y: p.y + 3 }))} style={btn}>⬇</button>
+            <button onClick={() => nudge(-0.00005, 0)} style={btn}>⬆</button>
+            <button onClick={() => nudge(0, -0.00005)} style={btn}>⬅</button>
+            <button onClick={() => nudge(0, 0.00005)} style={btn}>➡</button>
+            <button onClick={() => nudge(0.00005, 0)} style={btn}>⬇</button>
             <span style={{ color: "#ddd" }}>|</span>
-            {/* Opacity */}
             <label style={{ fontSize: 12 }}>Op {Math.round(opacity * 100)}%
-              <input type="range" min={0.1} max={1} step={0.05} value={opacity}
-                onChange={e => setOpacity(Number(e.target.value))}
-                style={{ width: 50, marginLeft: 4 }} />
-            </label>
+              <input type="range" min={0.1} max={1} step={0.05} value={opacity} onChange={e => setOpacity(Number(e.target.value))} style={{ width: 50, marginLeft: 4 }} /></label>
             <span style={{ color: "#ddd" }}>|</span>
-            <button onClick={handleSave} disabled={saving || !imageUrl} style={redBtn}>
-              {saving ? "Guardando..." : "Guardar"}
-            </button>
+            <button onClick={handleSave} disabled={saving || !imageUrl} style={redBtn}>{saving ? "Guardando..." : "Guardar"}</button>
             <button onClick={onClose} style={{ ...btn, color: "#c62828", fontWeight: 600 }}>✕ Cerrar</button>
           </div>
         </div>
 
-        {/* Map + Overlay */}
         <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-          {/* Map container */}
-          <div ref={containerRef} style={{ position: "absolute", inset: 0, zIndex: 1 }} />
-          {/* Loading */}
+          <div ref={mapContainerRef} style={{ position: "absolute", inset: 0, zIndex: 1 }} />
           {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, background: "rgba(255,255,255,0.7)" }}><p style={{ color: "#666", fontSize: 14 }}>Cargando plano...</p></div>}
-          {/* Overlay image on top of map */}
           {imageUrl && !loading && (
-            <div ref={imgRef} onMouseDown={handleMouseDown}
-              style={{
-                position: "absolute", left: position.x, top: position.y,
-                transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${zoom / 100})`,
-                transformOrigin: "center center", zIndex: 10, cursor: "grab", pointerEvents: "auto",
-              }}>
+            <div onMouseDown={handleMouseDown} style={{
+              position: "absolute", left: posX, top: posY,
+              transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${zoom / 100})`,
+              transformOrigin: "center center", zIndex: 10, cursor: "grab", pointerEvents: "auto",
+            }}>
               <img src={imageUrl} alt="Plano" style={{ display: "block", maxWidth: "none", border: "3px dashed #e65100", opacity }} />
             </div>
           )}
-          {/* Instructions */}
           {!loading && imageUrl && (
             <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", color: "#fff", padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 200, pointerEvents: "none", whiteSpace: "nowrap" }}>
-              Arrastrá el plano para posicionarlo. Usá los controles de arriba para escalar, rotar y ajustar.
-            </div>
-          )}
-
-          {/* Draggable image overlay */}
-          {imageUrl && !loading && (
-            <div
-              ref={imgRef}
-              onMouseDown={handleMouseDown}
-              style={{
-                position: "absolute",
-                left: position.x,
-                top: position.y,
-                transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${zoom / 100})`,
-                transformOrigin: "center center",
-                zIndex: 100,
-                cursor: "grab",
-                pointerEvents: "auto",
-              }}
-            >
-              <img src={imageUrl} alt="Plano" style={{
-                display: "block", maxWidth: "none",
-                border: "3px dashed #e65100",
-                opacity,
-              }} />
-            </div>
-          )}
-
-          {/* Instructions */}
-          {!loading && imageUrl && (
-            <div style={{
-              position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)",
-              background: "rgba(0,0,0,0.75)", color: "#fff",
-              padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 10,
-              pointerEvents: "none", whiteSpace: "nowrap",
-            }}>
               Arrastrá el plano para posicionarlo. Usá los controles de arriba para escalar, rotar y ajustar.
             </div>
           )}
