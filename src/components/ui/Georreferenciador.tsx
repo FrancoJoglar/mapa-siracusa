@@ -19,12 +19,15 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const [imageUrl, setImageUrl] = useState("");
+  const [imageUrlRaw, setImageUrlRaw] = useState("");
+  const rawCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.6);
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(100);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
+  const [transparentBg, setTransparentBg] = useState(true);
   const geoCenterRef = useRef<L.LatLng>(L.latLng(initialCenter[0], initialCenter[1]));
   const [, forceRender] = useState(0);
   const equipoNum = equipoCodigo.replace("Equipo ", "").trim();
@@ -75,19 +78,22 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
         const canvas = document.createElement("canvas");
         canvas.width = vp.width; canvas.height = vp.height;
         await page.render({ canvas, viewport: vp }).promise;
-        // Remove white background: make white/near-white pixels transparent
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const d = imgData.data;
-          for (let i = 0; i < d.length; i += 4) {
-            if (d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240) {
-              d[i + 3] = 0; // alpha = transparent
-            }
-          }
-          ctx.putImageData(imgData, 0, 0);
+        // Keep raw (white background)
+        rawCanvasRef.current = canvas;
+        setImageUrlRaw(canvas.toDataURL("image/png"));
+        // Create transparent version
+        const transCanvas = document.createElement("canvas");
+        transCanvas.width = canvas.width; transCanvas.height = canvas.height;
+        const tCtx = transCanvas.getContext("2d")!;
+        tCtx.drawImage(canvas, 0, 0);
+        const imgData = tCtx.getImageData(0, 0, transCanvas.width, transCanvas.height);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240) d[i + 3] = 0;
         }
-        setImageUrl(canvas.toDataURL("image/png"));
+        tCtx.putImageData(imgData, 0, 0);
+        setImageUrl(transCanvas.toDataURL("image/png"));
+        setLoading(false);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -109,7 +115,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       const curLL = m.containerPointToLatLng([e.clientX, e.clientY]);
       const dLat = curLL.lat - dragInfo.current.startLatLng.lat;
       const dLng = curLL.lng - dragInfo.current.startLatLng.lng;
-      geoCenterRef.current = L.latLng(geoCenterRef.current.lat - dLat, geoCenterRef.current.lng - dLng);
+      geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
       dragInfo.current.startLatLng = curLL;
       forceRender(n => n + 1);
     };
@@ -167,10 +173,10 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
         }}>
           <span style={{ whiteSpace: "nowrap" }}>Georreferenciar: {equipoCodigo}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-            <button onClick={() => setZoom(z => Math.max(10, z - 1))} style={btn}>🔽</button>
+            <button onClick={() => setZoom(z => Math.max(3, z - 1))} style={btn}>🔽</button>
             <span style={{ fontSize: 11, minWidth: 42, textAlign: "center" }}>{zoom}%</span>
             <button onClick={() => setZoom(z => Math.min(2000, z + 1))} style={btn}>🔼</button>
-            <input type="range" min={10} max={2000} step={1} value={zoom} onChange={e => setZoom(Number(e.target.value))} style={{ width: 50, accentColor: "#1565c0" }} />
+            <input type="range" min={3} max={2000} step={1} value={zoom} onChange={e => setZoom(Number(e.target.value))} style={{ width: 50, accentColor: "#1565c0" }} />
             <span style={{ color: "#ddd" }}>|</span>
             <button onClick={() => setRotation(r => (r - 1 + 360) % 360)} style={btn}>⟲</button>
             <input type="range" min={0} max={359} value={rotation} onChange={e => setRotation(Number(e.target.value))} title={`Rotación: ${rotation}°`} style={{ width: 50, accentColor: "#1565c0" }} />
@@ -184,6 +190,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
             <span style={{ color: "#ddd" }}>|</span>
             <label style={{ fontSize: 12 }}>Op {Math.round(opacity * 100)}%
               <input type="range" min={0.1} max={1} step={0.05} value={opacity} onChange={e => setOpacity(Number(e.target.value))} style={{ width: 50, marginLeft: 4 }} /></label>
+            <span style={{ color: "#ddd" }}>|</span>
+            <button onClick={() => setTransparentBg(v => !v)} style={{ ...btn, fontWeight: transparentBg ? 700 : 400, color: transparentBg ? "#2e7d32" : "#333" }} title="Fondo transparente">{transparentBg ? "🎨 On" : "🎨 Off"}</button>
             <span style={{ color: "#ddd" }}>|</span>
             <button onClick={handleSave} disabled={saving || !imageUrl} style={redBtn}>{saving ? "Guardando..." : "Guardar"}</button>
             <button onClick={onClose} style={{ ...btn, color: "#c62828", fontWeight: 600 }}>✕ Cerrar</button>
@@ -199,7 +207,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
               transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${zoom / 100})`,
               transformOrigin: "center center", zIndex: 10, cursor: "grab", pointerEvents: "auto",
             }}>
-              <img src={imageUrl} alt="Plano" style={{ display: "block", maxWidth: "none", border: "3px dashed #e65100", opacity }} />
+              <img src={transparentBg ? imageUrl : (imageUrlRaw || imageUrl)} alt="Plano" style={{ display: "block", maxWidth: "none", border: "3px dashed #e65100", opacity }} />
             </div>
           )}
           {!loading && imageUrl && (
