@@ -164,7 +164,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     const m = mapRef.current;
     if (!m || !imageUrl || !ready) return;
     if (overlayRef.current) { m.removeLayer(overlayRef.current); overlayRef.current = null; }
-    if (!boundsRef.current) { const c = m.getCenter(); const o = 0.0008; boundsRef.current = L.latLngBounds([c.lat - o, c.lng - o], [c.lat + o, c.lng + o]); }
+    if (!boundsRef.current) { const c = m.getCenter(); const o = 0.0008 * scale; boundsRef.current = L.latLngBounds([c.lat - o, c.lng - o], [c.lat + o, c.lng + o]); }
 
     const ov = L.imageOverlay(imageUrl, boundsRef.current, { opacity, interactive: true });
     ov.addTo(m);
