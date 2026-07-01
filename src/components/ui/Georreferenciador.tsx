@@ -173,9 +173,9 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     display: "flex", justifyContent: "center", alignItems: "center",
   };
   const modalStyle: React.CSSProperties = {
-    background: "#fff", borderRadius: 8, overflow: "hidden",
+    background: "#fff", borderRadius: 0, overflow: "hidden",
     display: "flex", flexDirection: "column",
-    width: "95vw", height: "95vh", maxWidth: 1200,
+    width: "100vw", height: "100vh", maxWidth: "100vw", maxHeight: "100vh",
   };
   const btn: React.CSSProperties = {
     background: "#fff", border: "1px solid #ccc", borderRadius: 4,
