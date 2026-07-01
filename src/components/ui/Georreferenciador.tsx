@@ -80,6 +80,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       const m = mapRef.current;
       if (!m) return;
       dragInfo.current = { dragging: true, startLatLng: m.containerPointToLatLng([e.clientX, e.clientY]) };
+      m.dragging.disable();
     };
     window.addEventListener("mousedown", onMiddleDown);
     return () => window.removeEventListener("mousedown", onMiddleDown);
@@ -141,6 +142,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     e.preventDefault(); e.stopPropagation();
     const m = mapRef.current;
     if (!m) return;
+    m.dragging.disable();
     dragInfo.current = { dragging: true, startLatLng: m.containerPointToLatLng([e.clientX, e.clientY]) };
   };
 
@@ -156,7 +158,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       dragInfo.current.startLatLng = curLL;
       forceRender(n => n + 1);
     };
-    const onUp = () => { dragInfo.current.dragging = false; };
+    const onUp = () => { dragInfo.current.dragging = false; mapRef.current?.dragging.enable(); };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
