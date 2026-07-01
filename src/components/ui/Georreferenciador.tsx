@@ -68,6 +68,23 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     return () => { m.off("move zoom", handler); };
   }, [ready]);
 
+  // --- Middle-click drag on the plane image (without pointer-events) ---
+  useEffect(() => {
+    const onMiddleDown = (e: MouseEvent) => {
+      if (e.button !== 1) return; // only middle click
+      const imgEl = document.querySelector(".geo-plano-img") as HTMLImageElement;
+      if (!imgEl) return;
+      const rect = imgEl.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
+      e.preventDefault();
+      const m = mapRef.current;
+      if (!m) return;
+      dragInfo.current = { dragging: true, startLatLng: m.containerPointToLatLng([e.clientX, e.clientY]) };
+    };
+    window.addEventListener("mousedown", onMiddleDown);
+    return () => window.removeEventListener("mousedown", onMiddleDown);
+  }, [ready]);
+
   // --- Reference polygons ---
   useEffect(() => {
     const m = mapRef.current;
@@ -227,7 +244,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
               transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${(zoom / 100) * Math.pow(2, mapZoom - 15)})`,
               transformOrigin: "center center", zIndex: 10, pointerEvents: "none",
             }}>
-              <img src={transparentBg ? imageUrl : (imageUrlRaw || imageUrl)} alt="Plano" style={{ display: "block", maxWidth: "none", border: "3px dashed #e65100", opacity }} />
+              <img src={transparentBg ? imageUrl : (imageUrlRaw || imageUrl)} alt="Plano" className="geo-plano-img" style={{ display: "block", maxWidth: "none", border: "3px dashed #e65100", opacity }} />
               {/* Crosshair handle in center — only this is draggable */}
               <div onMouseDown={handleMouseDown} title="Arrastrar para mover el plano"
                 style={{
