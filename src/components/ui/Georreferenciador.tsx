@@ -107,7 +107,13 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
         }
         tCtx.putImageData(imgData, 0, 0);
         setImageUrl(transCanvas.toDataURL("image/png"));
-        setLoading(false);
+        // Auto-fit initial zoom: plano fills ~70% of container width
+        const container = mapContainerRef.current?.parentElement;
+        if (container) {
+          const cw = container.clientWidth;
+          const fitZoom = Math.round((cw * 0.7 / canvas.width) * 100);
+          setZoom(Math.max(3, Math.min(2000, fitZoom)));
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
