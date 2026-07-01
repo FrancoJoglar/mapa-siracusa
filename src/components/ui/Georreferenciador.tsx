@@ -226,11 +226,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
               <div onMouseDown={handleMouseDown} title="Arrastrar para mover el plano"
                 style={{
                   position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
-                  width: 32, height: 32, cursor: "grab", pointerEvents: "auto",
+                  width: 64, height: 64, cursor: "grab", pointerEvents: "auto",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "rgba(229, 115, 0, 0.85)", borderRadius: "50%",
+                  background: "rgba(21, 101, 192, 0.85)", borderRadius: "50%",
                 }}>
-                <svg width="16" height="16" viewBox="0 0 16 16"><path d="M7 0H9V7H16V9H9V16H7V9H0V7H7V0Z" fill="#fff"/></svg>
+                <svg width="28" height="28" viewBox="0 0 28 28"><path d="M14 0l4 8h-3v6h6v-3l8 4-8 4v-3h-6v6h3l-4 8-4-8h3v-6H6v3L0 14l8-4v3h6V8H8l4-8z" fill="#fff"/></svg>
               </div>
             </div>
           )}
