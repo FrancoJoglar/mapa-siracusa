@@ -10,6 +10,7 @@ import BuscadorCuartel from "./BuscadorCuartel";
 import { exportarCuarteles, exportarCuartelesGeoJSON } from "../../lib/export";
 import L from "leaflet";
 import * as turf from "@turf/turf";
+import { supabase } from "../../lib/supabase";
 
 const CENTRO_MAPA: [number, number] = [-35.14, -71.625];
 const ZOOM_INICIAL = 14;
@@ -46,6 +47,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [mostrarAntenas, setMostrarAntenas] = useState(true);
   const [mostrarSondas, setMostrarSondas] = useState(true);
   const [showEquiposRiego, setShowEquiposRiego] = useState(false);
+  const [dibujarValvula, setDibujarValvula] = useState(false);
+  const [dibujarTuberia, setDibujarTuberia] = useState(false);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
   const [satelite, setSatelite] = useState(true);
   const [medir, setMedir] = useState(false);
@@ -258,6 +261,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           />
           <ControlSatelite satelite={satelite} onToggle={() => setSatelite(!satelite)} />
           <MapClickHandler onDeselect={() => setSelectedId(null)} />
+          <DrawHandler mode={dibujarValvula ? "valvula" : dibujarTuberia ? "tuberia" : null} />
           <ToggleVista vista={vista} onChange={cambiarVista} />
           <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
           <ToggleUnidades visible={mostrarUnidades} onToggle={() => setMostrarUnidades(!mostrarUnidades)} />
@@ -267,6 +271,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
             <ToggleValvulas visible={mostrarValvulas} onToggle={() => setMostrarValvulas(!mostrarValvulas)} />
             <ToggleAntenas visible={mostrarAntenas} onToggle={() => setMostrarAntenas(!mostrarAntenas)} />
             <ToggleSondas visible={mostrarSondas} onToggle={() => setMostrarSondas(!mostrarSondas)} />
+            <DibujarValvula visible={dibujarValvula} onToggle={() => setDibujarValvula(v => !v)} />
+            <DibujarTuberia visible={dibujarTuberia} onToggle={() => setDibujarTuberia(v => !v)} />
           </>}
           <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
           <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
@@ -737,6 +743,58 @@ function Leyenda() {
           {c.especie}
         </div>
       ))}
+    </div>
+  );
+}
+
+function DrawHandler({ mode }: { mode: "valvula" | "tuberia" | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!mode) return;
+    const handler = async (e: L.LeafletMouseEvent) => {
+      if (mode === "valvula") {
+        const codigo = prompt("Código de la válvula (ej: V-E3-1):");
+        if (!codigo) return;
+        const tipo = prompt("Tipo (transicion/purga/aire/compuerta/otro):", "transicion") || "transicion";
+        const diam = prompt("Diámetro mm (opcional):", "") || null;
+        const { error } = await supabase.from("valvulas").insert({
+          codigo, tipo, diametro_mm: diam ? Number(diam) : null,
+          geometria: { type: "Point", coordinates: [e.latlng.lng, e.latlng.lat] },
+        });
+        if (error) alert("Error: " + error.message);
+        else window.location.reload();
+      }
+    };
+    map.on("click", handler);
+    return () => { map.off("click", handler); };
+  }, [mode, map]);
+  return null;
+}
+
+function DibujarValvula({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 454 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 600,
+          background: visible ? "#bf360c" : "white", color: visible ? "white" : "#bf360c",
+          border: "1px solid #bf360c",
+        }}>{visible ? "Click para poner válvula" : "+ Válvula"}</button>
+      </div>
+    </div>
+  );
+}
+
+function DibujarTuberia({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 488 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 600,
+          background: visible ? "#1565c0" : "white", color: visible ? "white" : "#1565c0",
+          border: "1px solid #1565c0",
+        }}>{visible ? "Dibujando tubería..." : "+ Tubería"}</button>
+      </div>
     </div>
   );
 }
