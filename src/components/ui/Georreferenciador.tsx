@@ -223,13 +223,13 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
           <span style={{ whiteSpace: "nowrap" }}>Georreferenciar: {equipoCodigo}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
             <button onClick={() => setZoom(z => Math.max(3, z - 0.1))} style={btn}>🔽</button>
-            <span style={{ fontSize: 11, minWidth: 42, textAlign: "center" }}>{zoom.toFixed(1)}%</span>
+            <input type="number" min={3} max={2000} step={0.1} value={zoom} onChange={e => setZoom(Number(e.target.value))} style={{ width: 52, fontSize: 12, textAlign: "center", border: "1px solid #ccc", borderRadius: 4, padding: "4px 2px" }} />
             <button onClick={() => setZoom(z => Math.min(2000, z + 0.1))} style={btn}>🔼</button>
             <input type="range" min={3} max={2000} step={0.1} value={zoom} onChange={e => setZoom(Number(e.target.value))} style={{ width: 50, accentColor: "#1565c0" }} />
             <span style={{ color: "#ddd" }}>|</span>
             <button onClick={() => setRotation(r => (r - 1 + 360) % 360)} style={btn}>⟲</button>
-            <input type="range" min={0} max={359} value={rotation} onChange={e => setRotation(Number(e.target.value))} title={`Rotación: ${rotation}°`} style={{ width: 50, accentColor: "#1565c0" }} />
-            <span style={{ fontSize: 11, minWidth: 28, textAlign: "center" }}>{rotation}°</span>
+            <input type="number" min={0} max={359} step={1} value={rotation} onChange={e => setRotation(Number(e.target.value) % 360)} style={{ width: 48, fontSize: 12, textAlign: "center", border: "1px solid #ccc", borderRadius: 4, padding: "4px 2px" }} />
+            <span hidden>{rotation}°</span>
             <button onClick={() => setRotation(r => (r + 1) % 360)} style={btn}>⟳</button>
             <span style={{ color: "#ddd" }}>|</span>
             <button onClick={() => nudge(-0.00005, 0)} style={btn}>⬆</button>
