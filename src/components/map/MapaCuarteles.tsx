@@ -27,6 +27,7 @@ interface Props {
   valvulas?: Valvula[];
   antenas?: Antena[];
   sondas?: Sonda[];
+  geos?: any[];
 }
 
 const FILTROS_VACIOS: FiltrosCuartel = {
@@ -37,7 +38,7 @@ const FILTROS_VACIOS: FiltrosCuartel = {
 type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions; kind: 'cuartel' | 'sector' | 'unidad' };
 type LayersMap = Map<string, LayerEntry>;
 
-export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unidades, equipos = [], tuberias = [], valvulas = [], antenas = [], sondas = [] }: Props) {
+export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unidades, equipos = [], tuberias = [], valvulas = [], antenas = [], sondas = [], geos = [] }: Props) {
   const [filtros, setFiltros] = useState<FiltrosCuartel>(FILTROS_VACIOS);
   const [vista, setVista] = useState<Vista>("sectores");
   const [mostrarEdif, setMostrarEdif] = useState(true);
@@ -49,6 +50,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [showEquiposRiego, setShowEquiposRiego] = useState(false);
   const [dibujarValvula, setDibujarValvula] = useState(false);
   const [dibujarTuberia, setDibujarTuberia] = useState(false);
+  const [mostrarPlanosGeo, setMostrarPlanosGeo] = useState(false);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
   const [satelite, setSatelite] = useState(true);
   const [medir, setMedir] = useState(false);
@@ -273,6 +275,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
             <ToggleSondas visible={mostrarSondas} onToggle={() => setMostrarSondas(!mostrarSondas)} />
             <DibujarValvula visible={dibujarValvula} onToggle={() => setDibujarValvula(v => !v)} />
             <DibujarTuberia visible={dibujarTuberia} onToggle={() => setDibujarTuberia(v => !v)} />
+            <TogglePlanosGeo visible={mostrarPlanosGeo} onToggle={() => setMostrarPlanosGeo(v => !v)} />
           </>}
           <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
           <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
@@ -403,6 +406,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
 
           {fitBounds && <FlyToBounds bounds={fitBounds} />}
           <Leyenda />
+          {mostrarPlanosGeo && <PlanosGeoLayer geos={geos} equipos={equipos} filtroEquipo={filtros.equipo} />}
           {vista === "cuarteles" && <BuscadorCuartel cuarteles={cuarteles} />}
         </MapContainer>
       </div>
@@ -797,6 +801,56 @@ function DibujarTuberia({ visible, onToggle }: { visible: boolean; onToggle: () 
       </div>
     </div>
   );
+}
+
+function TogglePlanosGeo({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 522 }}>
+      <div className="leaflet-control">
+        <button onClick={onToggle} style={{
+          padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 600,
+          background: visible ? "#6a1b9a" : "white", color: visible ? "white" : "#6a1b9a",
+          border: "1px solid #6a1b9a",
+        }}>{visible ? "Planos ON" : "Planos Geo"}</button>
+      </div>
+    </div>
+  );
+}
+
+function PlanosGeoLayer({ geos, equipos, filtroEquipo }: { geos: any[]; equipos: Equipo[]; filtroEquipo: string }) {
+  const map = useMap();
+  const layersRef = useRef<L.ImageOverlay[]>([]);
+
+  useEffect(() => {
+    // Clean old overlays
+    layersRef.current.forEach(l => map.removeLayer(l));
+    layersRef.current = [];
+
+    if (!geos.length) return;
+
+    const eqMap = new Map(equipos.map(e => [e.id, { codigo: e.codigo, plano_url: e.plano_url, nombre: e.nombre }]));
+    
+    geos.forEach(geo => {
+      const eq = eqMap.get(geo.equipo_id);
+      if (!eq || !eq.plano_url) return;
+      
+      // Filter by equipo if filter is active
+      if (filtroEquipo && eq.nombre !== filtroEquipo) return;
+
+      const b = geo.bounds;
+      if (!b) return;
+      const ov = L.imageOverlay(eq.plano_url, [[b.sw[0], b.sw[1]], [b.ne[0], b.ne[1]]], {
+        opacity: geo.opacity || 0.6,
+        interactive: false,
+      });
+      ov.addTo(map);
+      layersRef.current.push(ov);
+    });
+
+    return () => { layersRef.current.forEach(l => map.removeLayer(l)); };
+  }, [geos, equipos, filtroEquipo, map]);
+
+  return null;
 }
 
 const toggleBtn: React.CSSProperties = {

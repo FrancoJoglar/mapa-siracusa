@@ -14,6 +14,7 @@ export default function MapaPage() {
   const [valvulas, setValvulas] = useState<Valvula[]>([]);
   const [antenas, setAntenas] = useState<Antena[]>([]);
   const [sondas, setSondas] = useState<Sonda[]>([]);
+  const [geos, setGeos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visorPdf, setVisorPdf] = useState<{ url: string; nombre: string } | null>(null);
@@ -29,7 +30,7 @@ export default function MapaPage() {
       setLoading(true);
       setError(null);
       try {
-        const [cuartelesRes, edificacionesRes, sectoresRes, unidadesRes, equiposRes, tuberiasRes, valvulasRes, antenasRes, sondasRes] = await Promise.all([
+        const [cuartelesRes, edificacionesRes, sectoresRes, unidadesRes, equiposRes, tuberiasRes, valvulasRes, antenasRes, sondasRes, geosRes] = await Promise.all([
           supabase.rpc("get_cuarteles_con_sectores"),
           supabase.rpc("get_edificaciones_geojson"),
           supabase.rpc("get_sectores_geojson"),
@@ -39,6 +40,7 @@ export default function MapaPage() {
           supabase.from("valvulas").select("*"),
           supabase.from("antenas").select("*"),
           supabase.from("sondas").select("*"),
+          supabase.from("georreferencias").select("equipo_id, bounds, rotation, opacity, zoom_level"),
         ]);
 
         if (cuartelesRes.error) throw cuartelesRes.error;
@@ -94,6 +96,7 @@ export default function MapaPage() {
         setValvulas((valvulasRes.data || []).map((r: any) => ({ ...r, geojson: r.geometria ? { type: "Feature", geometry: r.geometria, properties: {} } : undefined })));
         setAntenas((antenasRes.data || []).map((r: any) => ({ ...r, geojson: r.geometria ? { type: "Feature", geometry: r.geometria, properties: {} } : undefined })));
         setSondas((sondasRes.data || []).map((r: any) => ({ ...r, geojson: r.geometria ? { type: "Feature", geometry: r.geometria, properties: {} } : undefined })));
+        setGeos(geosRes.data || []);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -123,7 +126,7 @@ export default function MapaPage() {
 
   return (
     <>
-      <MapaCuarteles cuarteles={cuarteles} edificaciones={edificaciones} sectores={sectores} unidades={unidades} equipos={equipos} tuberias={tuberias} valvulas={valvulas} antenas={antenas} sondas={sondas} />
+      <MapaCuarteles cuarteles={cuarteles} edificaciones={edificaciones} sectores={sectores} unidades={unidades} equipos={equipos} tuberias={tuberias} valvulas={valvulas} antenas={antenas} sondas={sondas} geos={geos} />
       {visorPdf && <VisorPDF url={visorPdf.url} nombre={visorPdf.nombre} onClose={() => setVisorPdf(null)} />}
     </>
   );
