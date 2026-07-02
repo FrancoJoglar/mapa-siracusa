@@ -15,6 +15,7 @@ export default function AdminEquipos() {
   const [showForm, setShowForm] = useState(false);
   const [visorPdf, setVisorPdf] = useState<{ url: string; nombre: string } | null>(null);
   const [geoRef, setGeoRef] = useState<{ url: string; codigo: string } | null>(null);
+  const [savedGeo, setSavedGeo] = useState<any>(null);
 
   if (loading) return <CenterMsg msg="Cargando equipos..." />;
   if (error) return <CenterMsg msg={`Error: ${error}`} />;
@@ -55,7 +56,11 @@ export default function AdminEquipos() {
         </thead>
         <tbody>
           {equipos.map((e) => (
-            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} onViewPlano={(url, nombre) => setVisorPdf({ url, nombre })} onGeoref={(url, codigo) => setGeoRef({ url, codigo })} />
+            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} onViewPlano={(url, nombre) => setVisorPdf({ url, nombre })} onGeoref={async (url, codigo) => {
+              const { data } = await supabase.from('georreferencias').select('*').eq('equipo_id', e.id).single();
+              setSavedGeo(data);
+              setGeoRef({ url, codigo });
+            }} />
           ))}
           {equipos.length === 0 && (
             <tr>
@@ -93,6 +98,7 @@ export default function AdminEquipos() {
           planoUrl={geoRef.url}
           equipoCodigo={geoRef.codigo}
           initialCenter={[-35.14, -71.62]}
+          saved={savedGeo}
           onSave={async (data) => {
             const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
             if (!eq) return alert('Equipo no encontrado');
@@ -114,7 +120,7 @@ export default function AdminEquipos() {
   );
 }
 
-function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onViewPlano, onGeoref }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void; onViewPlano: (url: string, nombre: string) => void; onGeoref: (url: string, codigo: string) => void }) {
+function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onViewPlano, onGeoref }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void; onViewPlano: (url: string, nombre: string) => void; onGeoref: (url: string, codigo: string) => Promise<void> }) {
   const [uploading, setUploading] = useState(false);
   const [deletingPlano, setDeletingPlano] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);

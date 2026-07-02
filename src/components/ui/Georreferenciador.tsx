@@ -11,11 +11,12 @@ interface Props {
   initialCenter: [number, number];
   onSave: (data: { bounds: any; rotation: number; opacity: number }) => void;
   onClose: () => void;
+  saved?: { bounds: { sw: [number, number]; ne: [number, number] }; rotation: number; opacity: number } | null;
 }
 
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
 
-export default function Georreferenciador({ planoUrl, equipoCodigo, initialCenter, onSave, onClose }: Props) {
+export default function Georreferenciador({ planoUrl, equipoCodigo, initialCenter, onSave, onClose, saved }: Props) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const [imageUrl, setImageUrl] = useState("");
@@ -98,6 +99,15 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       .then(r => r.json()).then((data: any[]) => { data?.forEach(c => { if (c.geojson && c.equipo_riego?.split(" - ")?.some((eq: string) => eq === equipoNum)) L.geoJSON(c.geojson, { style: { color: "#ff9800", weight: 1.5, fillOpacity: 0.1, fillColor: "#ff9800", opacity: 0.5 } }).addTo(group); }); }).catch(() => {});
     return () => { m.removeLayer(group); };
   }, [ready, equipoNum]);
+
+  // Restore saved georeference on mount
+  useEffect(() => {
+    if (!saved) return;
+    const { bounds, rotation: r, opacity: o } = saved;
+    geoCenterRef.current = L.latLng((bounds.sw[0] + bounds.ne[0]) / 2, (bounds.sw[1] + bounds.ne[1]) / 2);
+    setRotation(r);
+    setOpacity(o);
+  }, [saved]);
 
   // --- Render PDF ---
   useEffect(() => {
