@@ -11,6 +11,8 @@ import { exportarCuarteles, exportarCuartelesGeoJSON } from "../../lib/export";
 import L from "leaflet";
 import * as turf from "@turf/turf";
 import { supabase } from "../../lib/supabase";
+import * as pdfjsLib from "pdfjs-dist";
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 const CENTRO_MAPA: [number, number] = [-35.14, -71.625];
 const ZOOM_INICIAL = 14;
@@ -822,29 +824,38 @@ function PlanosGeoLayer({ geos, equipos, filtroEquipo }: { geos: any[]; equipos:
   const layersRef = useRef<L.ImageOverlay[]>([]);
 
   useEffect(() => {
-    // Clean old overlays
     layersRef.current.forEach(l => map.removeLayer(l));
     layersRef.current = [];
-
     if (!geos.length) return;
 
     const eqMap = new Map(equipos.map(e => [e.id, { codigo: e.codigo, plano_url: e.plano_url, nombre: e.nombre }]));
-    
-    geos.forEach(geo => {
+    const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
+
+    geos.forEach(async (geo) => {
       const eq = eqMap.get(geo.equipo_id);
       if (!eq || !eq.plano_url) return;
-      
-      // Filter by equipo if filter is active
       if (filtroEquipo && eq.nombre !== filtroEquipo) return;
-
       const b = geo.bounds;
       if (!b) return;
-      const ov = L.imageOverlay(eq.plano_url, [[b.sw[0], b.sw[1]], [b.ne[0], b.ne[1]]], {
-        opacity: geo.opacity || 0.6,
-        interactive: false,
-      });
-      ov.addTo(map);
-      layersRef.current.push(ov);
+
+      try {
+        // Convert PDF to image
+        const r = await fetch(eq.plano_url, { headers: { "apikey": ANON, "Authorization": "Bearer " + ANON } });
+        const buf = await r.arrayBuffer();
+        const pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+        const page = await pdfDoc.getPage(1);
+        const vp = page.getViewport({ scale: 1 });
+        const canvas = document.createElement("canvas");
+        canvas.width = vp.width; canvas.height = vp.height;
+        await page.render({ canvas, viewport: vp }).promise;
+        const imgUrl = canvas.toDataURL("image/png");
+
+        const ov = L.imageOverlay(imgUrl, [[b.sw[0], b.sw[1]], [b.ne[0], b.ne[1]]], {
+          opacity: geo.opacity || 0.6, interactive: false,
+        });
+        ov.addTo(map);
+        layersRef.current.push(ov);
+      } catch { /* skip if PDF can't be loaded */ }
     });
 
     return () => { layersRef.current.forEach(l => map.removeLayer(l)); };
