@@ -117,7 +117,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       .then(buf => pdfjsLib.getDocument({ data: buf }).promise)
       .then(async pdfDoc => {
         const page = await pdfDoc.getPage(1);
-        const vp = page.getViewport({ scale: 3 });
+        const vp = page.getViewport({ scale: 1.5 });
         const canvas = document.createElement("canvas");
         canvas.width = vp.width; canvas.height = vp.height;
         await page.render({ canvas, viewport: vp }).promise;
