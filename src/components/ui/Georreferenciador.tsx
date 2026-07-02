@@ -9,9 +9,9 @@ interface Props {
   planoUrl: string;
   equipoCodigo: string;
   initialCenter: [number, number];
-  onSave: (data: { bounds: any; rotation: number; opacity: number }) => void;
+  onSave: (data: { bounds: any; rotation: number; opacity: number; zoom_level: number }) => void;
   onClose: () => void;
-  saved?: { bounds: { sw: [number, number]; ne: [number, number] }; rotation: number; opacity: number } | null;
+  saved?: { bounds: { sw: [number, number]; ne: [number, number] }; rotation: number; opacity: number; zoom_level?: number } | null;
 }
 
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
@@ -103,10 +103,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   // Restore saved georeference on mount
   useEffect(() => {
     if (!saved) return;
-    const { bounds, rotation: r, opacity: o } = saved;
+    const { bounds, rotation: r, opacity: o, zoom_level } = saved;
     geoCenterRef.current = L.latLng((bounds.sw[0] + bounds.ne[0]) / 2, (bounds.sw[1] + bounds.ne[1]) / 2);
     setRotation(r);
     setOpacity(o);
+    if (zoom_level) setZoom(zoom_level);
   }, [saved]);
 
   // --- Render PDF ---
@@ -192,7 +193,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     const d = 0.0008 * (100 / zoom);
     onSave({
       bounds: { sw: [ctr.lat - d, ctr.lng - d], ne: [ctr.lat + d, ctr.lng + d] },
-      rotation, opacity,
+      rotation, opacity, zoom_level: zoom,
     });
   };
 

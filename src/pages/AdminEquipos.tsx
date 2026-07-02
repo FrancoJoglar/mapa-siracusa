@@ -103,12 +103,13 @@ export default function AdminEquipos() {
             const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
             if (!eq) return alert('Equipo no encontrado');
             const now = new Date().toISOString();
+            const payload = { ...data, equipo_id: eq.id, updated_at: now };
             const { data: existing } = await supabase.from('georreferencias').select('id').eq('equipo_id', eq.id).single();
             let error;
             if (existing) {
-              ({ error } = await supabase.from('georreferencias').update({ ...data, updated_at: now }).eq('equipo_id', eq.id));
+              ({ error } = await supabase.from('georreferencias').update(payload).eq('equipo_id', eq.id));
             } else {
-              ({ error } = await supabase.from('georreferencias').insert({ equipo_id: eq.id, ...data, created_at: now, updated_at: now }));
+              ({ error } = await supabase.from('georreferencias').insert(payload));
             }
             if (error) alert('Error al guardar: ' + error.message);
             else { alert('Georreferencia guardada'); setGeoRef(null); }
