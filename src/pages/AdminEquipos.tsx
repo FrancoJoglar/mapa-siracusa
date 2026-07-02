@@ -96,9 +96,14 @@ export default function AdminEquipos() {
           onSave={async (data) => {
             const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
             if (!eq) return alert('Equipo no encontrado');
-            const { error } = await supabase
-              .from('georreferencias')
-              .upsert({ equipo_id: eq.id, ...data, updated_at: new Date().toISOString() }, { onConflict: 'equipo_id' });
+            const now = new Date().toISOString();
+            const { data: existing } = await supabase.from('georreferencias').select('id').eq('equipo_id', eq.id).single();
+            let error;
+            if (existing) {
+              ({ error } = await supabase.from('georreferencias').update({ ...data, updated_at: now }).eq('equipo_id', eq.id));
+            } else {
+              ({ error } = await supabase.from('georreferencias').insert({ equipo_id: eq.id, ...data, created_at: now, updated_at: now }));
+            }
             if (error) alert('Error al guardar: ' + error.message);
             else { alert('Georreferencia guardada'); setGeoRef(null); }
           }}
