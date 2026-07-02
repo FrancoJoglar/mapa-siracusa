@@ -844,10 +844,20 @@ function PlanosGeoLayer({ geos, equipos, filtroEquipo }: { geos: any[]; equipos:
         const buf = await r.arrayBuffer();
         const pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
         const page = await pdfDoc.getPage(1);
-        const vp = page.getViewport({ scale: 1 });
+        const vp = page.getViewport({ scale: 1.5 });
         const canvas = document.createElement("canvas");
         canvas.width = vp.width; canvas.height = vp.height;
         await page.render({ canvas, viewport: vp }).promise;
+        // Remove white background
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const d = imgData.data;
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240) d[i + 3] = 0;
+          }
+          ctx.putImageData(imgData, 0, 0);
+        }
         const imgUrl = canvas.toDataURL("image/png");
 
         const ov = L.imageOverlay(imgUrl, [[b.sw[0], b.sw[1]], [b.ne[0], b.ne[1]]], {
