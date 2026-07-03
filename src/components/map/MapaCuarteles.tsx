@@ -864,6 +864,13 @@ function PlanosGeoLayer({ geos, equipos, filtroEquipo }: { geos: any[]; equipos:
           opacity: geo.opacity || 0.6, interactive: false,
         });
         ov.addTo(map);
+        // Apply saved rotation
+        if (geo.rotation) {
+          setTimeout(() => {
+            const el = ov.getElement();
+            if (el) { el.style.transformOrigin = "center center"; el.style.transform = `rotate(${geo.rotation}deg)`; }
+          }, 100);
+        }
         layersRef.current.push(ov);
       } catch { /* skip if PDF can't be loaded */ }
     });

@@ -198,12 +198,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     const img = document.querySelector(".geo-plano-img") as HTMLImageElement;
     if (!m || !img) { alert("No se puede calcular la posición del plano"); return; }
     setSaving(true);
+    // Temporarily remove rotation to get unrotated bounds
+    const prevTransform = img.style.transform;
+    img.style.transform = prevTransform.replace(/rotate\([^)]+\)/, "rotate(0deg)");
     const parent = mapContainerRef.current?.parentElement;
     if (!parent) return;
     const imgRect = img.getBoundingClientRect();
     const ctrRect = parent.getBoundingClientRect();
     const sw = m.containerPointToLatLng([imgRect.left - ctrRect.left, imgRect.bottom - ctrRect.top]);
     const ne = m.containerPointToLatLng([imgRect.right - ctrRect.left, imgRect.top - ctrRect.top]);
+    // Restore rotation
+    img.style.transform = prevTransform;
     onSave({
       bounds: { sw: [sw.lat, sw.lng], ne: [ne.lat, ne.lng] },
       rotation, opacity, zoom_level: zoom,
