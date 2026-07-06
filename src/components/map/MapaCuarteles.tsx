@@ -821,7 +821,7 @@ function OpacityGeo({ value, onChange }: { value: number; onChange: (v: number) 
 
 function TogglePlanosGeo({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 522 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 522, pointerEvents: "auto" }} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
       <div className="leaflet-control">
         <button onClick={onToggle} style={{
           padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 600,
@@ -883,7 +883,7 @@ function PlanosGeoLayer({ geos, equipos, filtroEquipo, opacity: opacityProp }: {
         const img = document.createElement("img"); img.src = imgUrl; img.style.cssText = "display:block;max-width:none;opacity:"+(geo.opacity||0.6);
         img.setAttribute("data-ctr", JSON.stringify(b.center)); 
         img.setAttribute("data-zl", String(zl));
-        img.setAttribute("data-smz", String(map.getZoom()));
+        img.setAttribute("data-smz", String(b.map_zoom || 15));
         img.setAttribute("data-rot", String(geo.rotation||0));
         w.appendChild(img); container?.appendChild(w);
         const pt = map.latLngToContainerPoint(L.latLng(b.center[0], b.center[1]));
