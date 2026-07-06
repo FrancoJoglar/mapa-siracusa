@@ -9,9 +9,9 @@ interface Props {
   planoUrl: string;
   equipoCodigo: string;
   initialCenter: [number, number];
-  onSave: (data: { bounds: any; rotation: number; opacity: number; zoom_level: number }) => void;
+  onSave: (data: { center: [number, number]; canvasWidth: number; zoom_level: number; mapZoom: number; rotation: number; opacity: number }) => void;
   onClose: () => void;
-  saved?: { bounds: { sw: [number, number]; ne: [number, number] }; rotation: number; opacity: number; zoom_level?: number } | null;
+  saved?: { bounds: { center?: [number, number]; canvas_width?: number; map_zoom?: number; sw?: [number, number]; ne?: [number, number] }; rotation: number; opacity: number; zoom_level?: number } | null;
 }
 
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
@@ -103,11 +103,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   // Restore saved georeference on mount
   useEffect(() => {
     if (!saved) return;
-    const { bounds, rotation: r, opacity: o, zoom_level } = saved;
-    geoCenterRef.current = L.latLng((bounds.sw[0] + bounds.ne[0]) / 2, (bounds.sw[1] + bounds.ne[1]) / 2);
-    setRotation(r);
-    setOpacity(o);
-    if (zoom_level) setZoom(zoom_level);
+    const b = saved.bounds;
+    // New format: center stored directly
+    if (b?.center) {
+      geoCenterRef.current = L.latLng(b.center[0], b.center[1]);
+    } else if (b?.sw && b?.ne) {
+      // Legacy format
+      geoCenterRef.current = L.latLng((b.sw[0] + b.ne[0]) / 2, (b.sw[1] + b.ne[1]) / 2);
+    }
+    setRotation(saved.rotation);
+    setOpacity(saved.opacity);
+    if (saved.zoom_level) setZoom(saved.zoom_level);
   }, [saved]);
 
   // --- Render PDF ---
@@ -195,23 +201,15 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   const handleSave = () => {
     if (!imageUrl) return alert("Espera que cargue el plano...");
     const m = mapRef.current;
-    const img = document.querySelector(".geo-plano-img") as HTMLImageElement;
-    if (!m || !img) { alert("No se puede calcular la posición del plano"); return; }
+    if (!m) { alert("Mapa no disponible"); return; }
     setSaving(true);
-    // Temporarily remove rotation to get unrotated bounds
-    const prevTransform = img.style.transform;
-    img.style.transform = prevTransform.replace(/rotate\([^)]+\)/, "rotate(0deg)");
-    const parent = mapContainerRef.current?.parentElement;
-    if (!parent) return;
-    const imgRect = img.getBoundingClientRect();
-    const ctrRect = parent.getBoundingClientRect();
-    const sw = m.containerPointToLatLng([imgRect.left - ctrRect.left, imgRect.bottom - ctrRect.top]);
-    const ne = m.containerPointToLatLng([imgRect.right - ctrRect.left, imgRect.top - ctrRect.top]);
-    // Restore rotation
-    img.style.transform = prevTransform;
+    const ctr = geoCenterRef.current;
+    const canvas = rawCanvasRef.current;
+    const cw = canvas?.width || 500;
     onSave({
-      bounds: { sw: [sw.lat, sw.lng], ne: [ne.lat, ne.lng] },
-      rotation, opacity, zoom_level: zoom,
+      center: [ctr.lat, ctr.lng],
+      canvasWidth: cw, zoom_level: zoom, mapZoom,
+      rotation, opacity,
     });
   };
 

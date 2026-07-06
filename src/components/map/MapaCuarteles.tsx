@@ -819,65 +819,43 @@ function TogglePlanosGeo({ visible, onToggle }: { visible: boolean; onToggle: ()
   );
 }
 
-function PlanosGeoLayer({ geos, equipos, filtroEquipo }: { geos: any[]; equipos: Equipo[]; filtroEquipo: string }) {
+function PlanosGeoLayer({ geos, equipos, filtroEquipo }: { geos: any[]; equipos: any[]; filtroEquipo: string }) {
   const map = useMap();
-  const layersRef = useRef<L.ImageOverlay[]>([]);
-
+  const containerRef = useRef<any>(null);
   useEffect(() => {
-    layersRef.current.forEach(l => map.removeLayer(l));
-    layersRef.current = [];
+    let container = document.getElementById("planos-geo-container");
+    if (!container) { container = document.createElement("div"); container.id = "planos-geo-container"; container.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:5"; map.getContainer().appendChild(container); }
+    containerRef.current = container; container.innerHTML = "";
     if (!geos.length) return;
-
-    const eqMap = new Map(equipos.map(e => [e.id, { codigo: e.codigo, plano_url: e.plano_url, nombre: e.nombre }]));
+    const eqMap = new Map(equipos.map((e:any) => [e.id, { codigo: e.codigo, plano_url: e.plano_url, nombre: e.nombre }]));
     const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
-
-    geos.forEach(async (geo) => {
-      const eq = eqMap.get(geo.equipo_id);
-      if (!eq || !eq.plano_url) return;
+    const upd = () => { container?.querySelectorAll("img[data-ctr]").forEach((img:any) => { const c=JSON.parse(img.getAttribute("data-ctr")); const pt=map.latLngToContainerPoint(L.latLng(c[0],c[1])); img.parentElement.style.left=pt.x+"px"; img.parentElement.style.top=pt.y+"px"; }); };
+    map.on("move zoom", upd);
+    geos.forEach(async (geo:any) => {
+      const eq = eqMap.get(geo.equipo_id); if (!eq?.plano_url) return;
       if (filtroEquipo && eq.nombre !== filtroEquipo) return;
-      const b = geo.bounds;
-      if (!b) return;
-
+      const b = geo.bounds; if (!b?.center) return;
       try {
-        // Convert PDF to image
-        const r = await fetch(eq.plano_url, { headers: { "apikey": ANON, "Authorization": "Bearer " + ANON } });
-        const buf = await r.arrayBuffer();
-        const pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
-        const page = await pdfDoc.getPage(1);
-        const vp = page.getViewport({ scale: 1.5 });
-        const canvas = document.createElement("canvas");
-        canvas.width = vp.width; canvas.height = vp.height;
+        const r = await fetch(eq.plano_url, { headers: { apikey: ANON, Authorization: "Bearer " + ANON } });
+        const pdfDoc = await pdfjsLib.getDocument({ data: await r.arrayBuffer() }).promise;
+        const page = await pdfDoc.getPage(1); const vp = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement("canvas"); canvas.width = vp.width; canvas.height = vp.height;
         await page.render({ canvas, viewport: vp }).promise;
-        // Remove white background
         const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const d = imgData.data;
-          for (let i = 0; i < d.length; i += 4) {
-            if (d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240) d[i + 3] = 0;
-          }
-          ctx.putImageData(imgData, 0, 0);
-        }
+        if (ctx) { const d = ctx.getImageData(0,0,canvas.width,canvas.height).data; for(let i=0;i<d.length;i+=4){if(d[i]>240&&d[i+1]>240&&d[i+2]>240)d[i+3]=0;} ctx.putImageData(new ImageData(d,canvas.width,canvas.height),0,0); }
         const imgUrl = canvas.toDataURL("image/png");
-
-        const ov = L.imageOverlay(imgUrl, [[b.sw[0], b.sw[1]], [b.ne[0], b.ne[1]]], {
-          opacity: geo.opacity || 0.6, interactive: false,
-        });
-        ov.addTo(map);
-        // Apply saved rotation
-        if (geo.rotation) {
-          setTimeout(() => {
-            const el = ov.getElement();
-            if (el) { el.style.transformOrigin = "center center"; el.style.transform = `rotate(${geo.rotation}deg)`; }
-          }, 100);
-        }
-        layersRef.current.push(ov);
-      } catch { /* skip if PDF can't be loaded */ }
+        const w = document.createElement("div");
+        const zl = geo.zoom_level||100; const smz = b.map_zoom||15;
+        const sf = (zl/100) * Math.pow(2, map.getZoom() - smz);
+        w.style.cssText = "position:absolute;transform:translate(-50%,-50%) rotate("+ (geo.rotation||0) +"deg) scale("+ sf +");transform-origin:center center";
+        const img = document.createElement("img"); img.src = imgUrl; img.style.cssText = "display:block;max-width:none;opacity:"+(geo.opacity||0.6);
+        img.setAttribute("data-ctr", JSON.stringify(b.center)); w.appendChild(img); container?.appendChild(w);
+        const pt = map.latLngToContainerPoint(L.latLng(b.center[0], b.center[1]));
+        w.style.left = pt.x + "px"; w.style.top = pt.y + "px";
+      } catch {}
     });
-
-    return () => { layersRef.current.forEach(l => map.removeLayer(l)); };
+    return () => { map.off("move zoom", upd); if(container)container.innerHTML=""; };
   }, [geos, equipos, filtroEquipo, map]);
-
   return null;
 }
 
