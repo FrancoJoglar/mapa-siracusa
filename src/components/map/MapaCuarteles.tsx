@@ -809,8 +809,8 @@ function DibujarTuberia({ visible, onToggle }: { visible: boolean; onToggle: () 
 
 function OpacityGeo({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 556, pointerEvents: "auto" }} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-      <div className="leaflet-control" style={{ background: "white", padding: "4px 8px", borderRadius: 4, display: "flex", alignItems: "center", gap: 6, boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 556, pointerEvents: "none" }}>
+      <div className="leaflet-control" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ background: "white", padding: "4px 8px", borderRadius: 4, display: "flex", alignItems: "center", gap: 6, boxShadow: "0 1px 4px rgba(0,0,0,0.2)", pointerEvents: "auto" }}>
         <span style={{ fontSize: 11, color: "#666" }}>Op Geo</span>
         <input type="range" min={0.1} max={1} step={0.05} value={value} onChange={e => onChange(Number(e.target.value))} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ width: 70, accentColor: "#6a1b9a" }} />
         <span style={{ fontSize: 11, color: "#666", minWidth: 28, textAlign: "center" }}>{Math.round(value * 100)}%</span>
@@ -880,7 +880,7 @@ function PlanosGeoLayer({ geos, equipos, filtroEquipo, opacity: opacityProp }: {
         const img = document.createElement("img"); img.src = imgUrl; img.style.cssText = "display:block;max-width:none;opacity:"+(geo.opacity||0.6);
         img.setAttribute("data-ctr", JSON.stringify(b.center)); 
         img.setAttribute("data-zl", String(zl));
-        img.setAttribute("data-smz", String(smz));
+        img.setAttribute("data-smz", String(smz || map.getZoom()));
         img.setAttribute("data-rot", String(geo.rotation||0));
         w.appendChild(img); container?.appendChild(w);
         const pt = map.latLngToContainerPoint(L.latLng(b.center[0], b.center[1]));
