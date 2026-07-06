@@ -53,6 +53,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [dibujarValvula, setDibujarValvula] = useState(false);
   const [dibujarTuberia, setDibujarTuberia] = useState(false);
   const [mostrarPlanosGeo, setMostrarPlanosGeo] = useState(false);
+  const [opacityGeo, setOpacityGeo] = useState(0.6);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
   const [satelite, setSatelite] = useState(true);
   const [medir, setMedir] = useState(false);
@@ -278,6 +279,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
             <DibujarValvula visible={dibujarValvula} onToggle={() => setDibujarValvula(v => !v)} />
             <DibujarTuberia visible={dibujarTuberia} onToggle={() => setDibujarTuberia(v => !v)} />
             <TogglePlanosGeo visible={mostrarPlanosGeo} onToggle={() => setMostrarPlanosGeo(v => !v)} />
+            {mostrarPlanosGeo && <OpacityGeo value={opacityGeo} onChange={setOpacityGeo} />}
           </>}
           <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
           <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
@@ -408,7 +410,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
 
           {fitBounds && <FlyToBounds bounds={fitBounds} />}
           <Leyenda />
-          {mostrarPlanosGeo && <PlanosGeoLayer geos={geos} equipos={equipos} filtroEquipo={filtros.equipo} />}
+          {mostrarPlanosGeo && <PlanosGeoLayer geos={geos} equipos={equipos} filtroEquipo={filtros.equipo} opacity={opacityGeo} />}
           {vista === "cuarteles" && <BuscadorCuartel cuarteles={cuarteles} />}
         </MapContainer>
       </div>
@@ -805,6 +807,8 @@ function DibujarTuberia({ visible, onToggle }: { visible: boolean; onToggle: () 
   );
 }
 
+function OpacityGeo({ value, onChange }: { value: number; onChange: (v: number) => void }) { return (<div className="leaflet-top leaflet-right" style={{ top: 556 }}><div className="leaflet-control" style={{ background: "white", padding: "4px 8px", borderRadius: 4, display: "flex", alignItems: "center", gap: 6, boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}><span style={{ fontSize: 11, color: "#666" }}>Op Geo</span><input type="range" min={0.1} max={1} step={0.05} value={value} onChange={e => onChange(Number(e.target.value))} style={{ width: 70, accentColor: "#6a1b9a" }} /><span style={{ fontSize: 11, color: "#666", minWidth: 28, textAlign: "center" }}>{Math.round(value * 100)}%</span></div></div>); }
+
 function TogglePlanosGeo({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
     <div className="leaflet-top leaflet-right" style={{ top: 522 }}>
@@ -819,12 +823,13 @@ function TogglePlanosGeo({ visible, onToggle }: { visible: boolean; onToggle: ()
   );
 }
 
-function PlanosGeoLayer({ geos, equipos, filtroEquipo }: { geos: any[]; equipos: any[]; filtroEquipo: string }) {
+function PlanosGeoLayer({ geos, equipos, filtroEquipo, opacity: opacityProp }: { geos: any[]; equipos: any[]; filtroEquipo: string; opacity: number }) {
   const map = useMap();
   const containerRef = useRef<any>(null);
+  void opacityProp;
   useEffect(() => {
     let container = document.getElementById("planos-geo-container");
-    if (!container) { container = document.createElement("div"); container.id = "planos-geo-container"; container.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:5"; map.getContainer().appendChild(container); }
+    if (!container) { container = document.createElement("div"); container.id = "planos-geo-container"; container.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:600"; map.getContainer().appendChild(container); }
     containerRef.current = container; container.innerHTML = "";
     if (!geos.length) return;
     const eqMap = new Map(equipos.map((e:any) => [e.id, { codigo: e.codigo, plano_url: e.plano_url, nombre: e.nombre }]));
