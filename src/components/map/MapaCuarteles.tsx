@@ -874,13 +874,16 @@ function PlanosGeoLayer({ geos, equipos, filtroEquipo, opacity: opacityProp }: {
         if (ctx) { const d = ctx.getImageData(0,0,canvas.width,canvas.height).data; for(let i=0;i<d.length;i+=4){if(d[i]>240&&d[i+1]>240&&d[i+2]>240)d[i+3]=0;} ctx.putImageData(new ImageData(d,canvas.width,canvas.height),0,0); }
         const imgUrl = canvas.toDataURL("image/png");
         const w = document.createElement("div");
-        const zl = geo.zoom_level||100; const smz = b.map_zoom||15;
-        const sf = (zl/100) * Math.pow(2, map.getZoom() - smz);
+        const savedMz = b.map_zoom || map.getZoom();
+        const zl = geo.zoom_level || 100;
+        // Compute base size: 100% = 1 unit of canvas at saved zoom
+        const baseScale = zl / 100;
+        const sf = baseScale * Math.pow(2, map.getZoom() - savedMz);
         w.style.cssText = "position:absolute;transform:translate(-50%,-50%) rotate("+ (geo.rotation||0) +"deg) scale("+ sf +");transform-origin:center center";
         const img = document.createElement("img"); img.src = imgUrl; img.style.cssText = "display:block;max-width:none;opacity:"+(geo.opacity||0.6);
         img.setAttribute("data-ctr", JSON.stringify(b.center)); 
         img.setAttribute("data-zl", String(zl));
-        img.setAttribute("data-smz", String(smz || map.getZoom()));
+        img.setAttribute("data-smz", String(map.getZoom()));
         img.setAttribute("data-rot", String(geo.rotation||0));
         w.appendChild(img); container?.appendChild(w);
         const pt = map.latLngToContainerPoint(L.latLng(b.center[0], b.center[1]));
