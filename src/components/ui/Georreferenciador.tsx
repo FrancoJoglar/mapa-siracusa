@@ -144,7 +144,14 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const m = mapRef.current;
     if (!m) return;
     m.dragging.disable();
-    dragInfo.current = { dragging: true, startLatLng: m.containerPointToLatLng([e.clientX, e.clientY]) };
+    // Convert clientX/Y to container-relative coords
+    const ctrEl = mapContainerRef.current;
+    if (ctrEl) {
+      const rect = ctrEl.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      dragInfo.current = { dragging: true, startLatLng: m.containerPointToLatLng([x, y]) };
+    }
   };
 
   useEffect(() => {
@@ -152,7 +159,13 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       if (!dragInfo.current.dragging) return;
       const m = mapRef.current;
       if (!m) return;
-      const curLL = m.containerPointToLatLng([e.clientX, e.clientY]);
+      // Convert clientX/Y to container-relative coords
+      const ctrEl = mapContainerRef.current;
+      if (!ctrEl) return;
+      const rect = ctrEl.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const curLL = m.containerPointToLatLng([x, y]);
       const dLat = curLL.lat - dragInfo.current.startLatLng.lat;
       const dLng = curLL.lng - dragInfo.current.startLatLng.lng;
       geoCenterRef.current = L.latLng(geoCenterRef.current.lat - dLat, geoCenterRef.current.lng - dLng);
