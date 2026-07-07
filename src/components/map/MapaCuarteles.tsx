@@ -884,7 +884,7 @@ function PlanosGeoLayer({ geos, equipos, filtroEquipo, opacity: opacityProp }: {
         // Use real sw/ne bounds - keep as lat/lng, convert to pixels at runtime
         const hasBounds = b.sw && b.ne;
         w.style.cssText = "position:absolute;left:0;top:0;transform:translate(-50%,-50%) rotate("+ (geo.rotation||0) +"deg);transform-origin:center center";
-        const img = document.createElement("img"); img.src = imgUrl; img.style.cssText = "display:block;max-width:none;opacity:"+(geo.opacity||0.6);
+        const img = document.createElement("img"); img.src = imgUrl; img.style.cssText = "display:block;width:100%;height:100%;object-fit:fill;opacity:"+(geo.opacity||0.6);
         img.setAttribute("data-geo", JSON.stringify(hasBounds ? b : { center: b.center }));
         img.setAttribute("data-rot", String(geo.rotation||0));
         w.appendChild(img); container?.appendChild(w);

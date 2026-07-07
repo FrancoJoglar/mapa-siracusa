@@ -124,14 +124,13 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
       .then(async pdfDoc => {
         const page = await pdfDoc.getPage(1);
         // Render at high quality but cap size to avoid OOM on large PDFs
-        const vpBase = page.getViewport({ scale: 1 });
-        const targetWidth = 4000;
-        const renderScale = Math.min(3, targetWidth / vpBase.width);
-        const vp = page.getViewport({ scale: renderScale });
+        // Render PDF to a natural size - each PDF point = 1 canvas pixel
+        const vp = page.getViewport({ scale: 1 });
         const canvas = document.createElement("canvas");
         canvas.width = vp.width; canvas.height = vp.height;
-        await page.render({ canvas, viewport: vp }).promise;
-        // Keep raw (white background)
+        // Store original PDF size for later scale calculation
+        rawCanvasRef.current = canvas;
+         await page.render({ canvas, viewport: vp }).promise;
         rawCanvasRef.current = canvas;
         setImageUrlRaw(canvas.toDataURL("image/png"));
         // Create transparent version
@@ -208,20 +207,28 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     const parent = mapContainerRef.current?.parentElement;
     if (!parent) return;
     const ctrRect = parent.getBoundingClientRect();
-    const unrotatedRect = img.getBoundingClientRect();
-    const cxPx = (unrotatedRect.left + unrotatedRect.right) / 2;
-    const cyPx = (unrotatedRect.top + unrotatedRect.bottom) / 2;
-    const halfW = (unrotatedRect.width) / 2;
-    const halfH = (unrotatedRect.height) / 2;
+    const imgRect = img.getBoundingClientRect();
+    const cxPx = (imgRect.left + imgRect.right) / 2;
+    const cyPx = (imgRect.top + imgRect.bottom) / 2;
+    // imgRect is the axis-aligned bounding box of the rotated image
+    // Recover the unrotated dimensions: halfW and halfH are the rotated half-extents
+    // Unrotate back to get the original half-dimensions
     const angleRad = (rotation * Math.PI) / 180;
     const cos = Math.cos(angleRad);
     const sin = Math.sin(angleRad);
-    // Rotate the 4 corners around center
+    // Inverse rotation to recover original corners from rotated bbox
+    // Rotated bbox half-extents = |w*cos|+|h*sin|, |w*sin|+|h*cos|
+    const rotW = imgRect.width / 2;
+    const rotH = imgRect.height / 2;
+    // Original width and height: solve w*|cos|+h*|sin| = rotW
+    const origW = (rotW * Math.abs(cos) + rotH * Math.abs(sin)) / (cos*cos + sin*sin);
+    const origH = (rotW * Math.abs(sin) + rotH * Math.abs(cos)) / (cos*cos + sin*sin);
+    // Now rotate the 4 corners of the UNROTATED rect
     const corners = [
-      { x: -halfW, y: -halfH }, // top-left
-      { x: halfW, y: -halfH },  // top-right
-      { x: halfW, y: halfH },   // bottom-right
-      { x: -halfW, y: halfH },  // bottom-left
+      { x: -origW, y: -origH },
+      { x: origW, y: -origH },
+      { x: origW, y: origH },
+      { x: -origW, y: origH },
     ].map(c => ({
       x: cxPx + c.x * cos - c.y * sin,
       y: cyPx + c.x * sin + c.y * cos,
