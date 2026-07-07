@@ -103,9 +103,12 @@ export default function AdminEquipos() {
             const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
             if (!eq) return alert('Equipo no encontrado');
             const now = new Date().toISOString();
+            const boundsValue: any = { center: data.center, map_zoom: data.mapZoom };
+            if (data.sw) boundsValue.sw = data.sw;
+            if (data.ne) boundsValue.ne = data.ne;
             const payload = { 
               equipo_id: eq.id, 
-              bounds: { center: data.center, canvas_width: data.canvasWidth, map_zoom: data.mapZoom },
+              bounds: boundsValue,
               zoom_level: data.zoom_level,
               rotation: data.rotation, 
               opacity: data.opacity,

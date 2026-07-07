@@ -9,9 +9,9 @@ interface Props {
   planoUrl: string;
   equipoCodigo: string;
   initialCenter: [number, number];
-  onSave: (data: { center: [number, number]; canvasWidth: number; zoom_level: number; mapZoom: number; rotation: number; opacity: number }) => void;
+  onSave: (data: { center: [number, number]; sw: [number, number]; ne: [number, number]; canvasWidth?: number; zoom_level: number; mapZoom: number; rotation: number; opacity: number }) => void;
   onClose: () => void;
-  saved?: { bounds: { center?: [number, number]; canvas_width?: number; map_zoom?: number; sw?: [number, number]; ne?: [number, number] }; rotation: number; opacity: number; zoom_level?: number } | null;
+  saved?: { bounds: { center?: [number, number]; sw?: [number, number]; ne?: [number, number]; canvas_width?: number; map_zoom?: number }; rotation: number; opacity: number; zoom_level?: number } | null;
 }
 
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
@@ -201,15 +201,21 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
   const handleSave = () => {
     if (!imageUrl) return alert("Espera que cargue el plano...");
     const m = mapRef.current;
-    if (!m) { alert("Mapa no disponible"); return; }
+    const img = document.querySelector(".geo-plano-img") as HTMLImageElement;
+    if (!m || !img) { alert("Mapa o imagen no disponible"); return; }
     setSaving(true);
-    const ctr = geoCenterRef.current;
-    const canvas = rawCanvasRef.current;
-    const cw = canvas?.width || 500;
+    // Save real bounds of the displayed image
+    const parent = mapContainerRef.current?.parentElement;
+    if (!parent) return;
+    const imgRect = img.getBoundingClientRect();
+    const ctrRect = parent.getBoundingClientRect();
+    const sw = m.containerPointToLatLng([imgRect.left - ctrRect.left, imgRect.bottom - ctrRect.top]);
+    const ne = m.containerPointToLatLng([imgRect.right - ctrRect.left, imgRect.top - ctrRect.top]);
     onSave({
-      center: [ctr.lat, ctr.lng],
-      canvasWidth: cw, zoom_level: zoom, mapZoom,
-      rotation, opacity,
+      center: [(sw.lat + ne.lat) / 2, (sw.lng + ne.lng) / 2],
+      sw: [sw.lat, sw.lng],
+      ne: [ne.lat, ne.lng],
+      rotation, opacity, zoom_level: zoom, mapZoom,
     });
   };
 

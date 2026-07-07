@@ -874,24 +874,38 @@ function PlanosGeoLayer({ geos, equipos, filtroEquipo, opacity: opacityProp }: {
         if (ctx) { const d = ctx.getImageData(0,0,canvas.width,canvas.height).data; for(let i=0;i<d.length;i+=4){if(d[i]>240&&d[i+1]>240&&d[i+2]>240)d[i+3]=0;} ctx.putImageData(new ImageData(d,canvas.width,canvas.height),0,0); }
         const imgUrl = canvas.toDataURL("image/png");
         const w = document.createElement("div");
-        const savedMz = b.map_zoom || map.getZoom();
-        const zl = geo.zoom_level || 100;
-        // Compute base size: 100% = 1 unit of canvas at saved zoom
-        const baseScale = zl / 100;
-        const sf = baseScale * Math.pow(2, map.getZoom() - savedMz);
-        w.style.cssText = "position:absolute;transform:translate(-50%,-50%) rotate("+ (geo.rotation||0) +"deg) scale("+ sf +");transform-origin:center center";
+        // Use real sw/ne bounds for accurate position
+        if (b.sw && b.ne) {
+          void 0; const swN = map.latLngToContainerPoint(L.latLng(b.sw[0], b.sw[1])); void swN; const neN = map.latLngToContainerPoint(L.latLng(b.ne[0], b.ne[1])); void neN;
+          // Skip sw/ne path, use center as fallback for now
+        }
+        // Use sw/ne directly: convert back to container pixels at current zoom
+        let swN, neN;
+        if (b.sw && b.ne) {
+          swN = map.latLngToContainerPoint(L.latLng(b.sw[0], b.sw[1]));
+          neN = map.latLngToContainerPoint(L.latLng(b.ne[0], b.ne[1]));
+        }
+        w.style.cssText = "position:absolute;left:0;top:0;transform:translate(-50%,-50%) rotate("+ (geo.rotation||0) +"deg);transform-origin:center center";
         const img = document.createElement("img"); img.src = imgUrl; img.style.cssText = "display:block;max-width:none;opacity:"+(geo.opacity||0.6);
-        img.setAttribute("data-ctr", JSON.stringify(b.center)); 
-        img.setAttribute("data-zl", String(zl));
-        img.setAttribute("data-smz", String(b.map_zoom || 15));
+        img.setAttribute("data-ctr", JSON.stringify(b.sw && b.ne ? b : b.center)); 
         img.setAttribute("data-rot", String(geo.rotation||0));
         w.appendChild(img); container?.appendChild(w);
-        const pt = map.latLngToContainerPoint(L.latLng(b.center[0], b.center[1]));
-        w.style.left = pt.x + "px"; w.style.top = pt.y + "px";
+        // Position using sw/ne if available (real bounds saved by editor)
+        if (swN && neN) {
+          const cx = (swN.x + neN.x) / 2;
+          const cy = (swN.y + neN.y) / 2;
+          w.style.left = cx + "px"; w.style.top = cy + "px";
+          const dx = Math.abs(neN.x - swN.x);
+          const dy = Math.abs(neN.y - swN.y);
+          img.style.width = dx + "px"; img.style.height = dy + "px";
+        } else {
+          const pt = map.latLngToContainerPoint(L.latLng(b.center[0], b.center[1]));
+          w.style.left = pt.x + "px"; w.style.top = pt.y + "px";
+        }
       } catch {}
     });
     return () => { map.off("move zoom", upd); if(container)container.innerHTML=""; };
-  }, [geos, equipos, filtroEquipo, map]);
+  }, [geos, equipos, filtroEquipo, map, opacityProp, geos?.length]);
   return null;
 }
 
