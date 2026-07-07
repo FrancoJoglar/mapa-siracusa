@@ -97,8 +97,54 @@ export default function AdminEquipos() {
         <Georreferenciador
           planoUrl={geoRef.url}
           equipoCodigo={geoRef.codigo}
+          equipoId={equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo)?.id || ""}
           initialCenter={[-35.14, -71.62]}
           saved={savedGeo}
+          onCreateTuberia={async (data) => {
+            const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
+            if (!eq) return;
+            const { error } = await (window as any).supabase.from('tuberias').insert({
+              codigo: data.codigo,
+              equipo_id: eq.id,
+              nivel: data.nivel,
+              material: data.material,
+              diametro_mm: data.diametro_mm,
+              geometria: { type: "LineString", coordinates: data.puntos.map(p => [p.lng, p.lat]) },
+            });
+            if (error) alert("Error: " + error.message);
+          }}
+          onCreateValvula={async (data) => {
+            const { error } = await (window as any).supabase.from('valvulas').insert({
+              codigo: data.codigo,
+              tipo: data.tipo,
+              diametro_mm: data.diametro_mm,
+              geometria: { type: "Point", coordinates: [data.punto.lng, data.punto.lat] },
+            });
+            if (error) alert("Error: " + error.message);
+          }}
+          onCreateAntena={async (data) => {
+            const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
+            if (!eq) return;
+            const { error } = await (window as any).supabase.from('antenas').insert({
+              codigo: data.codigo,
+              tipo: data.tipo,
+              equipo_id: eq.id,
+              geometria: { type: "Point", coordinates: [data.punto.lng, data.punto.lat] },
+            });
+            if (error) alert("Error: " + error.message);
+          }}
+          onCreateSonda={async (data) => {
+            const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
+            if (!eq) return;
+            const { error } = await (window as any).supabase.from('sondas').insert({
+              codigo: data.codigo,
+              tipo: data.tipo,
+              profundidad_m: data.profundidad_m,
+              equipo_id: eq.id,
+              geometria: { type: "Point", coordinates: [data.punto.lng, data.punto.lat] },
+            });
+            if (error) alert("Error: " + error.message);
+          }}
           onSave={async (data) => {
             const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
             if (!eq) return alert('Equipo no encontrado');
