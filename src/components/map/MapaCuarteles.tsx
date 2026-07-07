@@ -845,18 +845,25 @@ function PlanosGeoLayer({ geos, equipos, filtroEquipo, opacity: opacityProp }: {
     const eqMap = new Map(equipos.map((e:any) => [e.id, { codigo: e.codigo, plano_url: e.plano_url, nombre: e.nombre }]));
     const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk";
     const upd = () => { 
-      const curZ = map.getZoom();
       container?.querySelectorAll("img[data-ctr]").forEach((img:any) => { 
         const c = JSON.parse(img.getAttribute("data-ctr"));
-        const pt = map.latLngToContainerPoint(L.latLng(c[0],c[1])); 
-        img.parentElement.style.left = pt.x + "px"; 
-        img.parentElement.style.top = pt.y + "px";
-        // Update scale on zoom
-        const zl = parseFloat(img.getAttribute("data-zl") || "100");
-        const smz = parseFloat(img.getAttribute("data-smz") || "15");
-        const sf = (zl / 100) * Math.pow(2, curZ - smz);
+        if (c.sw && c.ne) {
+          // Direct: c already has sw/ne in pixel space
+          const cx = (c.sw[0] + c.ne[0]) / 2;
+          const cy = (c.sw[1] + c.ne[1]) / 2;
+          img.parentElement.style.left = cx + "px";
+          img.parentElement.style.top = cy + "px";
+          img.parentElement.style.width = Math.abs(c.ne[0] - c.sw[0]) + "px";
+          img.parentElement.style.height = Math.abs(c.ne[1] - c.sw[1]) + "px";
+          img.style.width = img.parentElement.style.width;
+          img.style.height = img.parentElement.style.height;
+        } else {
+          const pt = map.latLngToContainerPoint(L.latLng(c[0], c[1])); 
+          img.parentElement.style.left = pt.x + "px"; 
+          img.parentElement.style.top = pt.y + "px";
+        }
         const rot = parseFloat(img.getAttribute("data-rot") || "0");
-        img.parentElement.style.transform = `translate(-50%,-50%) rotate(${rot}deg) scale(${sf})`;
+        img.parentElement.style.transform = `translate(-50%,-50%) rotate(${rot}deg)`;
       }); 
     };
     map.on("move zoom", upd);
@@ -875,19 +882,11 @@ function PlanosGeoLayer({ geos, equipos, filtroEquipo, opacity: opacityProp }: {
         const imgUrl = canvas.toDataURL("image/png");
         const w = document.createElement("div");
         // Use real sw/ne bounds for accurate position
-        if (b.sw && b.ne) {
-          void 0; const swN = map.latLngToContainerPoint(L.latLng(b.sw[0], b.sw[1])); void swN; const neN = map.latLngToContainerPoint(L.latLng(b.ne[0], b.ne[1])); void neN;
-          // Skip sw/ne path, use center as fallback for now
-        }
-        // Use sw/ne directly: convert back to container pixels at current zoom
-        let swN, neN;
-        if (b.sw && b.ne) {
-          swN = map.latLngToContainerPoint(L.latLng(b.sw[0], b.sw[1]));
-          neN = map.latLngToContainerPoint(L.latLng(b.ne[0], b.ne[1]));
-        }
+        const swN = b.sw && b.ne ? map.latLngToContainerPoint(L.latLng(b.sw[0], b.sw[1])) : null;
+        const neN = b.sw && b.ne ? map.latLngToContainerPoint(L.latLng(b.ne[0], b.ne[1])) : null;
         w.style.cssText = "position:absolute;left:0;top:0;transform:translate(-50%,-50%) rotate("+ (geo.rotation||0) +"deg);transform-origin:center center";
         const img = document.createElement("img"); img.src = imgUrl; img.style.cssText = "display:block;max-width:none;opacity:"+(geo.opacity||0.6);
-        img.setAttribute("data-ctr", JSON.stringify(b.sw && b.ne ? b : b.center)); 
+        img.setAttribute("data-ctr", JSON.stringify(swN && neN ? { sw: [swN.x, swN.y], ne: [neN.x, neN.y] } : b.center));
         img.setAttribute("data-rot", String(geo.rotation||0));
         w.appendChild(img); container?.appendChild(w);
         // Position using sw/ne if available (real bounds saved by editor)
@@ -898,6 +897,7 @@ function PlanosGeoLayer({ geos, equipos, filtroEquipo, opacity: opacityProp }: {
           const dx = Math.abs(neN.x - swN.x);
           const dy = Math.abs(neN.y - swN.y);
           img.style.width = dx + "px"; img.style.height = dy + "px";
+          w.style.width = dx + "px"; w.style.height = dy + "px";
         } else {
           const pt = map.latLngToContainerPoint(L.latLng(b.center[0], b.center[1]));
           w.style.left = pt.x + "px"; w.style.top = pt.y + "px";
