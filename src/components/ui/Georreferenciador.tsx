@@ -204,17 +204,36 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, initialCente
     const img = document.querySelector(".geo-plano-img") as HTMLImageElement;
     if (!m || !img) { alert("Mapa o imagen no disponible"); return; }
     setSaving(true);
-    // Save real bounds of the displayed image
+    // Get rotated corners by transforming the unrotated rect
     const parent = mapContainerRef.current?.parentElement;
     if (!parent) return;
-    const imgRect = img.getBoundingClientRect();
     const ctrRect = parent.getBoundingClientRect();
-    const sw = m.containerPointToLatLng([imgRect.left - ctrRect.left, imgRect.bottom - ctrRect.top]);
-    const ne = m.containerPointToLatLng([imgRect.right - ctrRect.left, imgRect.top - ctrRect.top]);
+    const unrotatedRect = img.getBoundingClientRect();
+    const cxPx = (unrotatedRect.left + unrotatedRect.right) / 2;
+    const cyPx = (unrotatedRect.top + unrotatedRect.bottom) / 2;
+    const halfW = (unrotatedRect.width) / 2;
+    const halfH = (unrotatedRect.height) / 2;
+    const angleRad = (rotation * Math.PI) / 180;
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+    // Rotate the 4 corners around center
+    const corners = [
+      { x: -halfW, y: -halfH }, // top-left
+      { x: halfW, y: -halfH },  // top-right
+      { x: halfW, y: halfH },   // bottom-right
+      { x: -halfW, y: halfH },  // bottom-left
+    ].map(c => ({
+      x: cxPx + c.x * cos - c.y * sin,
+      y: cyPx + c.x * sin + c.y * cos,
+    }));
+    const lats = corners.map(c => m.containerPointToLatLng([c.x - ctrRect.left, c.y - ctrRect.top]).lat);
+    const lngs = corners.map(c => m.containerPointToLatLng([c.x - ctrRect.left, c.y - ctrRect.top]).lng);
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
     onSave({
-      center: [(sw.lat + ne.lat) / 2, (sw.lng + ne.lng) / 2],
-      sw: [sw.lat, sw.lng],
-      ne: [ne.lat, ne.lng],
+      center: [(minLat + maxLat) / 2, (minLng + maxLng) / 2],
+      sw: [minLat, minLng],
+      ne: [maxLat, maxLng],
       rotation, opacity, zoom_level: zoom, mapZoom,
     });
   };
