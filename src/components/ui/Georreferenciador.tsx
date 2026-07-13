@@ -15,15 +15,23 @@ interface Props {
   onSave: (data: { center: [number, number]; sw?: [number, number]; ne?: [number, number]; zoom_level: number; mapZoom: number; rotation: number; opacity: number }) => void;
   onClose: () => void;
   saved?: { bounds: { center?: [number, number]; sw?: [number, number]; ne?: [number, number]; map_zoom?: number }; rotation: number; opacity: number; zoom_level?: number } | null;
-  onCreateTuberia?: (data: { codigo: string; nivel: string; material?: string; diametro_mm?: number; puntos: PuntoGeo[] }) => Promise<void>;
+  onCreateTuberia?: (data: { codigo: string; nivel: string; material?: string; diametro_mm?: number; nombre?: string; puntos: PuntoGeo[] }) => Promise<void>;
   onCreateValvula?: (data: { codigo: string; tipo: string; diametro_mm?: number; tuberia_id?: string; punto: PuntoGeo }) => Promise<void>;
   onCreateAntena?: (data: { codigo: string; tipo?: string; punto: PuntoGeo }) => Promise<void>;
   onCreateSonda?: (data: { codigo: string; tipo?: string; profundidad_m?: number; punto: PuntoGeo }) => Promise<void>;
+  onUpdateTuberia?: (id: string, data: any) => Promise<void>;
+  onUpdateValvula?: (id: string, data: any) => Promise<void>;
+  onUpdateAntena?: (id: string, data: any) => Promise<void>;
+  onUpdateSonda?: (id: string, data: any) => Promise<void>;
+  onDeleteTuberia?: (id: string) => Promise<void>;
+  onDeleteValvula?: (id: string) => Promise<void>;
+  onDeleteAntena?: (id: string) => Promise<void>;
+  onDeleteSonda?: (id: string) => Promise<void>;
 }
 
-type ModoDibujo = null | "tuberia" | "valvula" | "antena" | "sonda";
+type ModoDibujo = null | "matriz" | "impulsion" | "submatriz" | "valvula_electrica" | "valvula_aire" | "antena" | "sonda";
 
-export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, initialCenter, onSave, onClose, saved, onCreateTuberia, onCreateValvula, onCreateAntena, onCreateSonda }: Props) {
+export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, initialCenter, onSave, onClose, saved, onCreateTuberia, onCreateValvula, onCreateAntena, onCreateSonda, onUpdateTuberia, onUpdateValvula, onUpdateAntena, onUpdateSonda, onDeleteTuberia, onDeleteValvula, onDeleteAntena, onDeleteSonda }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -36,8 +44,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const [mapZoom, setMapZoom] = useState(15);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
-  const [, setPosition] = useState(0);
-  void setPosition;
+
   const [transparentBg, setTransparentBg] = useState(true);
   const rawCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const geoCenterRef = useRef<L.LatLng>(L.latLng(initialCenter[0], initialCenter[1]));
@@ -45,8 +52,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   // --- Drawing state ---
   const [modoDibujo, setModoDibujo] = useState<ModoDibujo>(null);
-  const [puntosTuberias, setPuntosTuberias] = useState<PuntoGeo[]>([]);
+  const [puntosTemp, setPuntosTemp] = useState<PuntoGeo[]>([]);
   const [contador, setContador] = useState(0);
+  const [antenasExistentes, setAntenasExistentes] = useState<any[]>([]);
+  const [sondasExistentes, setSondasExistentes] = useState<any[]>([]);
+  const [editandoElemento, setEditandoElemento] = useState<{ tipo: string; id: string } | null>(null);
+  const [formCrear, setFormCrear] = useState<{ tipo: string; codigo: string; material?: string; diametro_mm?: number; tuberia_id?: string; tipo_valvula?: string; profundidad_m?: number; nombre?: string } | null>(null);
 
   // --- Init map ---
   useEffect(() => {
@@ -138,7 +149,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (!ready || !containerRef.current) return;
     const parent = containerRef.current.parentElement;
     if (!parent) return;
-    setPosition(0);
+    setForce(n => n + 1);
   }, [ready]);
 
 
@@ -167,6 +178,80 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   }, []);
   const nudgeRef = useRef<(dLat: number, dLng: number) => void>(() => {});
   nudgeRef.current = nudge;
+
+  function sugerirCodigo(tipo: string): string {
+    const prefixMap: Record<string, string> = {
+      matriz: "M", impulsion: "I", submatriz: "SM",
+      valvula_electrica: "VE", valvula_aire: "VA",
+      antena: "A", sonda: "S",
+    };
+    const prefix = prefixMap[tipo] || "X";
+    const existingNums: number[] = [];
+    tuberiasExistentes.concat(valvulasExistentes, antenasExistentes, sondasExistentes).forEach((el: any) => {
+      const match = el.codigo?.match(new RegExp("^" + prefix + "([0-9]+)$"));
+      if (match) existingNums.push(parseInt(match[1]));
+    });
+    const maxNum = existingNums.length > 0 ? Math.max(...existingNums) : 0;
+    return prefix + (maxNum + 1);
+  }
+
+  const handleConfirmCrear = useCallback((data: any) => {
+    const tipo = formCrear?.tipo;
+    if (!tipo || puntosTemp.length === 0) return;
+    const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
+    const nivelMap: Record<string, string> = { matriz: "matriz", impulsion: "impulsion", submatriz: "submatriz" };
+
+    if (isLine) {
+      onCreateTuberia?.({
+        codigo: data.codigo,
+        nivel: nivelMap[tipo] || "matriz",
+        material: data.material || "PVC",
+        diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined,
+        nombre: data.nombre,
+        puntos: puntosTemp,
+      });
+    } else if (tipo === "valvula_electrica" || tipo === "valvula_aire") {
+      onCreateValvula?.({
+        codigo: data.codigo,
+        tipo: data.tipo_valvula || "transicion",
+        diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined,
+        tuberia_id: data.tuberia_id || undefined,
+        punto: puntosTemp[0],
+      });
+    } else if (tipo === "antena") {
+      onCreateAntena?.({ codigo: data.codigo, tipo: "", punto: puntosTemp[0] });
+    } else if (tipo === "sonda") {
+      onCreateSonda?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: puntosTemp[0] });
+    }
+    setFormCrear(null);
+    setPuntosTemp([]);
+    setContador(c => c + 1);
+  }, [formCrear, puntosTemp, onCreateTuberia, onCreateValvula, onCreateAntena, onCreateSonda]);
+
+  const handleUpdate = useCallback(async (tipo: string, id: string, d: any) => {
+    const updateData: any = {};
+    if (d.codigo) updateData.codigo = d.codigo;
+    if (d.material) updateData.material = d.material;
+    if (d.diametro_mm) updateData.diametro_mm = Number(d.diametro_mm);
+    if (d.tipo_valvula) updateData.tipo = d.tipo_valvula;
+    if (tipo === "tuberia" && d.nombre !== undefined) updateData.nombre = d.nombre;
+
+    if (tipo === "tuberia") await onUpdateTuberia?.(id, updateData);
+    else if (tipo === "valvula" || tipo === "valvula_electrica" || tipo === "valvula_aire") await onUpdateValvula?.(id, updateData);
+    else if (tipo === "antena") await onUpdateAntena?.(id, updateData);
+    else if (tipo === "sonda") await onUpdateSonda?.(id, updateData);
+    setEditandoElemento(null);
+    setContador(c => c + 1);
+  }, [onUpdateTuberia, onUpdateValvula, onUpdateAntena, onUpdateSonda]);
+
+  const handleDelete = useCallback(async (tipo: string, id: string) => {
+    if (!confirm("Estas seguro de eliminar este elemento?")) return;
+    if (tipo === "tuberia") await onDeleteTuberia?.(id);
+    else if (tipo === "valvula" || tipo === "valvula_electrica" || tipo === "valvula_aire") await onDeleteValvula?.(id);
+    else if (tipo === "antena") await onDeleteAntena?.(id);
+    else if (tipo === "sonda") await onDeleteSonda?.(id);
+    setContador(c => c + 1);
+  }, [onDeleteTuberia, onDeleteValvula, onDeleteAntena, onDeleteSonda]);
 
   // Cleanup
   useEffect(() => () => {
@@ -245,87 +330,55 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       if (!modoDibujo) return;
       const punto: PuntoGeo = { lat: e.latlng.lat, lng: e.latlng.lng };
 
-      if (modoDibujo === "tuberia") {
-        const nuevos = [...puntosTuberias, punto];
-        setPuntosTuberias(nuevos);
-      } else if (modoDibujo === "valvula") {
-        const codigo = prompt(`Código de la válvula (M${equipoNum}-1, M${equipoNum}-2, etc):`, `M${equipoNum}-${contador + 1}`);
-        if (!codigo) { setModoDibujo(null); return; }
-        const tipo = prompt("Tipo (transicion/purga/aire/compuerta/otro):", "transicion") || "transicion";
-        const diam = prompt("Diámetro mm (opcional):", "");
-        if (onCreateValvula) {
-          onCreateValvula({ codigo, tipo, diametro_mm: diam ? Number(diam) : undefined, punto }).then(() => {
-            setContador(c => c + 1);
-          });
-        }
-        setModoDibujo(null);
-      } else if (modoDibujo === "antena") {
-        const codigo = prompt("Código de la antena:", `A${equipoNum}-${contador + 1}`);
-        if (!codigo) { setModoDibujo(null); return; }
-        const tipo = prompt("Tipo (opcional):", "");
-        if (onCreateAntena) {
-          onCreateAntena({ codigo, tipo: tipo || undefined, punto }).then(() => {
-            setContador(c => c + 1);
-          });
-        }
-        setModoDibujo(null);
-      } else if (modoDibujo === "sonda") {
-        const codigo = prompt("Código de la sonda:", `S${equipoNum}-${contador + 1}`);
-        if (!codigo) { setModoDibujo(null); return; }
-        const tipo = prompt("Tipo (opcional):", "");
-        const prof = prompt("Profundidad m (opcional):", "");
-        if (onCreateSonda) {
-          onCreateSonda({ codigo, tipo: tipo || undefined, profundidad_m: prof ? Number(prof) : undefined, punto }).then(() => {
-            setContador(c => c + 1);
-          });
-        }
+      const isLine = modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz";
+
+      if (isLine) {
+        setPuntosTemp(prev => [...prev, punto]);
+      } else {
+        setPuntosTemp([punto]);
+        setFormCrear({ tipo: modoDibujo, codigo: sugerirCodigo(modoDibujo) });
         setModoDibujo(null);
       }
     };
     m.on("click", onClick);
     return () => { m.off("click", onClick); };
-  }, [modoDibujo, equipoNum, onCreateValvula, onCreateAntena, onCreateSonda]);
+  }, [modoDibujo]);
 
-  // --- Double click finishes tuberia drawing ---
+  // --- Double click finishes line drawing ---
   useEffect(() => {
     const m = mapRef.current;
-    if (!m || modoDibujo !== "tuberia") return;
-    const onDouble = async () => {
-      if (puntosTuberias.length < 2) {
-        setPuntosTuberias([]);
+    if (!m) return;
+    const isLine = modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz";
+    if (!isLine) return;
+    const onDouble = () => {
+      if (puntosTemp.length < 2) {
+        setPuntosTemp([]);
         setModoDibujo(null);
         return;
       }
-      const codigo = prompt(`Código de la tubería:`, `T${equipoNum}-${contador + 1}`);
-      if (!codigo) { setPuntosTuberias([]); setModoDibujo(null); return; }
-      const nivel = prompt("Nivel (matriz/submatriz/impulsion):", "matriz") || "matriz";
-      const material = prompt("Material (PVC/HDPE/acero):", "PVC") || "PVC";
-      const diam = prompt("Diámetro mm (opcional):", "");
-      if (onCreateTuberia) {
-        await onCreateTuberia({ codigo, nivel, material, diametro_mm: diam ? Number(diam) : undefined, puntos: puntosTuberias });
-        setContador(c => c + 1);
-      }
-      setPuntosTuberias([]);
+      setFormCrear({ tipo: modoDibujo, codigo: sugerirCodigo(modoDibujo) });
       setModoDibujo(null);
     };
     m.on("dblclick", onDouble);
     return () => { m.off("dblclick", onDouble); };
-  }, [modoDibujo, puntosTuberias, contador, onCreateTuberia, equipoNum]);
+  }, [modoDibujo, puntosTemp]);
 
-  // --- Render preview of current tuberia being drawn ---
+  // --- Render preview of current line being drawn ---
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
+    const isLine = modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz";
+    if (!isLine) return;
     const layer = L.polyline([], { color: "#1565c0", weight: 4, dashArray: "8,8" }).addTo(m);
-    (m as any).__tuberiaPreview = layer;
+    (m as any).__linePreview = layer;
     return () => { m.removeLayer(layer); };
   }, [modoDibujo]);
 
   useEffect(() => {
     const m = mapRef.current as any;
-    if (!m?.__tuberiaPreview) return;
-    m.__tuberiaPreview.setLatLngs(puntosTuberias.map(p => L.latLng(p.lat, p.lng)));
-  }, [puntosTuberias]);
+    if (!m?.__linePreview) return;
+    m.__linePreview.setLatLngs(puntosTemp.map(p => L.latLng(p.lat, p.lng)));
+  }, [puntosTemp]);
 
   const overlayRef = useRef<any>(null);
 
@@ -341,6 +394,10 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       .then(r => r.json()).then(d => setTuberiasExistentes(d || []));
     fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/valvulas?select=*,tuberias!inner(equipo_id)&tuberias.equipo_id=eq.${equipoId}`, { headers: h })
       .then(r => r.json()).then(d => setValvulasExistentes(d || []));
+    fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/antenas?equipo_id=eq.${equipoId}`, { headers: h })
+      .then(r => r.json()).then(d => setAntenasExistentes(d || []));
+    fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/sondas?equipo_id=eq.${equipoId}`, { headers: h })
+      .then(r => r.json()).then(d => setSondasExistentes(d || []));
   }, [ready, equipoId, contador]);
 
   // Render tuberias as polylines
@@ -366,13 +423,46 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     valvulasExistentes.forEach(v => {
       if (!v.geometria?.coordinates) return;
       const [lng, lat] = v.geometria.coordinates;
-      const c = L.circleMarker([lat, lng], { radius: 6, color: "#e65100", fillColor: "#ff8a65", fillOpacity: 0.9 });
+      const color = v.tipo === "aire" ? "#42a5f5" : "#e65100";
+      const c = L.circleMarker([lat, lng], { radius: 6, color, fillColor: color, fillOpacity: 0.9 });
       c.bindTooltip(v.codigo, { permanent: false, className: "cuartel-tooltip" });
       c.addTo(m);
       layers.push(c);
     });
     return () => { layers.forEach(l => m.removeLayer(l)); };
   }, [valvulasExistentes]);
+
+  // Render antenas as purple circles
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    const layers: L.CircleMarker[] = [];
+    antenasExistentes.forEach(a => {
+      if (!a.geometria?.coordinates) return;
+      const [lng, lat] = a.geometria.coordinates;
+      const c = L.circleMarker([lat, lng], { radius: 6, color: "#6a1b9a", fillColor: "#6a1b9a", fillOpacity: 0.9 });
+      c.bindTooltip(a.codigo, { permanent: false, className: "cuartel-tooltip" });
+      c.addTo(m);
+      layers.push(c);
+    });
+    return () => { layers.forEach(l => m.removeLayer(l)); };
+  }, [antenasExistentes]);
+
+  // Render sondas as yellow circles
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    const layers: L.CircleMarker[] = [];
+    sondasExistentes.forEach(s => {
+      if (!s.geometria?.coordinates) return;
+      const [lng, lat] = s.geometria.coordinates;
+      const c = L.circleMarker([lat, lng], { radius: 6, color: "#f9a825", fillColor: "#f9a825", fillOpacity: 0.9 });
+      c.bindTooltip(s.codigo, { permanent: false, className: "cuartel-tooltip" });
+      c.addTo(m);
+      layers.push(c);
+    });
+    return () => { layers.forEach(l => m.removeLayer(l)); };
+  }, [sondasExistentes]);
 
   const ctr: React.CSSProperties = {
     position: "fixed", inset: 0, zIndex: 5000,
@@ -426,40 +516,230 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
         {/* Drawing toolbar */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderBottom: "1px solid #eee", background: "#f5f5f5", flexShrink: 0 }}>
-          <button onClick={() => setModoDibujo(modoDibujo === "tuberia" ? null : "tuberia")}
-            style={{ ...btn, background: modoDibujo === "tuberia" ? "#1565c0" : "white", color: modoDibujo === "tuberia" ? "white" : "#1565c0", fontWeight: 600 }}>📏 Tubería</button>
-          <button onClick={() => setModoDibujo(modoDibujo === "valvula" ? null : "valvula")}
-            style={{ ...btn, background: modoDibujo === "valvula" ? "#e65100" : "white", color: modoDibujo === "valvula" ? "white" : "#e65100", fontWeight: 600 }}>📍 Válvula</button>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#555", marginRight: 4 }}>Dibujar:</span>
+          <button onClick={() => setModoDibujo(modoDibujo === "matriz" ? null : "matriz")}
+            style={{ ...btn, background: modoDibujo === "matriz" ? "#1565c0" : "white", color: modoDibujo === "matriz" ? "white" : "#1565c0", fontWeight: 600, borderLeft: "3px solid #1565c0" }}>🔵 Matriz</button>
+          <button onClick={() => setModoDibujo(modoDibujo === "impulsion" ? null : "impulsion")}
+            style={{ ...btn, background: modoDibujo === "impulsion" ? "#2e7d32" : "white", color: modoDibujo === "impulsion" ? "white" : "#2e7d32", fontWeight: 600, borderLeft: "3px solid #2e7d32" }}>🟢 Impulsión</button>
+          <button onClick={() => setModoDibujo(modoDibujo === "submatriz" ? null : "submatriz")}
+            style={{ ...btn, background: modoDibujo === "submatriz" ? "#c62828" : "white", color: modoDibujo === "submatriz" ? "white" : "#c62828", fontWeight: 600, borderLeft: "3px solid #c62828" }}>🔴 Submatriz</button>
+          <span style={{ color: "#ddd" }}>|</span>
+          <button onClick={() => setModoDibujo(modoDibujo === "valvula_electrica" ? null : "valvula_electrica")}
+            style={{ ...btn, background: modoDibujo === "valvula_electrica" ? "#e65100" : "white", color: modoDibujo === "valvula_electrica" ? "white" : "#e65100", fontWeight: 600, borderLeft: "3px solid #e65100" }}>🟠 V. Eléctrica</button>
+          <button onClick={() => setModoDibujo(modoDibujo === "valvula_aire" ? null : "valvula_aire")}
+            style={{ ...btn, background: modoDibujo === "valvula_aire" ? "#42a5f5" : "white", color: modoDibujo === "valvula_aire" ? "white" : "#42a5f5", fontWeight: 600, borderLeft: "3px solid #42a5f5" }}>🔵 V. Aire</button>
+          <span style={{ color: "#ddd" }}>|</span>
           <button onClick={() => setModoDibujo(modoDibujo === "antena" ? null : "antena")}
-            style={{ ...btn, background: modoDibujo === "antena" ? "#1565c0" : "white", color: modoDibujo === "antena" ? "white" : "#1565c0", fontWeight: 600 }}>📡 Antena</button>
+            style={{ ...btn, background: modoDibujo === "antena" ? "#6a1b9a" : "white", color: modoDibujo === "antena" ? "white" : "#6a1b9a", fontWeight: 600, borderLeft: "3px solid #6a1b9a" }}>🟣 Antena</button>
           <button onClick={() => setModoDibujo(modoDibujo === "sonda" ? null : "sonda")}
-            style={{ ...btn, background: modoDibujo === "sonda" ? "#2e7d32" : "white", color: modoDibujo === "sonda" ? "white" : "#2e7d32", fontWeight: 600 }}>💧 Sonda</button>
-          {modoDibujo && (
+            style={{ ...btn, background: modoDibujo === "sonda" ? "#f9a825" : "white", color: modoDibujo === "sonda" ? "white" : "#f9a825", fontWeight: 600, borderLeft: "3px solid #f9a825" }}>🟡 Sonda</button>
+          {(modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz") && (
             <span style={{ fontSize: 12, color: "#e65100", fontWeight: 600, marginLeft: 16 }}>
-              {modoDibujo === "tuberia" ? `Click en cada vértice, doble click para cerrar (${puntosTuberias.length} puntos)` : "Click en el mapa para colocar"}
+              Click para puntos, doble click para cerrar ({puntosTemp.length} pts)
+            </span>
+          )}
+          {modoDibujo && !(modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz") && (
+            <span style={{ fontSize: 12, color: "#e65100", fontWeight: 600, marginLeft: 16 }}>
+              Click en el mapa para colocar
             </span>
           )}
         </div>
 
-        <div ref={containerRef} style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-          <div ref={mapContainerRef} style={{ position: "absolute", inset: 0, zIndex: 1 }} />
-          {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, background: "rgba(255,255,255,0.7)" }}><p style={{ color: "#666", fontSize: 14 }}>Cargando plano...</p></div>}
-          {imageUrl && !loading && (
-            <div style={{
-              position: "absolute", left: posX, top: posY,
-              transform: `translate(-50%, -50%) scale(${scaleFactor}) rotate(${rotation}deg)`,
-              transformOrigin: "center center", zIndex: 10, pointerEvents: "none",
-            }}>
-              <img src={transparentBg ? imageUrl : (imageUrlRaw || imageUrl)} alt="Plano" className="geo-plano-img" style={{ display: "block", maxWidth: "none", opacity }} />
-            </div>
-          )}
-          {!loading && (
-            <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", color: "#fff", padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 200, pointerEvents: "none", whiteSpace: "nowrap" }}>
-              {modoDibujo ? `Modo dibujo: ${modoDibujo}. Click en el mapa.` : "Rueda (click): agarrar y mover plano  |  Click izq: navegar mapa"}
-            </div>
-          )}
+        <div ref={containerRef} style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex" }}>
+          <div style={{ flex: 1, position: "relative" }}>
+            <div ref={mapContainerRef} style={{ position: "absolute", inset: 0, zIndex: 1 }} />
+            {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, background: "rgba(255,255,255,0.7)" }}><p style={{ color: "#666", fontSize: 14 }}>Cargando plano...</p></div>}
+            {imageUrl && !loading && (
+              <div style={{
+                position: "absolute", left: posX, top: posY,
+                transform: `translate(-50%, -50%) scale(${scaleFactor}) rotate(${rotation}deg)`,
+                transformOrigin: "center center", zIndex: 10, pointerEvents: "none",
+              }}>
+                <img src={transparentBg ? imageUrl : (imageUrlRaw || imageUrl)} alt="Plano" className="geo-plano-img" style={{ display: "block", maxWidth: "none", opacity }} />
+              </div>
+            )}
+            {!loading && (
+              <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", color: "#fff", padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 200, pointerEvents: "none", whiteSpace: "nowrap" }}>
+                {modoDibujo ? `Modo: ${modoDibujo}` : "Rueda: agarrar plano | Click izq: navegar"}
+              </div>
+            )}
+          </div>
+
+          {/* LAYER PANEL */}
+          <LayerPanelSide
+            tuberias={tuberiasExistentes}
+            valvulas={valvulasExistentes}
+            antenas={antenasExistentes}
+            sondas={sondasExistentes}
+            setModoDibujo={setModoDibujo}
+            editandoElemento={editandoElemento}
+            setEditandoElemento={setEditandoElemento}
+            formCrear={formCrear}
+            onConfirmCrear={handleConfirmCrear}
+            onCancelCrear={() => { setFormCrear(null); setPuntosTemp([]); }}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+            setFormCrear={setFormCrear}
+          />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Layer Panel Components ──────────────────────────────────────────────────
+
+function FormCrearElemento({ formCrear, onConfirm, onCancel, tuberias }: {
+  formCrear: any;
+  onConfirm: (data: any) => void;
+  onCancel: () => void;
+  tuberias: any[];
+}) {
+  const [data, setData] = useState<{ codigo: string; material?: string; diametro_mm?: number; nombre?: string; tipo_valvula?: string; tuberia_id?: string; profundidad_m?: number }>({ ...formCrear });
+  const isLine = formCrear.tipo === "matriz" || formCrear.tipo === "impulsion" || formCrear.tipo === "submatriz";
+  const isValve = formCrear.tipo === "valvula_electrica" || formCrear.tipo === "valvula_aire";
+
+  useEffect(() => {
+    setData({ ...formCrear });
+  }, [formCrear]);
+
+  return (
+    <div style={{ padding: 8, borderTop: "1px solid #ddd", background: "#fafafa" }}>
+      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Nuevo: {formCrear.tipo}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <label style={{ fontSize: 11 }}>Código:
+          <input value={data.codigo} onChange={e => setData(d => ({ ...d, codigo: e.target.value }))} style={{ width: "100%", fontSize: 11, padding: "2px 4px", boxSizing: "border-box" }} />
+        </label>
+        {isLine && <>
+          <label style={{ fontSize: 11 }}>Nombre:
+            <input value={data.nombre || ""} onChange={e => setData(d => ({ ...d, nombre: e.target.value }))} style={{ width: "100%", fontSize: 11, padding: "2px 4px", boxSizing: "border-box" }} />
+          </label>
+          <label style={{ fontSize: 11 }}>Material:
+            <select value={data.material || "PVC"} onChange={e => setData(d => ({ ...d, material: e.target.value }))} style={{ width: "100%", fontSize: 11 }}>
+              <option>PVC</option>
+              <option>HDPE</option>
+              <option>acero</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 11 }}>Diámetro mm:
+            <input type="number" value={data.diametro_mm || ""} onChange={e => setData(d => ({ ...d, diametro_mm: e.target.value ? Number(e.target.value) : undefined }))} style={{ width: "100%", fontSize: 11, padding: "2px 4px", boxSizing: "border-box" }} />
+          </label>
+        </>}
+        {isValve && <>
+          <label style={{ fontSize: 11 }}>Tipo:
+            <select value={data.tipo_valvula || "transicion"} onChange={e => setData(d => ({ ...d, tipo_valvula: e.target.value }))} style={{ width: "100%", fontSize: 11 }}>
+              <option>transicion</option>
+              <option>purga</option>
+              <option>aire</option>
+              <option>compuerta</option>
+              <option>otro</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 11 }}>Diámetro mm:
+            <input type="number" value={data.diametro_mm || ""} onChange={e => setData(d => ({ ...d, diametro_mm: e.target.value ? Number(e.target.value) : undefined }))} style={{ width: "100%", fontSize: 11, padding: "2px 4px", boxSizing: "border-box" }} />
+          </label>
+          <label style={{ fontSize: 11 }}>Tubería asociada:
+            <select value={data.tuberia_id || ""} onChange={e => setData(d => ({ ...d, tuberia_id: e.target.value || undefined }))} style={{ width: "100%", fontSize: 11 }}>
+              <option value="">— Ninguna —</option>
+              {tuberias.map((t: any) => <option key={t.id} value={t.id}>{t.codigo}</option>)}
+            </select>
+          </label>
+        </>}
+        {formCrear.tipo === "sonda" && <>
+          <label style={{ fontSize: 11 }}>Profundidad m:
+            <input type="number" value={data.profundidad_m || ""} onChange={e => setData(d => ({ ...d, profundidad_m: e.target.value ? Number(e.target.value) : undefined }))} style={{ width: "100%", fontSize: 11, padding: "2px 4px", boxSizing: "border-box" }} />
+          </label>
+        </>}
+        <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+          <button onClick={() => onConfirm(data)} style={{ background: "#1565c0", color: "white", border: "none", borderRadius: 3, padding: "4px 10px", fontSize: 11, cursor: "pointer" }}>✓ Crear</button>
+          <button onClick={onCancel} style={{ background: "#ccc", border: "none", borderRadius: 3, padding: "4px 10px", fontSize: 11, cursor: "pointer" }}>✕ Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LayerItem({ item, tipo, editando, onEdit, onDelete, onStartEdit }: {
+  item: any;
+  tipo: string;
+  editando: boolean;
+  onEdit: (id: string, data: any) => void;
+  onDelete: (id: string) => void;
+  onStartEdit: (tipo: string, id: string) => void;
+}) {
+  const [editData, setEditData] = useState<any>({ codigo: item.codigo, material: item.material, diametro_mm: item.diametro_mm });
+
+  if (editando) {
+    return (
+      <div style={{ fontSize: 11, padding: "4px 8px", borderBottom: "1px solid #f0f0f0" }}>
+        <input value={editData.codigo || ""} onChange={e => setEditData((d: any) => ({ ...d, codigo: e.target.value }))} style={{ width: "60%", fontSize: 10, padding: "1px 3px", marginRight: 4 }} />
+        <button onClick={() => onEdit(item.id, editData)} style={{ background: "#2e7d32", color: "white", border: "none", borderRadius: 2, padding: "2px 6px", fontSize: 10, cursor: "pointer", marginRight: 2 }}>✓</button>
+        <button onClick={() => onStartEdit(tipo, "")} style={{ background: "#ccc", border: "none", borderRadius: 2, padding: "2px 6px", fontSize: 10, cursor: "pointer" }}>✕</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, padding: "3px 8px", borderBottom: "1px solid #f0f0f0" }}>
+      <span>{item.codigo || "—"}</span>
+      <div>
+        <button onClick={() => onStartEdit(tipo, item.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#1565c0", padding: "0 2px" }} title="Editar">✎</button>
+        <button onClick={() => onDelete(item.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#c62828", padding: "0 2px" }} title="Eliminar">🗑</button>
+      </div>
+    </div>
+  );
+}
+
+function LayerPanelSide({ tuberias, valvulas, antenas, sondas, setModoDibujo, editandoElemento, setEditandoElemento, formCrear, onConfirmCrear, onCancelCrear, onUpdate, onDelete, setFormCrear }: {
+  tuberias: any[];
+  valvulas: any[];
+  antenas: any[];
+  sondas: any[];
+  setModoDibujo: (m: ModoDibujo) => void;
+  editandoElemento: { tipo: string; id: string } | null;
+  setEditandoElemento: (e: { tipo: string; id: string } | null) => void;
+  formCrear: any;
+  onConfirmCrear: (data: any) => void;
+  onCancelCrear: () => void;
+  onUpdate: (tipo: string, id: string, data: any) => void;
+  onDelete: (tipo: string, id: string) => void;
+  setFormCrear: (f: any) => void;
+}) {
+  const groups = [
+    { key: "matriz", label: "Matrices", icon: "🔵", color: "#1565c0", data: tuberias.filter(t => t.nivel === "matriz") },
+    { key: "impulsion", label: "Impulsiones", icon: "🟢", color: "#2e7d32", data: tuberias.filter(t => t.nivel === "impulsion") },
+    { key: "submatriz", label: "Submatrices", icon: "🔴", color: "#c62828", data: tuberias.filter(t => t.nivel === "submatriz") },
+    { key: "valvula_electrica", label: "V. Eléctricas", icon: "🟠", color: "#e65100", data: valvulas.filter((v: any) => v.tipo !== "aire") },
+    { key: "valvula_aire", label: "V. Aire", icon: "🔵", color: "#42a5f5", data: valvulas.filter((v: any) => v.tipo === "aire") },
+    { key: "antena", label: "Antenas", icon: "🟣", color: "#6a1b9a", data: antenas },
+    { key: "sonda", label: "Sondas", icon: "🟡", color: "#f9a825", data: sondas },
+  ];
+
+  return (
+    <div style={{ width: 260, borderLeft: "1px solid #ddd", display: "flex", flexDirection: "column", background: "#fafafa", flexShrink: 0 }}>
+      <div style={{ padding: "8px 12px", borderBottom: "1px solid #ddd", fontWeight: 700, fontSize: 13, background: "#f0f0f0" }}>📋 CAPAS</div>
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {groups.map(g => (
+          <div key={g.key}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", background: "#f5f5f5", borderBottom: "1px solid #e0e0e0", fontSize: 11, fontWeight: 600 }}>
+              <span>{g.icon} {g.label} ({g.data.length})</span>
+              <button onClick={() => { setModoDibujo(g.key as ModoDibujo); setFormCrear(null); }}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: g.color, fontWeight: 700, padding: "0 4px" }} title={`Agregar ${g.label}`}>＋</button>
+            </div>
+            {g.data.map((item: any) => (
+              <LayerItem key={item.id} item={item} tipo={g.key}
+                editando={editandoElemento?.tipo === g.key && editandoElemento?.id === item.id}
+                onEdit={(id, d) => onUpdate(g.key === "matriz" || g.key === "impulsion" || g.key === "submatriz" ? "tuberia" : g.key, id, d)}
+                onDelete={(id) => onDelete(g.key === "matriz" || g.key === "impulsion" || g.key === "submatriz" ? "tuberia" : g.key, id)}
+                onStartEdit={(t, id) => setEditandoElemento(id ? { tipo: t, id } : null)} />
+            ))}
+          </div>
+        ))}
+      </div>
+      {formCrear && (
+        <FormCrearElemento formCrear={formCrear} onConfirm={(data) => onConfirmCrear(data)} onCancel={onCancelCrear}
+          tuberias={tuberias.filter(t => t.nivel === "matriz" || t.nivel === "impulsion" || t.nivel === "submatriz")} />
+      )}
     </div>
   );
 }
