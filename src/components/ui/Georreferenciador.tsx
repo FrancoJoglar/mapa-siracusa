@@ -171,7 +171,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const curLL = m.containerPointToLatLng([x, y]);
       const dLat = curLL.lat - dragInfo.current.startLatLng.lat;
       const dLng = curLL.lng - dragInfo.current.startLatLng.lng;
-      geoCenterRef.current = L.latLng(geoCenterRef.current.lat - dLat, geoCenterRef.current.lng - dLng);
+      geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
       dragInfo.current.startLatLng = curLL;
       setForce(n => n + 1);
     };
@@ -211,6 +211,23 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const ov = overlayRef.current as any;
     if (ov?._clean) ov._clean();
   }, []);
+
+  // --- Scroll wheel moves the plane instead of zooming the map ---
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (modoDibujo) return;
+      e.preventDefault();
+      const step = 0.0001;
+      const dLat = e.deltaY > 0 ? -step : step;
+      const dLng = e.deltaX ? (e.deltaX > 0 ? step : -step) : 0;
+      geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
+      setForce(n => n + 1);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [modoDibujo]);
 
   // --- Save ---
   const handleSave = () => {
@@ -456,7 +473,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
           )}
           {!loading && (
             <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", color: "#fff", padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 200, pointerEvents: "none", whiteSpace: "nowrap" }}>
-              {modoDibujo ? `Modo dibujo: ${modoDibujo}. Click en el mapa.` : "Click izquierdo: navegar mapa  |  Click rueda en ● azul: arrastrar plano"}
+              {modoDibujo ? `Modo dibujo: ${modoDibujo}. Click en el mapa.` : "Rueda: mover plano  |  Click rueda en ● azul: arrastrar  |  Click izq: navegar mapa"}
             </div>
           )}
         </div>
