@@ -391,13 +391,13 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (!ready || !equipoId) return;
     const h = { "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk" };
     fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/tuberias?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => setTuberiasExistentes(d || []));
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setTuberiasExistentes(d); }).catch(() => {});
     fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/valvulas?select=*,tuberias!inner(equipo_id)&tuberias.equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => setValvulasExistentes(d || []));
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setValvulasExistentes(d); }).catch(() => {});
     fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/antenas?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => setAntenasExistentes(d || []));
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setAntenasExistentes(d); }).catch(() => {});
     fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/sondas?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => setSondasExistentes(d || []));
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setSondasExistentes(d); }).catch(() => {});
   }, [ready, equipoId, contador]);
 
   // Render tuberias as polylines
