@@ -42,6 +42,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const rawCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const geoCenterRef = useRef<L.LatLng>(L.latLng(initialCenter[0], initialCenter[1]));
   const dragInfo = useRef({ dragging: false, startLatLng: L.latLng(0, 0) });
+  const baseZoomRef = useRef(15);
   const equipoNum = equipoCodigo.replace("Equipo ", "").trim();
 
   // --- Drawing state ---
@@ -60,6 +61,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       attribution: "&copy; Esri",
     }).addTo(m);
     mapRef.current = m;
+    baseZoomRef.current = m.getZoom();
     setTimeout(() => { m.invalidateSize(); setReady(true); }, 200);
     return () => { m.remove(); mapRef.current = null; };
   }, []);
@@ -94,6 +96,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (!saved) return;
     const b = saved.bounds;
     if (b?.center) geoCenterRef.current = L.latLng(b.center[0], b.center[1]);
+    if (b?.map_zoom) baseZoomRef.current = b.map_zoom;
     setRotation(saved.rotation);
     setOpacity(saved.opacity);
     if (saved.zoom_level) setZoom(saved.zoom_level);
@@ -180,6 +183,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   const [, setForce] = useState(0);
   const { x: posX, y: posY } = getPixelPos();
+  const scaleFactor = getScale();
 
   // --- Convert geo center to pixel position ---
   function getPixelPos() {
@@ -187,6 +191,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (!m) return { x: 0, y: 0 };
     const pt = m.latLngToContainerPoint(geoCenterRef.current);
     return { x: pt.x, y: pt.y };
+  }
+
+  function getScale() {
+    const m = mapRef.current;
+    if (!m) return zoom / 100;
+    return (zoom / 100) * Math.pow(2, m.getZoom() - baseZoomRef.current);
   }
 
   const nudge = useCallback((dLat: number, dLng: number) => {
@@ -429,7 +439,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
           {imageUrl && !loading && (
             <div style={{
               position: "absolute", left: posX, top: posY,
-              transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+              transform: `translate(-50%, -50%) scale(${scaleFactor}) rotate(${rotation}deg)`,
               transformOrigin: "center center", zIndex: 10, pointerEvents: "none",
             }}>
               <img src={transparentBg ? imageUrl : (imageUrlRaw || imageUrl)} alt="Plano" className="geo-plano-img" style={{ display: "block", maxWidth: "none", opacity }} />
