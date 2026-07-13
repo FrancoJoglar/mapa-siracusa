@@ -123,6 +123,7 @@ export interface Valvula {
   tuberia_id: string;
   tipo: string;
   diametro_mm: number | null;
+  color?: string;
   geojson?: Feature;
   created_at: string;
 }

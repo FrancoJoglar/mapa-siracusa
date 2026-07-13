@@ -41,9 +41,14 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [vista, setVista] = useState<Vista>("sectores");
   const [mostrarEdif, setMostrarEdif] = useState(true);
   const [mostrarUnidades, setMostrarUnidades] = useState(false);
-  const [mostrarBloques, setMostrarBloques] = useState(true);
+  const [equiposActivo, setEquiposActivo] = useState(true);
+  const [equiposExpandido, setEquiposExpandido] = useState(false);
+  const [mostrarValvulas, setMostrarValvulas] = useState(true);
+  const [mostrarSubmatrices, setMostrarSubmatrices] = useState(true);
   const [mostrarMatrices, setMostrarMatrices] = useState(true);
-  const [mostrarAntenasGroup, setMostrarAntenasGroup] = useState(true);
+  const [mostrarImpulsiones, setMostrarImpulsiones] = useState(true);
+  const [mostrarAntenas, setMostrarAntenas] = useState(true);
+  const [mostrarSondas, setMostrarSondas] = useState(true);
   const [fitBounds, setFitBounds] = useState<L.LatLngBounds | null>(null);
   const [satelite, setSatelite] = useState(true);
   const [medir, setMedir] = useState(false);
@@ -358,62 +363,41 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
 
           {vista === "sectores" && fitBounds && <FlyToBounds bounds={fitBounds} />}
 
-          {/* BLOQUES: válvulas + submatrices */}
-          {mostrarBloques && (
-            <>
-              {valvulas.length > 0 && valvulas.map(v => v.geojson && (
-                <GeoJSON key={"val-" + v.id} data={v.geojson} pointToLayer={(_f, latlng) => {
-                  const fillCol = v.color || "#ef5350";
-                  const c = L.circleMarker(latlng, { radius: 5, color: fillCol, fillColor: fillCol, fillOpacity: 0.9, pane: "valvulas" });
-                  return c;
-                }} />
-              ))}
-              {tuberias.filter(t => t.nivel === "submatriz").length > 0 && tuberias.filter(t => t.nivel === "submatriz").map(t => t.geojson && (
-                <GeoJSON key={"tub-" + t.id} data={t.geojson} style={{
-                  color: "#e65100", weight: 3, opacity: 0.85,
-                }} />
-              ))}
-            </>
-          )}
+          {/* EQUIPOS DE RIEGO: controlado por master toggle */}
+          {equiposActivo && mostrarValvulas && valvulas.length > 0 && valvulas.map(v => v.geojson && (
+            <GeoJSON key={"val-" + v.id} data={v.geojson} pointToLayer={(_f, latlng) => {
+              const fillCol = v.color || "#ef5350";
+              const c = L.circleMarker(latlng, { radius: 5, color: fillCol, fillColor: fillCol, fillOpacity: 0.9, pane: "valvulas" });
+              return c;
+            }} />
+          ))}
+          {equiposActivo && mostrarSubmatrices && tuberias.filter(t => t.nivel === "submatriz").length > 0 && tuberias.filter(t => t.nivel === "submatriz").map(t => t.geojson && (
+            <GeoJSON key={"tub-sub-" + t.id} data={t.geojson} style={{
+              color: "#e65100", weight: 3, opacity: 0.85,
+            }} />
+          ))}
+          {equiposActivo && mostrarMatrices && tuberias.filter(t => t.nivel === "matriz").length > 0 && tuberias.filter(t => t.nivel === "matriz").map(t => t.geojson && (
+            <GeoJSON key={"tub-mat-" + t.id} data={t.geojson} style={{
+              color: "#1565c0", weight: 3, opacity: 0.85,
+            }} />
+          ))}
+          {equiposActivo && mostrarImpulsiones && tuberias.filter(t => t.nivel === "impulsion").length > 0 && tuberias.filter(t => t.nivel === "impulsion").map(t => t.geojson && (
+            <GeoJSON key={"tub-imp-" + t.id} data={t.geojson} style={{
+              color: "#2e7d32", weight: 3, opacity: 0.85,
+            }} />
+          ))}
 
-          {/* MATRICES: tuberías matriz + válvulas de aire */}
-          {mostrarMatrices && (
-            <>
-              {tuberias.filter(t => t.nivel === "matriz").length > 0 && tuberias.filter(t => t.nivel === "matriz").map(t => t.geojson && (
-                <GeoJSON key={"tub-" + t.id} data={t.geojson} style={{
-                  color: "#1565c0", weight: 3, opacity: 0.85,
-                }} />
-              ))}
-              {valvulas.filter(v => v.tipo === "aire").length > 0 && valvulas.filter(v => v.tipo === "aire").map(v => v.geojson && (
-                <GeoJSON key={"val-aire-" + v.id} data={v.geojson} pointToLayer={(_f, latlng) => {
-                  const fillCol = v.color || "#1565c0";
-                  return L.circleMarker(latlng, { radius: 5, color: fillCol, fillColor: fillCol, fillOpacity: 0.9, pane: "valvulas" });
-                }} />
-              ))}
-              {/* También mostrar otras tuberías que no son matriz ni submatriz (impulsion, etc.) junto con matrices */}
-              {tuberias.filter(t => t.nivel !== "matriz" && t.nivel !== "submatriz").length > 0 && tuberias.filter(t => t.nivel !== "matriz" && t.nivel !== "submatriz").map(t => t.geojson && (
-                <GeoJSON key={"tub-" + t.id} data={t.geojson} style={{
-                  color: "#2e7d32", weight: 3, opacity: 0.85,
-                }} />
-              ))}
-            </>
-          )}
-
-          {/* ANTENAS: antenas + sondas */}
-          {mostrarAntenasGroup && (
-            <>
-              {antenas.length > 0 && antenas.map(a => a.geojson && (
-                <GeoJSON key={"ant-" + a.id} data={a.geojson} pointToLayer={(_f, latlng) =>
-                  L.circleMarker(latlng, { radius: 6, color: "#1565c0", fillColor: "#42a5f5", fillOpacity: 0.9 })
-                } />
-              ))}
-              {sondas.length > 0 && sondas.map(s => s.geojson && (
-                <GeoJSON key={"son-" + s.id} data={s.geojson} pointToLayer={(_f, latlng) =>
-                  L.circleMarker(latlng, { radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 0.9 })
-                } />
-              ))}
-            </>
-          )}
+          {/* ANTENAS Y SONDAS: independientes */}
+          {mostrarAntenas && antenas.length > 0 && antenas.map(a => a.geojson && (
+            <GeoJSON key={"ant-" + a.id} data={a.geojson} pointToLayer={(_f, latlng) =>
+              L.circleMarker(latlng, { radius: 6, color: "#1565c0", fillColor: "#42a5f5", fillOpacity: 0.9 })
+            } />
+          ))}
+          {mostrarSondas && sondas.length > 0 && sondas.map(s => s.geojson && (
+            <GeoJSON key={"son-" + s.id} data={s.geojson} pointToLayer={(_f, latlng) =>
+              L.circleMarker(latlng, { radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 0.9 })
+            } />
+          ))}
           {vista === "cuarteles" && <BuscadorCuartel cuarteles={cuarteles} />}
         </MapContainer>
         {/* Controls outside MapContainer to avoid re-render interference */}
@@ -421,9 +405,15 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
         <ToggleVista vista={vista} onChange={cambiarVista} />
         <ToggleEdificaciones visible={mostrarEdif} onToggle={() => setMostrarEdif(!mostrarEdif)} />
         <ToggleUnidades visible={mostrarUnidades} onToggle={() => setMostrarUnidades(!mostrarUnidades)} />
-        <ToggleBloques visible={mostrarBloques} onToggle={() => setMostrarBloques(!mostrarBloques)} />
-        <ToggleMatrices visible={mostrarMatrices} onToggle={() => setMostrarMatrices(!mostrarMatrices)} />
-        <ToggleAntenasGroup visible={mostrarAntenasGroup} onToggle={() => setMostrarAntenasGroup(!mostrarAntenasGroup)} />
+        <ToggleEquiposRiego activo={equiposActivo} expandido={equiposExpandido} onToggleActivo={() => setEquiposActivo(!equiposActivo)} onToggleExpandido={() => setEquiposExpandido(!equiposExpandido)} />
+        {equiposExpandido && <>
+          <ToggleValvulas visible={mostrarValvulas} onToggle={() => setMostrarValvulas(!mostrarValvulas)} />
+          <ToggleSubmatrices visible={mostrarSubmatrices} onToggle={() => setMostrarSubmatrices(!mostrarSubmatrices)} />
+          <ToggleMatrices visible={mostrarMatrices} onToggle={() => setMostrarMatrices(!mostrarMatrices)} />
+          <ToggleImpulsiones visible={mostrarImpulsiones} onToggle={() => setMostrarImpulsiones(!mostrarImpulsiones)} />
+        </>}
+        <ToggleAntenas visible={mostrarAntenas} onToggle={() => setMostrarAntenas(!mostrarAntenas)} />
+        <ToggleSondas visible={mostrarSondas} onToggle={() => setMostrarSondas(!mostrarSondas)} />
         <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
         <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
         <Leyenda />
@@ -579,14 +569,44 @@ function ToggleUnidades({ visible, onToggle }: { visible: boolean; onToggle: () 
   );
 }
 
-function ToggleBloques({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+function ToggleEquiposRiego({ activo, expandido, onToggleActivo, onToggleExpandido }: { activo: boolean; expandido: boolean; onToggleActivo: () => void; onToggleExpandido: () => void }) {
   return (
     <div className="leaflet-top leaflet-right" style={{ top: 280 }}>
+      <div className="leaflet-control" style={{ display: "flex", gap: 0 }}>
+        <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggleActivo(); }} style={{
+          padding: "4px 10px", borderRadius: "4px 0 0 4px", cursor: "pointer", fontSize: 11, fontWeight: 600,
+          background: activo ? "#37474f" : "white", color: activo ? "white" : "#333", border: "1px solid #ccc",
+        }}>Equipos de Riego</button>
+        <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggleExpandido(); }} style={{
+          padding: "4px 6px", borderRadius: "0 4px 4px 0", cursor: "pointer", fontSize: 11, fontWeight: 600,
+          background: "#455a64", color: "white", border: "1px solid #ccc",
+        }}>{expandido ? "▲" : "▼"}</button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleValvulas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 318 }}>
       <div className="leaflet-control">
         <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }} style={{
           padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
           background: visible ? "#e65100" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
-        }}>Bloques</button>
+        }}>Válvulas</button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleSubmatrices({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 352 }}>
+      <div className="leaflet-control">
+        <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }} style={{
+          padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
+          background: visible ? "#e65100" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
+        }}>Submatrices</button>
       </div>
     </div>
   );
@@ -594,7 +614,7 @@ function ToggleBloques({ visible, onToggle }: { visible: boolean; onToggle: () =
 
 function ToggleMatrices({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 318 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 386 }}>
       <div className="leaflet-control">
         <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }} style={{
           padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
@@ -605,14 +625,40 @@ function ToggleMatrices({ visible, onToggle }: { visible: boolean; onToggle: () 
   );
 }
 
-function ToggleAntenasGroup({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+function ToggleImpulsiones({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 352 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 420 }}>
       <div className="leaflet-control">
         <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }} style={{
           padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
-          background: visible ? "#1565c0" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
+          background: visible ? "#2e7d32" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
+        }}>Impulsiones</button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleAntenas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 460 }}>
+      <div className="leaflet-control">
+        <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }} style={{
+          padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
+          background: visible ? "#6a1b9a" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
         }}>Antenas</button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleSondas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 494 }}>
+      <div className="leaflet-control">
+        <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }} style={{
+          padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
+          background: visible ? "#f9a825" : "white", color: visible ? "#333" : "#333", border: "1px solid #ccc",
+        }}>Sondas</button>
       </div>
     </div>
   );
