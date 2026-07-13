@@ -172,21 +172,50 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (ov?._clean) ov._clean();
   }, []);
 
-  // --- Scroll wheel moves the plane instead of zooming the map ---
+  // --- Middle-click drag: agarrar y mover el plano con la rueda del mouse ---
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      if (modoDibujo) return;
+    let dragging = false;
+    let startLatLng = L.latLng(0, 0);
+    const onDown = (e: MouseEvent) => {
+      if (modoDibujo || e.button !== 1) return;
       e.preventDefault();
-      const step = 0.0001;
-      const dLat = e.deltaY > 0 ? -step : step;
-      const dLng = e.deltaX ? (e.deltaX > 0 ? step : -step) : 0;
+      const m = mapRef.current;
+      if (!m) return;
+      m.dragging.disable();
+      const rect = el.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      startLatLng = m.containerPointToLatLng([x, y]);
+      dragging = true;
+    };
+    const onMove = (e: MouseEvent) => {
+      if (!dragging) return;
+      const m = mapRef.current;
+      if (!m) return;
+      const rect = el.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const curLL = m.containerPointToLatLng([x, y]);
+      const dLat = curLL.lat - startLatLng.lat;
+      const dLng = curLL.lng - startLatLng.lng;
       geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
+      startLatLng = curLL;
       setForce(n => n + 1);
     };
-    el.addEventListener("wheel", onWheel, { passive: false, capture: true });
-    return () => el.removeEventListener("wheel", onWheel, { capture: true });
+    const onUp = () => {
+      dragging = false;
+      mapRef.current?.dragging.enable();
+    };
+    el.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      el.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
   }, [modoDibujo]);
 
   // --- Save ---
@@ -424,7 +453,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
           )}
           {!loading && (
             <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", color: "#fff", padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 200, pointerEvents: "none", whiteSpace: "nowrap" }}>
-              {modoDibujo ? `Modo dibujo: ${modoDibujo}. Click en el mapa.` : "Rueda: mover plano  |  Click izq: navegar mapa"}
+              {modoDibujo ? `Modo dibujo: ${modoDibujo}. Click en el mapa.` : "Rueda (click): agarrar y mover plano  |  Click izq: navegar mapa"}
             </div>
           )}
         </div>
