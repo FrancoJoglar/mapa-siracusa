@@ -41,7 +41,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const [transparentBg, setTransparentBg] = useState(true);
   const rawCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const geoCenterRef = useRef<L.LatLng>(L.latLng(initialCenter[0], initialCenter[1]));
-  const baseZoomRef = useRef(15);
   const equipoNum = equipoCodigo.replace("Equipo ", "").trim();
 
   // --- Drawing state ---
@@ -60,7 +59,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       attribution: "&copy; Esri",
     }).addTo(m);
     mapRef.current = m;
-    baseZoomRef.current = m.getZoom();
     setTimeout(() => { m.invalidateSize(); setReady(true); }, 200);
     return () => { m.remove(); mapRef.current = null; };
   }, []);
@@ -95,7 +93,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (!saved) return;
     const b = saved.bounds;
     if (b?.center) geoCenterRef.current = L.latLng(b.center[0], b.center[1]);
-    if (b?.map_zoom) baseZoomRef.current = b.map_zoom;
     setRotation(saved.rotation);
     setOpacity(saved.opacity);
     if (saved.zoom_level) setZoom(saved.zoom_level);
@@ -154,9 +151,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   }
 
   function getScale() {
-    const m = mapRef.current;
-    if (!m) return zoom / 100;
-    return (zoom / 100) * Math.pow(2, m.getZoom() - baseZoomRef.current);
+    return zoom / 100;
   }
 
   const nudge = useCallback((dLat: number, dLng: number) => {
