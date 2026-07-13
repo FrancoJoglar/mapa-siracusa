@@ -92,7 +92,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   useEffect(() => {
     if (!saved) return;
     const b = saved.bounds;
-    if (b?.center) geoCenterRef.current = L.latLng(b.center[0], b.center[1]);
+    const m = mapRef.current;
+    if (b?.center && m) {
+      geoCenterRef.current = L.latLng(b.center[0], b.center[1]);
+      m.setView(b.center, b?.map_zoom || m.getZoom(), { animate: false });
+      setForce(n => n + 1);
+    }
     setRotation(saved.rotation);
     setOpacity(saved.opacity);
     if (saved.zoom_level) setZoom(saved.zoom_level);
@@ -151,7 +156,9 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   }
 
   function getScale() {
-    return zoom / 100;
+    const m = mapRef.current;
+    if (!m || !saved?.bounds?.map_zoom) return zoom / 100;
+    return (zoom / 100) * Math.pow(2, m.getZoom() - saved.bounds.map_zoom);
   }
 
   const nudge = useCallback((dLat: number, dLng: number) => {
