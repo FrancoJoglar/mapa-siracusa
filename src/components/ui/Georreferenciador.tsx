@@ -142,12 +142,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   // --- Drag overlay (moves geographic center) ---
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (modoDibujo) return; // no arrastrar plano mientras dibujamos
+    if (modoDibujo) return;
+    if (e.button !== 1) return; // solo botón de la rueda (middle click)
     e.preventDefault(); e.stopPropagation();
     const m = mapRef.current;
     if (!m) return;
     m.dragging.disable();
-    // Convert clientX/Y to container-relative coords
     const ctrEl = mapContainerRef.current;
     if (ctrEl) {
       const rect = ctrEl.getBoundingClientRect();
@@ -443,7 +443,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
               transformOrigin: "center center", zIndex: 10, pointerEvents: "none",
             }}>
               <img src={transparentBg ? imageUrl : (imageUrlRaw || imageUrl)} alt="Plano" className="geo-plano-img" style={{ display: "block", maxWidth: "none", opacity }} />
-              <div onMouseDown={handleMouseDown} title="Arrastrar para mover el plano"
+              <div onMouseDown={handleMouseDown} title="Click rueda para arrastrar el plano"
                 style={{
                   position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
                   width: 64, height: 64, cursor: "grab", pointerEvents: "auto",
@@ -456,7 +456,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
           )}
           {!loading && (
             <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", color: "#fff", padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 200, pointerEvents: "none", whiteSpace: "nowrap" }}>
-              {modoDibujo ? `Modo dibujo: ${modoDibujo}. Click en el mapa.` : "Arrastrá el plano o usá los botones para dibujar."}
+              {modoDibujo ? `Modo dibujo: ${modoDibujo}. Click en el mapa.` : "Click izquierdo: navegar mapa  |  Click rueda en ● azul: arrastrar plano"}
             </div>
           )}
         </div>
