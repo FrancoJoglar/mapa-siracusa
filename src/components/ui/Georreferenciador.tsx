@@ -52,6 +52,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   // --- Drawing state ---
   const [modoDibujo, setModoDibujo] = useState<ModoDibujo>(null);
+  const modoRef = useRef<ModoDibujo>(null);  // sync version of modoDibujo for event handlers
+  modoRef.current = modoDibujo;
   const [puntosTemp, setPuntosTemp] = useState<PuntoGeo[]>([]);
   const [contador, setContador] = useState(0);
   const [antenasExistentes, setAntenasExistentes] = useState<any[]>([]);
@@ -326,52 +328,54 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
-    let ignoreClick = false;
     const onClick = (e: L.LeafletMouseEvent) => {
-      if (!modoDibujo || ignoreClick) return;
+      const md = modoRef.current;
+      if (!md) return;
       const punto: PuntoGeo = { lat: e.latlng.lat, lng: e.latlng.lng };
-
-      const isLine = modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz";
-
+      const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
       if (isLine) {
         setPuntosTemp(prev => [...prev, punto]);
       } else {
         setPuntosTemp([punto]);
-        setFormCrear({ tipo: modoDibujo, codigo: sugerirCodigo(modoDibujo) });
+        setFormCrear({ tipo: md, codigo: sugerirCodigo(md) });
         setModoDibujo(null);
       }
     };
     m.on("click", onClick);
     return () => { m.off("click", onClick); };
-  }, [modoDibujo]);
+  }, []); // empty deps - modoRef is stable
 
   // --- Double click finishes line drawing ---
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
-    const isLine = modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz";
-    if (!isLine) return;
     const onDouble = (e: L.LeafletMouseEvent) => {
+      const md = modoRef.current;
+      const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
+      if (!isLine) return;
       if (puntosTemp.length < 2) {
         setPuntosTemp([]);
         setModoDibujo(null);
+        modoRef.current = null;
         return;
       }
-      // Add double-click position as last vertex
       const ultimo: PuntoGeo = { lat: e.latlng.lat, lng: e.latlng.lng };
       setPuntosTemp(prev => [...prev, ultimo]);
-      setFormCrear({ tipo: modoDibujo, codigo: sugerirCodigo(modoDibujo) });
+      setFormCrear({ tipo: md, codigo: sugerirCodigo(md) });
+      // Set modoRef null FIRST so click handler sees null for the second click of the pair
       setModoDibujo(null);
+      modoRef.current = null;
     };
     m.on("dblclick", onDouble);
     return () => { m.off("dblclick", onDouble); };
-  }, [modoDibujo, puntosTemp]);
+  }, [puntosTemp]);
 
   // --- Render preview of current line being drawn ---
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
-    const isLine = modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz";
+    const md = modoRef.current;
+    const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
     if (!isLine) return;
     const layer = L.polyline([], { color: "#1565c0", weight: 4, dashArray: "8,8" }).addTo(m);
     (m as any).__linePreview = layer;
@@ -388,7 +392,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
-    const isLine = modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz";
+    const md = modoRef.current;
+    const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
     const markers: L.Marker[] = [];
     if (isLine && puntosTemp.length > 0) {
       puntosTemp.forEach((p, i) => {
@@ -579,6 +584,9 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
           {(modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz") && (
             <span style={{ fontSize: 12, color: "#e65100", fontWeight: 600, marginLeft: 16 }}>
               Click para puntos, doble click para cerrar ({puntosTemp.length} pts)
+              {puntosTemp.length > 0 && (
+                <button onClick={() => setPuntosTemp(prev => prev.slice(0, -1))} style={{ marginLeft: 8, background: "#c62828", color: "white", border: "none", borderRadius: 3, padding: "2px 8px", fontSize: 11, cursor: "pointer", verticalAlign: "middle" }}>✕ último</button>
+              )}
             </span>
           )}
           {modoDibujo && !(modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz") && (
