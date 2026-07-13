@@ -32,7 +32,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.6);
   const [rotation, setRotation] = useState(0);
-  const [zoom, setZoom] = useState(70);
+  const [zoom, setZoom] = useState(200);
   const [mapZoom, setMapZoom] = useState(15);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
@@ -41,7 +41,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const [transparentBg, setTransparentBg] = useState(true);
   const rawCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const geoCenterRef = useRef<L.LatLng>(L.latLng(initialCenter[0], initialCenter[1]));
-  const dragInfo = useRef({ dragging: false, startLatLng: L.latLng(0, 0) });
   const baseZoomRef = useRef(15);
   const equipoNum = equipoCodigo.replace("Equipo ", "").trim();
 
@@ -140,46 +139,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     setPosition(0);
   }, [ready]);
 
-  // --- Drag overlay (moves geographic center) ---
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (modoDibujo) return;
-    if (e.button !== 1) return; // solo botón de la rueda (middle click)
-    e.preventDefault(); e.stopPropagation();
-    const m = mapRef.current;
-    if (!m) return;
-    m.dragging.disable();
-    const ctrEl = mapContainerRef.current;
-    if (ctrEl) {
-      const rect = ctrEl.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      dragInfo.current = { dragging: true, startLatLng: m.containerPointToLatLng([x, y]) };
-    }
-  };
 
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!dragInfo.current.dragging) return;
-      const m = mapRef.current;
-      if (!m) return;
-      // Convert clientX/Y to container-relative coords
-      const ctrEl = mapContainerRef.current;
-      if (!ctrEl) return;
-      const rect = ctrEl.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const curLL = m.containerPointToLatLng([x, y]);
-      const dLat = curLL.lat - dragInfo.current.startLatLng.lat;
-      const dLng = curLL.lng - dragInfo.current.startLatLng.lng;
-      geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
-      dragInfo.current.startLatLng = curLL;
-      setForce(n => n + 1);
-    };
-    const onUp = () => { dragInfo.current.dragging = false; mapRef.current?.dragging.enable(); };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, []);
 
   const [, setForce] = useState(0);
   const { x: posX, y: posY } = getPixelPos();
@@ -225,8 +185,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
       setForce(n => n + 1);
     };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    el.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => el.removeEventListener("wheel", onWheel, { capture: true });
   }, [modoDibujo]);
 
   // --- Save ---
@@ -460,20 +420,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
               transformOrigin: "center center", zIndex: 10, pointerEvents: "none",
             }}>
               <img src={transparentBg ? imageUrl : (imageUrlRaw || imageUrl)} alt="Plano" className="geo-plano-img" style={{ display: "block", maxWidth: "none", opacity }} />
-              <div onMouseDown={handleMouseDown} title="Click rueda para arrastrar el plano"
-                style={{
-                  position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
-                  width: 64, height: 64, cursor: "grab", pointerEvents: "auto",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "rgba(21, 101, 192, 0.85)", borderRadius: "50%",
-                }}>
-                <svg width="28" height="28" viewBox="0 0 28 28"><path d="M14 0l4 8h-3v6h6v-3l8 4-8 4v-3h-6v6h3l-4 8-4-8h3v-6H6v3L0 14l8-4v3h6V8H8l4-8z" fill="#fff"/></svg>
-              </div>
             </div>
           )}
           {!loading && (
             <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", color: "#fff", padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 200, pointerEvents: "none", whiteSpace: "nowrap" }}>
-              {modoDibujo ? `Modo dibujo: ${modoDibujo}. Click en el mapa.` : "Rueda: mover plano  |  Click rueda en ● azul: arrastrar  |  Click izq: navegar mapa"}
+              {modoDibujo ? `Modo dibujo: ${modoDibujo}. Click en el mapa.` : "Rueda: mover plano  |  Click izq: navegar mapa"}
             </div>
           )}
         </div>
