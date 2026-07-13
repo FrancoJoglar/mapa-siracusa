@@ -326,8 +326,9 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
+    let ignoreClick = false;
     const onClick = (e: L.LeafletMouseEvent) => {
-      if (!modoDibujo) return;
+      if (!modoDibujo || ignoreClick) return;
       const punto: PuntoGeo = { lat: e.latlng.lat, lng: e.latlng.lng };
 
       const isLine = modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz";
@@ -350,12 +351,15 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (!m) return;
     const isLine = modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz";
     if (!isLine) return;
-    const onDouble = () => {
+    const onDouble = (e: L.LeafletMouseEvent) => {
       if (puntosTemp.length < 2) {
         setPuntosTemp([]);
         setModoDibujo(null);
         return;
       }
+      // Add double-click position as last vertex
+      const ultimo: PuntoGeo = { lat: e.latlng.lat, lng: e.latlng.lng };
+      setPuntosTemp(prev => [...prev, ultimo]);
       setFormCrear({ tipo: modoDibujo, codigo: sugerirCodigo(modoDibujo) });
       setModoDibujo(null);
     };
@@ -380,6 +384,35 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     m.__linePreview.setLatLngs(puntosTemp.map(p => L.latLng(p.lat, p.lng)));
   }, [puntosTemp]);
 
+  // --- Draggable vertex markers for live line preview ---
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    const isLine = modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz";
+    const markers: L.Marker[] = [];
+    if (isLine && puntosTemp.length > 0) {
+      puntosTemp.forEach((p, i) => {
+        const icon = L.divIcon({
+          className: "",
+          html: `<div style="width:14px;height:14px;background:#fff;border:3px solid #e65100;border-radius:50%;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
+          iconSize: [14, 14], iconAnchor: [7, 7],
+        });
+        const marker = L.marker([p.lat, p.lng], { icon, draggable: true, zIndexOffset: 1000 });
+        marker.on("drag", () => {
+          const pos = marker.getLatLng();
+          setPuntosTemp(prev => {
+            const next = [...prev];
+            next[i] = { lat: pos.lat, lng: pos.lng };
+            return next;
+          });
+        });
+        marker.addTo(m);
+        markers.push(marker);
+      });
+    }
+    return () => markers.forEach(mk => m.removeLayer(mk));
+  }, [puntosTemp, modoDibujo]);
+
   const overlayRef = useRef<any>(null);
 
   // --- Markers of confirmed tuberias/valvulas (to be loaded from DB) ---
@@ -390,14 +423,24 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   useEffect(() => {
     if (!ready || !equipoId) return;
     const h = { "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk" };
-    fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/tuberias?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => { if (Array.isArray(d)) setTuberiasExistentes(d); }).catch(() => {});
-    fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/valvulas?select=*,tuberias!inner(equipo_id)&tuberias.equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => { if (Array.isArray(d)) setValvulasExistentes(d); }).catch(() => {});
-    fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/antenas?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => { if (Array.isArray(d)) setAntenasExistentes(d); }).catch(() => {});
-    fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/sondas?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => { if (Array.isArray(d)) setSondasExistentes(d); }).catch(() => {});
+    const api = "https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/";
+    fetch(api + `tuberias?equipo_id=eq.${equipoId}`, { headers: h })
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setTuberiasExistentes(d); }).catch(e => console.warn("Error tuberias:", e));
+    // Valvulas: fetch by tuberia IDs from this equipo + valvulas without tuberia_id
+    fetch(api + `tuberias?select=id&equipo_id=eq.${equipoId}`, { headers: h })
+      .then(r => r.json())
+      .then(ts => {
+        const ids = (Array.isArray(ts) ? ts : []).map((t: any) => t.id).filter(Boolean);
+        let url = api + `valvulas?or=(tuberia_id.is.null`;
+        if (ids.length > 0) url += `,tuberia_id.in.(${ids.join(",")})`;
+        url += `)`;
+        fetch(url, { headers: h })
+          .then(r => r.json()).then(d => { if (Array.isArray(d)) setValvulasExistentes(d); }).catch(e => console.warn("Error valvulas:", e));
+      }).catch(e => console.warn("Error valvulas step1:", e));
+    fetch(api + `antenas?equipo_id=eq.${equipoId}`, { headers: h })
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setAntenasExistentes(d); }).catch(e => console.warn("Error antenas:", e));
+    fetch(api + `sondas?equipo_id=eq.${equipoId}`, { headers: h })
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setSondasExistentes(d); }).catch(e => console.warn("Error sondas:", e));
   }, [ready, equipoId, contador]);
 
   // Render tuberias as polylines
