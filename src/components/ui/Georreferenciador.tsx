@@ -32,7 +32,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.6);
   const [rotation, setRotation] = useState(0);
-  const [zoom, setZoom] = useState(10);
+  const [zoom, setZoom] = useState(70);
   const [mapZoom, setMapZoom] = useState(15);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
