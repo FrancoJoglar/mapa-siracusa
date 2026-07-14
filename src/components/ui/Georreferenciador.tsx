@@ -65,6 +65,16 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const [sondasExistentes, setSondasExistentes] = useState<any[]>([]);
   const [editandoElemento, setEditandoElemento] = useState<{ tipo: string; id: string } | null>(null);
 
+  // Refs to callbacks so event handlers always call the latest version
+  const onCreateTuberiaRef = useRef(onCreateTuberia);
+  onCreateTuberiaRef.current = onCreateTuberia;
+  const onCreateValvulaRef = useRef(onCreateValvula);
+  onCreateValvulaRef.current = onCreateValvula;
+  const onCreateAntenaRef = useRef(onCreateAntena);
+  onCreateAntenaRef.current = onCreateAntena;
+  const onCreateSondaRef = useRef(onCreateSonda);
+  onCreateSondaRef.current = onCreateSonda;
+
   // --- Init map ---
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -192,22 +202,26 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const tipo = fc.tipo;
     const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
     const nivelMap: Record<string, string> = { matriz: "matriz", impulsion: "impulsion", submatriz: "submatriz" };
+    const createTub = onCreateTuberiaRef.current;
+    const createVal = onCreateValvulaRef.current;
+    const createAnt = onCreateAntenaRef.current;
+    const createSnd = onCreateSondaRef.current;
 
     if (isLine) {
-      onCreateTuberia?.({ codigo: data.codigo, nivel: nivelMap[tipo] || "matriz", material: data.material || "PVC", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, nombre: data.nombre, puntos: pts })
+      createTub?.({ codigo: data.codigo, nivel: nivelMap[tipo] || "matriz", material: data.material || "PVC", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, nombre: data.nombre, puntos: pts })
         ?.catch((e: any) => console.error("Error tubería:", e));
     } else if (tipo === "valvula_electrica" || tipo === "valvula_aire") {
-      onCreateValvula?.({ codigo: data.codigo, tipo: data.tipo_valvula || "transicion", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, tuberia_id: data.tuberia_id || undefined, punto: pts[0] })
+      createVal?.({ codigo: data.codigo, tipo: data.tipo_valvula || "transicion", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, tuberia_id: data.tuberia_id || undefined, punto: pts[0] })
         ?.catch((e: any) => console.error("Error válvula:", e));
     } else if (tipo === "antena") {
-      onCreateAntena?.({ codigo: data.codigo, tipo: "", punto: pts[0] })?.catch((e: any) => console.error("Error antena:", e));
+      createAnt?.({ codigo: data.codigo, tipo: "", punto: pts[0] })?.catch((e: any) => console.error("Error antena:", e));
     } else if (tipo === "sonda") {
-      onCreateSonda?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: pts[0] })?.catch((e: any) => console.error("Error sonda:", e));
+      createSnd?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: pts[0] })?.catch((e: any) => console.error("Error sonda:", e));
     }
     setFormCrear(null);
     setPuntosTemp([]);
     setContador(c => c + 1);
-  }, []); // empty deps: all reads go through refs
+  }, []);
 
   const handleUpdate = useCallback(async (tipo: string, id: string, d: any) => {
     const updateData: any = {};
