@@ -328,6 +328,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   // --- Click handler for drawing on map ---
   const lastClickRef = useRef(0);
+
+  // Disable double-click zoom while in drawing mode
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    if (modoDibujo) {
+      m.doubleClickZoom.disable();
+      return () => { m.doubleClickZoom.enable(); };
+    }
+  }, [modoDibujo]);
+
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
@@ -359,6 +370,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const md = modoRef.current;
       const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
       if (!isLine) return;
+      L.DomEvent.stopPropagation(e.originalEvent); // prevent Leaflet zoom
       const pts = puntosRef.current;
       if (pts.length < 2) {
         setPuntosTemp([]);
