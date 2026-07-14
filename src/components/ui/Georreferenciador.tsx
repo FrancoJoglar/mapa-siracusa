@@ -198,7 +198,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const handleConfirmCrear = useCallback((data: any) => {
     const fc = formCrearRef.current;
     const pts = puntosRef.current;
-    if (!fc || pts.length === 0) return;
+    if (!fc || pts.length === 0) { alert("Error interno: sin datos para crear"); return; }
     const tipo = fc.tipo;
     const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
     const nivelMap: Record<string, string> = { matriz: "matriz", impulsion: "impulsion", submatriz: "submatriz" };
@@ -207,16 +207,23 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const createAnt = onCreateAntenaRef.current;
     const createSnd = onCreateSondaRef.current;
 
+    if (!createTub && !createVal && !createAnt && !createSnd) { alert("Error interno: no hay callback de creación disponible"); return; }
+
     if (isLine) {
-      createTub?.({ codigo: data.codigo, nivel: nivelMap[tipo] || "matriz", material: data.material || "PVC", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, nombre: data.nombre, puntos: pts })
-        ?.catch((e: any) => console.error("Error tubería:", e));
+      if (!createTub) { alert("Error: onCreateTuberia no está definido"); return; }
+      createTub({ codigo: data.codigo, nivel: nivelMap[tipo] || "matriz", material: data.material || "PVC", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, nombre: data.nombre, puntos: pts })
+        .then(() => console.log("Tubería creada OK"))
+        .catch((e: any) => alert("Error al crear tubería: " + (e?.message || JSON.stringify(e))));
     } else if (tipo === "valvula_electrica" || tipo === "valvula_aire") {
-      createVal?.({ codigo: data.codigo, tipo: data.tipo_valvula || "transicion", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, tuberia_id: data.tuberia_id || undefined, punto: pts[0] })
-        ?.catch((e: any) => console.error("Error válvula:", e));
+      if (!createVal) { alert("Error: onCreateValvula no está definido"); return; }
+      createVal({ codigo: data.codigo, tipo: data.tipo_valvula || "transicion", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, tuberia_id: data.tuberia_id || undefined, punto: pts[0] })
+        .catch((e: any) => alert("Error al crear válvula: " + (e?.message || JSON.stringify(e))));
     } else if (tipo === "antena") {
-      createAnt?.({ codigo: data.codigo, tipo: "", punto: pts[0] })?.catch((e: any) => console.error("Error antena:", e));
+      if (!createAnt) { alert("Error: onCreateAntena no está definido"); return; }
+      createAnt({ codigo: data.codigo, tipo: "", punto: pts[0] }).catch((e: any) => alert("Error antena: " + (e?.message || JSON.stringify(e))));
     } else if (tipo === "sonda") {
-      createSnd?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: pts[0] })?.catch((e: any) => console.error("Error sonda:", e));
+      if (!createSnd) { alert("Error: onCreateSonda no está definido"); return; }
+      createSnd({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: pts[0] }).catch((e: any) => alert("Error sonda: " + (e?.message || JSON.stringify(e))));
     }
     setFormCrear(null);
     setPuntosTemp([]);
