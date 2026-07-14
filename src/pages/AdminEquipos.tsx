@@ -112,7 +112,7 @@ export default function AdminEquipos() {
               geometria: { type: "LineString", coordinates: data.puntos.map(p => [p.lng, p.lat]) },
             };
             if (data.nombre) insertData.nombre = data.nombre;
-            const { error } = await (window as any).supabase.from('tuberias').insert(insertData);
+            const { error } = await supabase.from('tuberias').insert(insertData);
             if (error) alert("Error: " + error.message);
           }}
           onCreateValvula={async (data) => {
@@ -123,13 +123,13 @@ export default function AdminEquipos() {
               geometria: { type: "Point", coordinates: [data.punto.lng, data.punto.lat] },
             };
             if (data.tuberia_id) insertData.tuberia_id = data.tuberia_id;
-            const { error } = await (window as any).supabase.from('valvulas').insert(insertData);
+            const { error } = await supabase.from('valvulas').insert(insertData);
             if (error) alert("Error: " + error.message);
           }}
           onCreateAntena={async (data) => {
             const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
             if (!eq) return;
-            const { error } = await (window as any).supabase.from('antenas').insert({
+            const { error } = await supabase.from('antenas').insert({
               codigo: data.codigo,
               tipo: data.tipo,
               equipo_id: eq.id,
@@ -140,7 +140,7 @@ export default function AdminEquipos() {
           onCreateSonda={async (data) => {
             const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
             if (!eq) return;
-            const { error } = await (window as any).supabase.from('sondas').insert({
+            const { error } = await supabase.from('sondas').insert({
               codigo: data.codigo,
               tipo: data.tipo,
               profundidad_m: data.profundidad_m,
