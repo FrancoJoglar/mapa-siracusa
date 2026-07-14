@@ -52,16 +52,18 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   // --- Drawing state ---
   const [modoDibujo, setModoDibujo] = useState<ModoDibujo>(null);
-  const modoRef = useRef<ModoDibujo>(null);  // sync version of modoDibujo for event handlers
+  const modoRef = useRef<ModoDibujo>(null);  // sync for event handlers
   modoRef.current = modoDibujo;
   const [puntosTemp, setPuntosTemp] = useState<PuntoGeo[]>([]);
-  const puntosRef = useRef<PuntoGeo[]>([]);  // sync ref for event handlers
+  const puntosRef = useRef<PuntoGeo[]>([]);
   puntosRef.current = puntosTemp;
+  const [formCrear, setFormCrear] = useState<{ tipo: string; codigo: string; material?: string; diametro_mm?: number; tuberia_id?: string; tipo_valvula?: string; profundidad_m?: number; nombre?: string } | null>(null);
+  const formCrearRef = useRef<any>(null);
+  formCrearRef.current = formCrear;
   const [contador, setContador] = useState(0);
   const [antenasExistentes, setAntenasExistentes] = useState<any[]>([]);
   const [sondasExistentes, setSondasExistentes] = useState<any[]>([]);
   const [editandoElemento, setEditandoElemento] = useState<{ tipo: string; id: string } | null>(null);
-  const [formCrear, setFormCrear] = useState<{ tipo: string; codigo: string; material?: string; diametro_mm?: number; tuberia_id?: string; tipo_valvula?: string; profundidad_m?: number; nombre?: string } | null>(null);
 
   // --- Init map ---
   useEffect(() => {
@@ -183,54 +185,29 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const nudgeRef = useRef<(dLat: number, dLng: number) => void>(() => {});
   nudgeRef.current = nudge;
 
-  function sugerirCodigo(tipo: string): string {
-    const prefixMap: Record<string, string> = {
-      matriz: "M", impulsion: "I", submatriz: "SM",
-      valvula_electrica: "VE", valvula_aire: "VA",
-      antena: "A", sonda: "S",
-    };
-    const prefix = prefixMap[tipo] || "X";
-    const existingNums: number[] = [];
-    tuberiasExistentes.concat(valvulasExistentes, antenasExistentes, sondasExistentes).forEach((el: any) => {
-      const match = el.codigo?.match(new RegExp("^" + prefix + "([0-9]+)$"));
-      if (match) existingNums.push(parseInt(match[1]));
-    });
-    const maxNum = existingNums.length > 0 ? Math.max(...existingNums) : 0;
-    return prefix + (maxNum + 1);
-  }
-
   const handleConfirmCrear = useCallback((data: any) => {
-    const tipo = formCrear?.tipo;
-    if (!tipo || puntosTemp.length === 0) return;
+    const fc = formCrearRef.current;
+    const pts = puntosRef.current;
+    if (!fc || pts.length === 0) return;
+    const tipo = fc.tipo;
     const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
     const nivelMap: Record<string, string> = { matriz: "matriz", impulsion: "impulsion", submatriz: "submatriz" };
 
     if (isLine) {
-      onCreateTuberia?.({
-        codigo: data.codigo,
-        nivel: nivelMap[tipo] || "matriz",
-        material: data.material || "PVC",
-        diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined,
-        nombre: data.nombre,
-        puntos: puntosTemp,
-      })?.catch((e: any) => console.error("Error al crear tubería:", e));
+      onCreateTuberia?.({ codigo: data.codigo, nivel: nivelMap[tipo] || "matriz", material: data.material || "PVC", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, nombre: data.nombre, puntos: pts })
+        ?.catch((e: any) => console.error("Error tubería:", e));
     } else if (tipo === "valvula_electrica" || tipo === "valvula_aire") {
-      onCreateValvula?.({
-        codigo: data.codigo,
-        tipo: data.tipo_valvula || "transicion",
-        diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined,
-        tuberia_id: data.tuberia_id || undefined,
-        punto: puntosTemp[0],
-      })?.catch((e: any) => console.error("Error al crear válvula:", e));
+      onCreateValvula?.({ codigo: data.codigo, tipo: data.tipo_valvula || "transicion", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, tuberia_id: data.tuberia_id || undefined, punto: pts[0] })
+        ?.catch((e: any) => console.error("Error válvula:", e));
     } else if (tipo === "antena") {
-      onCreateAntena?.({ codigo: data.codigo, tipo: "", punto: puntosTemp[0] })?.catch((e: any) => console.error("Error al crear antena:", e));
+      onCreateAntena?.({ codigo: data.codigo, tipo: "", punto: pts[0] })?.catch((e: any) => console.error("Error antena:", e));
     } else if (tipo === "sonda") {
-      onCreateSonda?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: puntosTemp[0] })?.catch((e: any) => console.error("Error al crear sonda:", e));
+      onCreateSonda?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: pts[0] })?.catch((e: any) => console.error("Error sonda:", e));
     }
     setFormCrear(null);
     setPuntosTemp([]);
     setContador(c => c + 1);
-  }, [formCrear, puntosTemp, onCreateTuberia, onCreateValvula, onCreateAntena, onCreateSonda]);
+  }, []); // empty deps: all reads go through refs
 
   const handleUpdate = useCallback(async (tipo: string, id: string, d: any) => {
     const updateData: any = {};
@@ -326,8 +303,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     onSave({ center: [ctr.lat, ctr.lng], rotation, opacity, zoom_level: zoom, mapZoom });
   };
 
-  // --- Click handler for drawing on map ---
-  const lastClickRef = useRef(0);
+  // --- Drawing system: all event handlers read from refs, no stale closures ---
 
   // Disable double-click zoom while in drawing mode
   useEffect(() => {
@@ -339,6 +315,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     }
   }, [modoDibujo]);
 
+  // Single click: add point (line modes) or place element (point modes)
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
@@ -346,31 +323,26 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const md = modoRef.current;
       if (!md) return;
       const punto: PuntoGeo = { lat: e.latlng.lat, lng: e.latlng.lng };
-      const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
-      if (isLine) {
-        const now = Date.now();
-        if (now - lastClickRef.current < 500) return; // skip second click of a double-click pair
-        lastClickRef.current = now;
+      if (md === "matriz" || md === "impulsion" || md === "submatriz") {
         setPuntosTemp(prev => [...prev, punto]);
       } else {
         setPuntosTemp([punto]);
-        setFormCrear({ tipo: md, codigo: sugerirCodigo(md) });
+        setFormCrear({ tipo: md, codigo: "Nuevo" });
         setModoDibujo(null);
       }
     };
     m.on("click", onClick);
     return () => { m.off("click", onClick); };
-  }, []); // empty deps - modoRef is stable
+  }, []);
 
-  // --- Double click finishes line drawing ---
+  // Double click: finish line (remove extra click point, add dblclick position)
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
     const onDouble = (e: L.LeafletMouseEvent) => {
       const md = modoRef.current;
-      const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
-      if (!isLine) return;
-      L.DomEvent.stopPropagation(e.originalEvent); // prevent Leaflet zoom
+      if (!(md === "matriz" || md === "impulsion" || md === "submatriz")) return;
+      L.DomEvent.stopPropagation(e.originalEvent);
       const pts = puntosRef.current;
       if (pts.length < 2) {
         setPuntosTemp([]);
@@ -378,9 +350,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         modoRef.current = null;
         return;
       }
+      // dblclick fires after a click event that added an extra point.
+      // The functional update removes that last point and adds the dblclick position instead.
       const ultimo: PuntoGeo = { lat: e.latlng.lat, lng: e.latlng.lng };
-      setPuntosTemp(prev => [...prev, ultimo]);
-      setFormCrear({ tipo: md, codigo: sugerirCodigo(md) });
+      setPuntosTemp(prev => [...prev.slice(0, -1), ultimo]);
+      setFormCrear({ tipo: md, codigo: "Nuevo" });
       setModoDibujo(null);
       modoRef.current = null;
     };
@@ -388,53 +362,44 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return () => { m.off("dblclick", onDouble); };
   }, []); // refs are stable, no deps needed
 
-  // --- Render preview of current line being drawn ---
+  // --- Render preview of the line being drawn & draggable vertex markers ---
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
     const md = modoRef.current;
     const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
     if (!isLine) return;
-    const layer = L.polyline([], { color: "#1565c0", weight: 4, dashArray: "8,8" }).addTo(m);
-    (m as any).__linePreview = layer;
-    return () => { m.removeLayer(layer); };
-  }, [modoDibujo]);
-
-  useEffect(() => {
-    const m = mapRef.current as any;
-    if (!m?.__linePreview) return;
-    m.__linePreview.setLatLngs(puntosTemp.map(p => L.latLng(p.lat, p.lng)));
-  }, [puntosTemp]);
-
-  // --- Draggable vertex markers for live line preview ---
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m) return;
-    const md = modoRef.current;
-    const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
-    const markers: L.Marker[] = [];
-    if (isLine && puntosTemp.length > 0) {
-      puntosTemp.forEach((p, i) => {
+    const colorMap: Record<string, string> = { matriz: "#1565c0", impulsion: "#2e7d32", submatriz: "#c62828" };
+    const layer = L.polyline([], { color: colorMap[md] || "#1565c0", weight: 4, dashArray: "8,8" }).addTo(m);
+    const verts: L.Marker[] = [];
+    const updateLine = () => {
+      const pts = puntosRef.current;
+      layer.setLatLngs(pts.map(p => L.latLng(p.lat, p.lng)));
+      while (verts.length < pts.length) {
+        const i = verts.length;
         const icon = L.divIcon({
           className: "",
-          html: `<div style="width:14px;height:14px;background:#fff;border:3px solid #e65100;border-radius:50%;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
+          html: `<div style="width:14px;height:14px;background:#fff;border:3px solid ${colorMap[md] || "#e65100"};border-radius:50%;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
           iconSize: [14, 14], iconAnchor: [7, 7],
         });
-        const marker = L.marker([p.lat, p.lng], { icon, draggable: true, zIndexOffset: 1000 });
-        marker.on("drag", () => {
-          const pos = marker.getLatLng();
+        const mk = L.marker(pts[i], { icon, draggable: true, zIndexOffset: 1000 }).addTo(m);
+        mk.on("drag", () => {
+          const pos = mk.getLatLng();
           setPuntosTemp(prev => {
             const next = [...prev];
-            next[i] = { lat: pos.lat, lng: pos.lng };
+            if (next[i]) next[i] = { lat: pos.lat, lng: pos.lng };
             return next;
           });
         });
-        marker.addTo(m);
-        markers.push(marker);
-      });
-    }
-    return () => markers.forEach(mk => m.removeLayer(mk));
-  }, [puntosTemp, modoDibujo]);
+        verts.push(mk);
+      }
+      while (verts.length > pts.length) m.removeLayer(verts.pop()!);
+      pts.forEach((p, i) => { if (verts[i]) verts[i].setLatLng([p.lat, p.lng]); });
+    };
+    updateLine();
+    const interval = setInterval(updateLine, 100);
+    return () => { clearInterval(interval); m.removeLayer(layer); verts.forEach(v => m.removeLayer(v)); };
+  }, [modoDibujo]);
 
   const overlayRef = useRef<any>(null);
 
