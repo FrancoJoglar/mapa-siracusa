@@ -325,6 +325,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   };
 
   // --- Click handler for drawing on map ---
+  const lastClickRef = useRef(0);
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
@@ -334,6 +335,9 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const punto: PuntoGeo = { lat: e.latlng.lat, lng: e.latlng.lng };
       const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
       if (isLine) {
+        const now = Date.now();
+        if (now - lastClickRef.current < 500) return; // skip second click of a double-click pair
+        lastClickRef.current = now;
         setPuntosTemp(prev => [...prev, punto]);
       } else {
         setPuntosTemp([punto]);
