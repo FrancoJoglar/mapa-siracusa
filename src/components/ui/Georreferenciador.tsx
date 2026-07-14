@@ -199,7 +199,10 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   const handleConfirmCrear = useCallback((data: any) => {
     const tipo = formCrear?.tipo;
-    if (!tipo || puntosTemp.length === 0) return;
+    if (!tipo || puntosTemp.length === 0) {
+      alert("Error interno: tipo=" + tipo + " puntos=" + puntosTemp.length);
+      return;
+    }
     const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
     const nivelMap: Record<string, string> = { matriz: "matriz", impulsion: "impulsion", submatriz: "submatriz" };
 
@@ -211,7 +214,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined,
         nombre: data.nombre,
         puntos: puntosTemp,
-      });
+      })?.catch(e => alert("Error al crear tubería: " + e?.message));
     } else if (tipo === "valvula_electrica" || tipo === "valvula_aire") {
       onCreateValvula?.({
         codigo: data.codigo,
@@ -219,11 +222,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined,
         tuberia_id: data.tuberia_id || undefined,
         punto: puntosTemp[0],
-      });
+      })?.catch(e => alert("Error al crear válvula: " + e?.message));
     } else if (tipo === "antena") {
-      onCreateAntena?.({ codigo: data.codigo, tipo: "", punto: puntosTemp[0] });
+      onCreateAntena?.({ codigo: data.codigo, tipo: "", punto: puntosTemp[0] })?.catch(e => alert("Error al crear antena: " + e?.message));
     } else if (tipo === "sonda") {
-      onCreateSonda?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: puntosTemp[0] });
+      onCreateSonda?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: puntosTemp[0] })?.catch(e => alert("Error al crear sonda: " + e?.message));
     }
     setFormCrear(null);
     setPuntosTemp([]);
