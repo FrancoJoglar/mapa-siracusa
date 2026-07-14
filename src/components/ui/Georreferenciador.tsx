@@ -55,6 +55,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const modoRef = useRef<ModoDibujo>(null);  // sync version of modoDibujo for event handlers
   modoRef.current = modoDibujo;
   const [puntosTemp, setPuntosTemp] = useState<PuntoGeo[]>([]);
+  const puntosRef = useRef<PuntoGeo[]>([]);  // sync ref for event handlers
+  puntosRef.current = puntosTemp;
   const [contador, setContador] = useState(0);
   const [antenasExistentes, setAntenasExistentes] = useState<any[]>([]);
   const [sondasExistentes, setSondasExistentes] = useState<any[]>([]);
@@ -199,10 +201,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   const handleConfirmCrear = useCallback((data: any) => {
     const tipo = formCrear?.tipo;
-    if (!tipo || puntosTemp.length === 0) {
-      alert("Error interno: tipo=" + tipo + " puntos=" + puntosTemp.length);
-      return;
-    }
+    if (!tipo || puntosTemp.length === 0) return;
     const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
     const nivelMap: Record<string, string> = { matriz: "matriz", impulsion: "impulsion", submatriz: "submatriz" };
 
@@ -214,7 +213,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined,
         nombre: data.nombre,
         puntos: puntosTemp,
-      })?.catch(e => alert("Error al crear tubería: " + e?.message));
+      })?.catch((e: any) => console.error("Error al crear tubería:", e));
     } else if (tipo === "valvula_electrica" || tipo === "valvula_aire") {
       onCreateValvula?.({
         codigo: data.codigo,
@@ -222,11 +221,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined,
         tuberia_id: data.tuberia_id || undefined,
         punto: puntosTemp[0],
-      })?.catch(e => alert("Error al crear válvula: " + e?.message));
+      })?.catch((e: any) => console.error("Error al crear válvula:", e));
     } else if (tipo === "antena") {
-      onCreateAntena?.({ codigo: data.codigo, tipo: "", punto: puntosTemp[0] })?.catch(e => alert("Error al crear antena: " + e?.message));
+      onCreateAntena?.({ codigo: data.codigo, tipo: "", punto: puntosTemp[0] })?.catch((e: any) => console.error("Error al crear antena:", e));
     } else if (tipo === "sonda") {
-      onCreateSonda?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: puntosTemp[0] })?.catch(e => alert("Error al crear sonda: " + e?.message));
+      onCreateSonda?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: puntosTemp[0] })?.catch((e: any) => console.error("Error al crear sonda:", e));
     }
     setFormCrear(null);
     setPuntosTemp([]);
@@ -360,7 +359,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const md = modoRef.current;
       const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
       if (!isLine) return;
-      if (puntosTemp.length < 2) {
+      const pts = puntosRef.current;
+      if (pts.length < 2) {
         setPuntosTemp([]);
         setModoDibujo(null);
         modoRef.current = null;
@@ -369,13 +369,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const ultimo: PuntoGeo = { lat: e.latlng.lat, lng: e.latlng.lng };
       setPuntosTemp(prev => [...prev, ultimo]);
       setFormCrear({ tipo: md, codigo: sugerirCodigo(md) });
-      // Set modoRef null FIRST so click handler sees null for the second click of the pair
       setModoDibujo(null);
       modoRef.current = null;
     };
     m.on("dblclick", onDouble);
     return () => { m.off("dblclick", onDouble); };
-  }, [puntosTemp]);
+  }, []); // refs are stable, no deps needed
 
   // --- Render preview of current line being drawn ---
   useEffect(() => {
