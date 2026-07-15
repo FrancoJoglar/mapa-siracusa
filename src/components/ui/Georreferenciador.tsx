@@ -129,18 +129,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
   }, [imageUrl, zoom, rotation, opacity, ready]);
 
-  // Actualizar bounds cuando el usuario mueve el plano (via proxy de overlayVersion)
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m || !imageUrl || !imgOverlayRef.current) return;
-    const handler = () => {
-      // Solo recalcular si el overlay existe y hubo cambio de geoCenter (drag) o move sin zoom
-      const ov = imgOverlayRef.current;
-      if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
-    };
-    m.on("move", handler);
-    return () => { m.off("move", handler); };
-  }, [zoom, imageUrl]);
+  // Los bounds geograficos son FIJOS - Leaflet maneja zoom/pan automaticamente.
+  // Solo se actualizan cuando el usuario cambia el slider de zoom o arrastra el plano.
 
   // --- Reference polygons ---
   useEffect(() => {
