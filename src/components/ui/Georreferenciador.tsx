@@ -92,17 +92,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return () => { m.remove(); mapRef.current = null; };
   }, []);
 
-  // --- Keep plane anchored to geographic position when map pans (but freeze on zoom) ---
+  // --- Actualizar posicion solo en PAN (nunca en zoom) ---
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !ready) return;
-    let zooming = false;
-    m.on("zoomstart", () => { zooming = true; });
-    m.on("zoomend", () => { zooming = false; setForce(n => n + 1); });
-    m.on("move", () => {
-      if (!zooming) setForce(n => n + 1);
-    });
-    return () => { m.off("move"); m.off("zoomstart"); m.off("zoomend"); };
+    m.on("move", () => setForce(n => n + 1));
+    return () => { m.off("move"); };
   }, [ready]);
 
   // --- Reference polygons ---
