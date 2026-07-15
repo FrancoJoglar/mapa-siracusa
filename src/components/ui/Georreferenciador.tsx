@@ -41,7 +41,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const [opacity, setOpacity] = useState(0.6);
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(saved?.zoom_level || 200);
-  const [mapZoom, setMapZoom] = useState(15);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -93,16 +92,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return () => { m.remove(); mapRef.current = null; };
   }, []);
 
-  // --- Keep plane anchored to geographic position when map moves/zooms ---
+  // --- Keep plane anchored to geographic position when map pans (but freeze on zoom) ---
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !ready) return;
-    const handler = () => {
-      setForce(n => n + 1);
-      setMapZoom(m.getZoom());
-    };
-    m.on("move zoom", handler);
-    return () => { m.off("move zoom", handler); };
+    let zooming = false;
+    m.on("zoomstart", () => { zooming = true; });
+    m.on("zoomend", () => { zooming = false; setForce(n => n + 1); });
+    m.on("move", () => {
+      if (!zooming) setForce(n => n + 1);
+    });
+    return () => { m.off("move"); m.off("zoomstart"); m.off("zoomend"); };
   }, [ready]);
 
   // --- Reference polygons ---
@@ -308,7 +308,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const cxPx = (imgRect.left + imgRect.right) / 2 - ctrRect.left;
     const cyPx = (imgRect.top + imgRect.bottom) / 2 - ctrRect.top;
     const ctr = m.containerPointToLatLng([cxPx, cyPx]);
-    onSave({ center: [ctr.lat, ctr.lng], rotation, opacity, zoom_level: zoom, mapZoom });
+    onSave({ center: [ctr.lat, ctr.lng], rotation, opacity, zoom_level: zoom, mapZoom: m.getZoom() });
   };
 
   // --- Drawing system: all event handlers read from refs, no stale closures ---
