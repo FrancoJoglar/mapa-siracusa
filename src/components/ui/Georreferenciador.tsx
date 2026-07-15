@@ -40,7 +40,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.6);
   const [rotation, setRotation] = useState(0);
-  const [zoom, setZoom] = useState(200);
+  const [zoom, setZoom] = useState(saved?.zoom_level || 200);
   const [mapZoom, setMapZoom] = useState(15);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
@@ -78,14 +78,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   // --- Init map ---
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
+    const savedCenter = saved?.bounds?.center;
+    const savedZoom = saved?.bounds?.map_zoom;
     const m = L.map(mapContainerRef.current, {
-      center: initialCenter, zoom: 15, zoomControl: true,
+      center: savedCenter || initialCenter, zoom: savedZoom || 15, zoomControl: true,
       dragging: true, scrollWheelZoom: true, doubleClickZoom: true,
     });
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
       attribution: "&copy; Esri",
     }).addTo(m);
     mapRef.current = m;
+    if (savedCenter) geoCenterRef.current = L.latLng(savedCenter[0], savedCenter[1]);
     setTimeout(() => { m.invalidateSize(); setReady(true); }, 200);
     return () => { m.remove(); mapRef.current = null; };
   }, []);
@@ -115,16 +118,9 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return () => { m.removeLayer(group); };
   }, [ready, equipoNum]);
 
-  // --- Restore saved georeference ---
+  // --- Restore saved georeference (rotation, opacity, zoom) ---
   useEffect(() => {
     if (!saved) return;
-    const b = saved.bounds;
-    const m = mapRef.current;
-    if (b?.center && m) {
-      geoCenterRef.current = L.latLng(b.center[0], b.center[1]);
-      m.setView(b.center, b?.map_zoom || m.getZoom(), { animate: false });
-      setForce(n => n + 1);
-    }
     setRotation(saved.rotation);
     setOpacity(saved.opacity);
     if (saved.zoom_level) setZoom(saved.zoom_level);
@@ -183,9 +179,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   }
 
   function getScale() {
-    const m = mapRef.current;
-    if (!m || !saved?.bounds?.map_zoom) return zoom / 100;
-    return (zoom / 100) * Math.pow(2, m.getZoom() - saved.bounds.map_zoom);
+    return zoom / 100;
   }
 
   const nudge = useCallback((dLat: number, dLng: number) => {
