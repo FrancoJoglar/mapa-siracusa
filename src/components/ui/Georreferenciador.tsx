@@ -36,7 +36,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const [imageUrl, setImageUrl] = useState("");
-  const [imageUrlRaw, setImageUrlRaw] = useState("");
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.6);
   const [rotation, setRotation] = useState(0);
@@ -92,14 +91,56 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return () => { m.remove(); mapRef.current = null; };
   }, []);
 
-  // --- Posicion sigue al mapa en pan y zoom (anclaje geografico) ---
+  // --- L.imageOverlay: el plano es una capa de Leaflet (zoom/pan automatico) ---
+  const imgOverlayRef = useRef<L.ImageOverlay | null>(null);
+
+
+  function recalcBounds() {
+    const m = mapRef.current;
+    if (!m) return null;
+    const ctr = geoCenterRef.current;
+    const ctrPt = m.latLngToContainerPoint(ctr);
+    const natW = rawCanvasRef.current?.width || 1000;
+    const natH = rawCanvasRef.current?.height || 1000;
+    const s = zoom / 100;
+    const sw = m.containerPointToLatLng([ctrPt.x - natW * s / 2, ctrPt.y + natH * s / 2]);
+    const ne = m.containerPointToLatLng([ctrPt.x + natW * s / 2, ctrPt.y - natH * s / 2]);
+    return L.latLngBounds(sw, ne);
+  }
+
+  // Crear o actualizar overlay cuando cambian los parametros
   useEffect(() => {
     const m = mapRef.current;
-    if (!m || !ready) return;
-    const handler = () => setForce(n => n + 1);
-    m.on("move zoom", handler);
-    return () => { m.off("move zoom", handler); };
-  }, [ready]);
+    if (!m || !imageUrl || !ready) return;
+    const bounds = recalcBounds();
+    if (!bounds) return;
+
+    // Remover overlay anterior
+    if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current);
+
+    const ov = L.imageOverlay(imageUrl, bounds, { opacity }).addTo(m);
+    // Aplicar rotacion
+    const el = ov.getElement();
+    if (el && rotation) {
+      el.style.transformOrigin = "center center";
+      el.style.transform += ` rotate(${rotation}deg)`;
+    }
+    imgOverlayRef.current = ov;
+    return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
+  }, [imageUrl, zoom, rotation, opacity, ready]);
+
+  // Actualizar bounds cuando el usuario mueve el plano (via proxy de overlayVersion)
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !imageUrl || !imgOverlayRef.current) return;
+    const handler = () => {
+      // Solo recalcular si el overlay existe y hubo cambio de geoCenter (drag) o move sin zoom
+      const ov = imgOverlayRef.current;
+      if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
+    };
+    m.on("move", handler);
+    return () => { m.off("move", handler); };
+  }, [zoom, imageUrl]);
 
   // --- Reference polygons ---
   useEffect(() => {
@@ -134,7 +175,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         canvas.width = vp.width; canvas.height = vp.height;
         rawCanvasRef.current = canvas;
         await page.render({ canvas, viewport: vp }).promise;
-        setImageUrlRaw(canvas.toDataURL("image/png"));
         // Create transparent version
         const transCanvas = document.createElement("canvas");
         transCanvas.width = canvas.width; transCanvas.height = canvas.height;
@@ -163,25 +203,18 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
 
   const [, setForce] = useState(0);
-  const { x: posX, y: posY } = getPixelPos();
-  const scaleFactor = getScale();
 
-  // --- Convert geo center to pixel position ---
-  function getPixelPos() {
-    const m = mapRef.current;
-    if (!m) return { x: 0, y: 0 };
-    const pt = m.latLngToContainerPoint(geoCenterRef.current);
-    return { x: pt.x, y: pt.y };
-  }
-
-  function getScale() {
-    return zoom / 100;
+  // --- Actualizar bounds del overlay Leaflet tras mover el plano ---
+  function atualizarOverlay() {
+    const ov = imgOverlayRef.current;
+    if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
   }
 
   const nudge = useCallback((dLat: number, dLng: number) => {
     geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
+    atualizarOverlay();
     setForce(n => n + 1);
-  }, []);
+  }, [zoom]);
   const nudgeRef = useRef<(dLat: number, dLng: number) => void>(() => {});
   nudgeRef.current = nudge;
 
@@ -240,7 +273,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   // Cleanup
   useEffect(() => () => {
-    const ov = overlayRef.current as any;
+    const ov = imgOverlayRef.current as any;
     if (ov?._clean) ov._clean();
   }, []);
 
@@ -274,6 +307,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const dLng = curLL.lng - startLatLng.lng;
       geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
       startLatLng = curLL;
+      atualizarOverlay();
       setForce(n => n + 1);
     };
     const onUp = () => {
@@ -404,8 +438,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const interval = setInterval(updateLine, 100);
     return () => { clearInterval(interval); m.removeLayer(layer); verts.forEach(v => m.removeLayer(v)); };
   }, [modoDibujo]);
-
-  const overlayRef = useRef<any>(null);
 
   // --- Markers of confirmed tuberias/valvulas (to be loaded from DB) ---
   const [tuberiasExistentes, setTuberiasExistentes] = useState<any[]>([]);
@@ -586,15 +618,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
           <div style={{ flex: 1, position: "relative" }}>
             <div ref={mapContainerRef} style={{ position: "absolute", inset: 0, zIndex: 1 }} />
             {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, background: "rgba(255,255,255,0.7)" }}><p style={{ color: "#666", fontSize: 14 }}>Cargando plano...</p></div>}
-            {imageUrl && !loading && (
-              <div style={{
-                position: "absolute", left: posX, top: posY,
-                transform: `translate(-50%, -50%) scale(${scaleFactor}) rotate(${rotation}deg)`,
-                transformOrigin: "center center", zIndex: 10, pointerEvents: "none",
-              }}>
-                <img src={transparentBg ? imageUrl : (imageUrlRaw || imageUrl)} alt="Plano" className="geo-plano-img" style={{ display: "block", maxWidth: "none", opacity }} />
-              </div>
-            )}
             {!loading && (
               <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", color: "#fff", padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 200, pointerEvents: "none", whiteSpace: "nowrap" }}>
                 {modoDibujo ? `Modo: ${modoDibujo}` : "Rueda: agarrar plano | Click izq: navegar"}
