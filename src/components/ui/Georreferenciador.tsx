@@ -198,7 +198,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const handleConfirmCrear = useCallback((data: any) => {
     const fc = formCrearRef.current;
     const pts = puntosRef.current;
-    if (!fc || pts.length === 0) { alert("Error interno: sin datos para crear"); return; }
+    if (!fc || pts.length === 0) return;
     const tipo = fc.tipo;
     const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
     const nivelMap: Record<string, string> = { matriz: "matriz", impulsion: "impulsion", submatriz: "submatriz" };
@@ -207,23 +207,16 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const createAnt = onCreateAntenaRef.current;
     const createSnd = onCreateSondaRef.current;
 
-    if (!createTub && !createVal && !createAnt && !createSnd) { alert("Error interno: no hay callback de creación disponible"); return; }
-
     if (isLine) {
-      if (!createTub) { alert("Error: onCreateTuberia no está definido"); return; }
-      createTub({ codigo: data.codigo, nivel: nivelMap[tipo] || "matriz", material: data.material || "PVC", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, nombre: data.nombre, puntos: pts })
-        .then(() => console.log("Tubería creada OK"))
-        .catch((e: any) => alert("Error al crear tubería: " + (e?.message || JSON.stringify(e))));
+      createTub?.({ codigo: data.codigo, nivel: nivelMap[tipo] || "matriz", material: data.material || "PVC", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, nombre: data.nombre, puntos: pts })
+        ?.catch((e: any) => console.error("Error tubería:", e));
     } else if (tipo === "valvula_electrica" || tipo === "valvula_aire") {
-      if (!createVal) { alert("Error: onCreateValvula no está definido"); return; }
-      createVal({ codigo: data.codigo, tipo: data.tipo_valvula || "transicion", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, tuberia_id: data.tuberia_id || undefined, punto: pts[0] })
-        .catch((e: any) => alert("Error al crear válvula: " + (e?.message || JSON.stringify(e))));
+      createVal?.({ codigo: data.codigo, tipo: data.tipo_valvula || "transicion", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, tuberia_id: data.tuberia_id || undefined, punto: pts[0] })
+        ?.catch((e: any) => console.error("Error válvula:", e));
     } else if (tipo === "antena") {
-      if (!createAnt) { alert("Error: onCreateAntena no está definido"); return; }
-      createAnt({ codigo: data.codigo, tipo: "", punto: pts[0] }).catch((e: any) => alert("Error antena: " + (e?.message || JSON.stringify(e))));
+      createAnt?.({ codigo: data.codigo, tipo: "", punto: pts[0] })?.catch((e: any) => console.error("Error antena:", e));
     } else if (tipo === "sonda") {
-      if (!createSnd) { alert("Error: onCreateSonda no está definido"); return; }
-      createSnd({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: pts[0] }).catch((e: any) => alert("Error sonda: " + (e?.message || JSON.stringify(e))));
+      createSnd?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: pts[0] })?.catch((e: any) => console.error("Error sonda:", e));
     }
     setFormCrear(null);
     setPuntosTemp([]);
@@ -430,11 +423,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   // Load existing elements for this equipo when drawing mode opens
   useEffect(() => {
-    if (!ready || !equipoId) { console.warn("Load skipped: ready=" + ready + " equipoId=" + equipoId); return; }
+    if (!ready || !equipoId) return;
     const h = { "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk" };
     const api = "https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/";
     fetch(api + `tuberias?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => { alert("Tuberias: " + (Array.isArray(d) ? d.length : JSON.stringify(d))); if (Array.isArray(d)) setTuberiasExistentes(d); }).catch(e => alert("Error tuberias: " + e?.message));
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setTuberiasExistentes(d); }).catch(e => console.warn("Error tuberias:", e));
     fetch(api + `tuberias?select=id&equipo_id=eq.${equipoId}`, { headers: h })
       .then(r => r.json())
       .then(ts => {
@@ -443,12 +436,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         if (ids.length > 0) url += `,tuberia_id.in.(${ids.join(",")})`;
         url += `)`;
         fetch(url, { headers: h })
-          .then(r => r.json()).then(d => { alert("Valvulas: " + (Array.isArray(d) ? d.length : JSON.stringify(d))); if (Array.isArray(d)) setValvulasExistentes(d); }).catch(e => alert("Error valvulas: " + e?.message));
-      }).catch(e => alert("Error valvulas step1: " + e?.message));
+          .then(r => r.json()).then(d => { if (Array.isArray(d)) setValvulasExistentes(d); }).catch(e => console.warn("Error valvulas:", e));
+      }).catch(e => console.warn("Error valvulas step1:", e));
     fetch(api + `antenas?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => { if (Array.isArray(d)) setAntenasExistentes(d); }).catch(e => alert("Error antenas: " + e?.message));
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setAntenasExistentes(d); }).catch(e => console.warn("Error antenas:", e));
     fetch(api + `sondas?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => { if (Array.isArray(d)) setSondasExistentes(d); }).catch(e => alert("Error sondas: " + e?.message));
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setSondasExistentes(d); }).catch(e => console.warn("Error sondas:", e));
   }, [ready, equipoId, contador]);
 
   // Render tuberias as polylines
