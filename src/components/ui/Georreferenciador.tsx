@@ -119,6 +119,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current);
 
     const ov = L.imageOverlay(imageUrl, bounds, { opacity }).addTo(m);
+    console.log("Overlay creado, zoom:", zoom, "bounds:", bounds.toBBoxString());
     // Aplicar rotacion
     const el = ov.getElement();
     if (el && rotation) {
