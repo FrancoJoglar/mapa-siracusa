@@ -430,12 +430,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   // Load existing elements for this equipo when drawing mode opens
   useEffect(() => {
-    if (!ready || !equipoId) return;
+    if (!ready || !equipoId) { console.warn("Load skipped: ready=" + ready + " equipoId=" + equipoId); return; }
     const h = { "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk" };
     const api = "https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/";
     fetch(api + `tuberias?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => { if (Array.isArray(d)) setTuberiasExistentes(d); }).catch(e => console.warn("Error tuberias:", e));
-    // Valvulas: fetch by tuberia IDs from this equipo + valvulas without tuberia_id
+      .then(r => r.json()).then(d => { alert("Tuberias: " + (Array.isArray(d) ? d.length : JSON.stringify(d))); if (Array.isArray(d)) setTuberiasExistentes(d); }).catch(e => alert("Error tuberias: " + e?.message));
     fetch(api + `tuberias?select=id&equipo_id=eq.${equipoId}`, { headers: h })
       .then(r => r.json())
       .then(ts => {
@@ -444,12 +443,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         if (ids.length > 0) url += `,tuberia_id.in.(${ids.join(",")})`;
         url += `)`;
         fetch(url, { headers: h })
-          .then(r => r.json()).then(d => { if (Array.isArray(d)) setValvulasExistentes(d); }).catch(e => console.warn("Error valvulas:", e));
-      }).catch(e => console.warn("Error valvulas step1:", e));
+          .then(r => r.json()).then(d => { alert("Valvulas: " + (Array.isArray(d) ? d.length : JSON.stringify(d))); if (Array.isArray(d)) setValvulasExistentes(d); }).catch(e => alert("Error valvulas: " + e?.message));
+      }).catch(e => alert("Error valvulas step1: " + e?.message));
     fetch(api + `antenas?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => { if (Array.isArray(d)) setAntenasExistentes(d); }).catch(e => console.warn("Error antenas:", e));
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setAntenasExistentes(d); }).catch(e => alert("Error antenas: " + e?.message));
     fetch(api + `sondas?equipo_id=eq.${equipoId}`, { headers: h })
-      .then(r => r.json()).then(d => { if (Array.isArray(d)) setSondasExistentes(d); }).catch(e => console.warn("Error sondas:", e));
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setSondasExistentes(d); }).catch(e => alert("Error sondas: " + e?.message));
   }, [ready, equipoId, contador]);
 
   // Render tuberias as polylines
