@@ -171,13 +171,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   function recalcBounds() {
     const m = mapRef.current;
     if (!m) return null;
-    const ctr = geoCenterRef.current;
-    const ctrPt = m.latLngToContainerPoint(ctr);
+    // Usar centro y zoom del MAPA guardados como referencia fija
+    const refCtr = saved?.bounds?.center || [geoCenterRef.current.lat, geoCenterRef.current.lng];
+    const refZoom = saved?.bounds?.map_zoom || m.getZoom();
+    const refLevel = saved?.zoom_level || zoom;
+    const ctr = L.latLng(refCtr[0], refCtr[1]);
+    const ctrPt = m.project(ctr, refZoom);
     const natW = rawCanvasRef.current?.width || 1000;
     const natH = rawCanvasRef.current?.height || 1000;
-    const s = zoom / 100;
-    const sw = m.containerPointToLatLng([ctrPt.x - natW * s / 2, ctrPt.y + natH * s / 2]);
-    const ne = m.containerPointToLatLng([ctrPt.x + natW * s / 2, ctrPt.y - natH * s / 2]);
+    const s = refLevel / 100;
+    const sw = m.unproject([ctrPt.x - natW * s / 2, ctrPt.y + natH * s / 2], refZoom);
+    const ne = m.unproject([ctrPt.x + natW * s / 2, ctrPt.y - natH * s / 2], refZoom);
     return L.latLngBounds(sw, ne);
   }
 
