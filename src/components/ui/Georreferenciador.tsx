@@ -166,7 +166,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   // --- L.imageOverlay: plano georreferenciado que escala con el mapa ---
   const imgOverlayRef = useRef<any>(null);
-  const refZoomRef = useRef<number>(0);  // zoom del mapa al crear el overlay por 1ra vez
+  const refZoomRef = useRef<number>(0);
+  const prevZoomRef = useRef<number>(0);
   const [, setForce] = useState(0);
 
   function recalcBounds() {
@@ -188,7 +189,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return L.latLngBounds(sw, ne);
   }
 
-  // Crear/recrear overlay (no incluye rotation para evitar recreacion innecesaria)
+  // Crear overlay UNA SOLA VEZ (cuando se carga la imagen)
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !imageUrl || !ready) return;
@@ -210,7 +211,24 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (el && rotation) { el.style.transformOrigin = "center center"; el.style.rotate = `${rotation}deg`; }
     imgOverlayRef.current = ov;
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
-  }, [imageUrl, zoom, opacity, ready]);
+  }, [imageUrl, opacity, ready]);
+
+  // Zoom slider: escalar bounds del overlay (sin recrear)
+  useEffect(() => {
+    const ov = imgOverlayRef.current;
+    if (!ov) { prevZoomRef.current = zoom; return; }
+    if (!prevZoomRef.current) { prevZoomRef.current = zoom; return; }
+    const ratio = zoom / prevZoomRef.current;
+    prevZoomRef.current = zoom;
+    if (Math.abs(ratio - 1) < 0.001) return;
+    const c = ov.getBounds().getCenter();
+    const sw = ov.getBounds().getSouthWest();
+    const ne = ov.getBounds().getNorthEast();
+    ov.setBounds(L.latLngBounds(
+      L.latLng(c.lat + (sw.lat - c.lat) * ratio, c.lng + (sw.lng - c.lng) * ratio),
+      L.latLng(c.lat + (ne.lat - c.lat) * ratio, c.lng + (ne.lng - c.lng) * ratio)
+    ));
+  }, [zoom]);
 
   // Rotacion: solo CSS, sin recrear overlay
   useEffect(() => {
@@ -227,8 +245,13 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const nudge = useCallback((dLat: number, dLng: number) => {
     geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
     const ov = imgOverlayRef.current;
-    if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
-    setForce(n => n + 1);
+    if (ov) {
+      const ob = ov.getBounds();
+      ov.setBounds(L.latLngBounds(
+        L.latLng(ob.getSouthWest().lat + dLat, ob.getSouthWest().lng + dLng),
+        L.latLng(ob.getNorthEast().lat + dLat, ob.getNorthEast().lng + dLng)
+      ));
+    }
   }, []);
   const nudgeRef = useRef<(dLat: number, dLng: number) => void>(() => {});
   nudgeRef.current = nudge;
@@ -274,11 +297,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     };
     const onUp = () => {
       dragging = false;
-      const m = mapRef.current;
-      if (m) m.dragging.enable();
-      // Sincronizar bounds del overlay con el nuevo centro
-      const ov = imgOverlayRef.current;
-      if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
+      if (mapRef.current) mapRef.current.dragging.enable();
     };
     el.addEventListener("mousedown", onDown);
     window.addEventListener("mousemove", onMove);
