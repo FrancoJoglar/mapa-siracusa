@@ -184,16 +184,22 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !imageUrl || !ready) return;
-    const bounds = recalcBounds();
-    if (!bounds) return;
     if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current);
-    let useBounds = bounds;
+
+    // Siempre usar saved bounds si existen, sino recalc desde center
+    let useBounds: L.LatLngBounds | null = null;
     if (saved?.bounds?.sw && saved?.bounds?.ne) {
       useBounds = L.latLngBounds(
         L.latLng(saved.bounds.sw[0], saved.bounds.sw[1]),
         L.latLng(saved.bounds.ne[0], saved.bounds.ne[1])
       );
+      console.log("OVERLAY: usando saved bounds", JSON.stringify(saved.bounds.sw), JSON.stringify(saved.bounds.ne));
+    } else {
+      const b = recalcBounds();
+      if (b) useBounds = b;
+      console.log("OVERLAY: recalcBounds, zoom:", zoom, "center:", geoCenterRef.current);
     }
+    if (!useBounds) return;
     const ov = L.imageOverlay(imageUrl, useBounds, { opacity, interactive: false, bubblingMouseEvents: false }).addTo(m);
     // Rotacion via CSS (una vez, no interfiere con Leaflet)
     const el = ov.getElement();
