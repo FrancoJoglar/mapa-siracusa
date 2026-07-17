@@ -113,9 +113,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !ready) return;
-    const handler = () => setForce(n => n + 1);
-    m.on("move zoom", handler);
-    return () => { m.off("move zoom", handler); };
+    let zooming = false;
+    m.on("zoomstart", () => { zooming = true; });
+    m.on("zoomend", () => { zooming = false; });
+    m.on("move", () => { if (!zooming) setForce(n => n + 1); });
+    return () => { m.off("move"); m.off("zoomstart"); m.off("zoomend"); };
   }, [ready]);
 
   function getPixelPos() {
