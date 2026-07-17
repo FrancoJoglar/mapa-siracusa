@@ -4,6 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
+import { supabase } from "../../lib/supabase";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -329,42 +330,33 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       insertData.equipo_id = equipoId;
     }
 
-    const h = { "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk" };
-    const api = "https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/";
-
-    fetch(api + table, {
-      method: "POST",
-      headers: { ...h, "Content-Type": "application/json", "Prefer": "return=representation" },
-      body: JSON.stringify(insertData),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (!Array.isArray(data)) { console.warn("Insert response:", data); return; }
-        const nuevo = data[0];
-        // Add layer to map with correct style
-        const color = colores[tipo];
-        let layer: any;
-        if (geojson.geometry.type === "LineString") {
-          layer = L.geoJSON(geojson, {
-            style: { color, weight: 4, opacity: 0.85 },
-          }).addTo(m);
-        } else {
-          layer = L.marker([geojson.geometry.coordinates[1], geojson.geometry.coordinates[0]], {
-            icon: L.divIcon({
-              className: "",
-              html: `<div style="width:12px;height:12px;background:${color};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
-              iconSize: [12, 12], iconAnchor: [6, 6],
-            }),
-          }).addTo(m);
-        }
-        (layer.pm as any)?.setOptions?.({ layerId: nuevo.id, snappable: true });
-        layerRefs.current.set(nuevo.id, layer);
-        capasRef.current.push(layer);
-        setDraft(null);
-        setShowForm(false);
-        setContador(c => c + 1);
-      })
-      .catch(e => alert("Error al guardar: " + e.message));
+    // Insert via authenticated supabase client (bypasses RLS anon restrictions)
+    const { data, error } = await supabase.from(table).insert(insertData).select();
+    if (error) { alert("Error al guardar: " + error.message); return; }
+    if (!data || data.length === 0) return;
+    const nuevo = data[0];
+    // Add layer to map with correct style
+    const color = colores[tipo];
+    let layer: any;
+    if (geojson.geometry.type === "LineString") {
+      layer = L.geoJSON(geojson, {
+        style: { color, weight: 4, opacity: 0.85 },
+      }).addTo(m);
+    } else {
+      layer = L.marker([geojson.geometry.coordinates[1], geojson.geometry.coordinates[0]], {
+        icon: L.divIcon({
+          className: "",
+          html: `<div style="width:12px;height:12px;background:${color};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
+          iconSize: [12, 12], iconAnchor: [6, 6],
+        }),
+      }).addTo(m);
+    }
+    (layer.pm as any)?.setOptions?.({ layerId: nuevo.id, snappable: true });
+    layerRefs.current.set(nuevo.id, layer);
+    capasRef.current.push(layer);
+    setDraft(null);
+    setShowForm(false);
+    setContador(c => c + 1);
   };
 
   // --- Save ---
