@@ -6,6 +6,14 @@ import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import { supabase } from "../../lib/supabase";
 
+// Fix Leaflet default marker icon (broken in bundlers)
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 type DraftType = "matriz" | "impulsion" | "submatriz" | "valvula_electrica" | "valvula_aire" | "antena" | "sonda";
@@ -266,8 +274,14 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const handleCreate = (e: any) => {
       const layer = e.layer;
       const geojson = layer.toGeoJSON();
-      // Remove from map until confirmed
-      m.removeLayer(layer);
+      // For markers, use a colored circle immediately instead of broken default icon
+      if (geojson.geometry.type === "Point") {
+        layer.setIcon(L.divIcon({
+          className: "",
+          html: `<div style="width:12px;height:12px;background:#999;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
+          iconSize: [12, 12], iconAnchor: [6, 6],
+        }));
+      }
       setDraft({ geojson, layer, tipo: null });
       setShowForm(true);
     };
