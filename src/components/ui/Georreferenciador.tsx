@@ -14,6 +14,24 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
+// Custom ImageOverlay with rotation support
+const RotatedOverlay = (L.ImageOverlay as any).extend({
+  options: { rotation: 0 },
+  _reset: function(this: any) {
+    (L.ImageOverlay.prototype as any)._reset.call(this);
+    if (this.options.rotation) {
+      this._image.style.transformOrigin = "center center";
+      const parts = (this._image.style.transform || "").split(" ").filter((p: string) => !p.startsWith("rotate("));
+      parts.push(`rotate(${this.options.rotation}deg)`);
+      this._image.style.transform = parts.join(" ");
+    }
+  },
+  setRotation: function(this: any, deg: number) {
+    this.options.rotation = deg;
+    this._reset();
+  },
+});
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 interface Props {
@@ -131,14 +149,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     // Remover overlay anterior
     if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current);
 
-    const ov = L.imageOverlay(imageUrl, bounds, { opacity }).addTo(m);
+    const ov = new (RotatedOverlay as any)(imageUrl, bounds, { opacity, rotation }).addTo(m);
     console.log("Overlay creado, zoom:", zoom, "bounds:", bounds.toBBoxString());
-    // Aplicar rotacion
-    const el = ov.getElement();
-    if (el && rotation) {
-      el.style.transformOrigin = "center center";
-      el.style.transform += ` rotate(${rotation}deg)`;
-    }
     imgOverlayRef.current = ov;
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
   }, [imageUrl, zoom, rotation, opacity, ready]);
@@ -247,8 +259,15 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const dLng = curLL.lng - startLatLng.lng;
       geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
       startLatLng = curLL;
+      // Translate overlay bounds by the drag delta (preserves size and rotation)
       const ov = imgOverlayRef.current;
-      if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
+      if (ov) {
+        const ob = ov.getBounds();
+        ov.setBounds(L.latLngBounds(
+          L.latLng(ob.getSouthWest().lat + dLat, ob.getSouthWest().lng + dLng),
+          L.latLng(ob.getNorthEast().lat + dLat, ob.getNorthEast().lng + dLng)
+        ));
+      }
       setForce(n => n + 1);
     };
     const onUp = () => {
