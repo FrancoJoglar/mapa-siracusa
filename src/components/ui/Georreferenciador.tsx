@@ -451,9 +451,9 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         fetch(url, { headers: h })
           .then(r => r.json()).then(d => { if (Array.isArray(d)) setValvulasExistentes(d); }).catch(e => console.warn("Error valvulas:", e));
       }).catch(e => console.warn("Error valvulas step1:", e));
-    fetch(api + `antenas?equipo_id=eq.${equipoId}`, { headers: h })
+    fetch(api + `antenas?limit=100`, { headers: h })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setAntenasExistentes(d); }).catch(e => console.warn("Error antenas:", e));
-    fetch(api + `sondas?equipo_id=eq.${equipoId}`, { headers: h })
+    fetch(api + `sondas?limit=100`, { headers: h })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setSondasExistentes(d); }).catch(e => console.warn("Error sondas:", e));
   }, [ready, equipoId, contador]);
 
