@@ -158,7 +158,11 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       );
     }
 
-    const ov = new (RotatedOverlay as any)(imageUrl, useBounds, { opacity, rotation }).addTo(m);
+    const ov = new (RotatedOverlay as any)(imageUrl, useBounds, { 
+      opacity, rotation, 
+      interactive: false, 
+      bubblingMouseEvents: false,
+    }).addTo(m);
     console.log("Overlay creado, zoom:", zoom, "bounds:", useBounds.toBBoxString());
     imgOverlayRef.current = ov;
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
