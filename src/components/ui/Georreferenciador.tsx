@@ -14,20 +14,19 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-// Custom ImageOverlay with rotation support + pmIgnore
+// Custom ImageOverlay with rotation
 const RotatedOverlay = (L.ImageOverlay as any).extend({
-  options: { rotation: 0, pmIgnore: true },
-  _reset: function(this: any) {
-    (L.ImageOverlay.prototype as any)._reset.call(this);
+  options: { rotation: 0 },
+  _initImage: function(this: any) {
+    (L.ImageOverlay.prototype as any)._initImage.call(this);
     if (this.options.rotation) {
       this._image.style.transformOrigin = "center center";
       this._image.style.rotate = `${this.options.rotation}deg`;
-    } else {
-      this._image.style.rotate = "";
     }
   },
   setRotation: function(this: any, deg: number) {
     this.options.rotation = deg;
+    if (this._image) this._image.style.rotate = deg ? `${deg}deg` : "";
     this._reset();
   },
 });
