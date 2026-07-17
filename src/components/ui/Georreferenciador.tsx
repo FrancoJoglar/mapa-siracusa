@@ -185,32 +185,40 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return L.latLngBounds(sw, ne);
   }
 
+  // Crear/recrear overlay (no incluye rotation para evitar recreacion innecesaria)
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !imageUrl || !ready) return;
     if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current);
 
-    // Siempre usar saved bounds si existen, sino recalc desde center
     let useBounds: L.LatLngBounds | null = null;
     if (saved?.bounds?.sw && saved?.bounds?.ne) {
       useBounds = L.latLngBounds(
         L.latLng(saved.bounds.sw[0], saved.bounds.sw[1]),
         L.latLng(saved.bounds.ne[0], saved.bounds.ne[1])
       );
-      console.log("OVERLAY: usando saved bounds", JSON.stringify(saved.bounds.sw), JSON.stringify(saved.bounds.ne));
     } else {
       const b = recalcBounds();
       if (b) useBounds = b;
-      console.log("OVERLAY: recalcBounds, zoom:", zoom, "center:", geoCenterRef.current);
     }
     if (!useBounds) return;
     const ov = L.imageOverlay(imageUrl, useBounds, { opacity, interactive: false, bubblingMouseEvents: false }).addTo(m);
-    // Rotacion via CSS (una vez, no interfiere con Leaflet)
     const el = ov.getElement();
     if (el && rotation) { el.style.transformOrigin = "center center"; el.style.rotate = `${rotation}deg`; }
     imgOverlayRef.current = ov;
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
-  }, [imageUrl, zoom, rotation, opacity, ready]);
+  }, [imageUrl, zoom, opacity, ready]);
+
+  // Rotacion: solo CSS, sin recrear overlay
+  useEffect(() => {
+    const ov = imgOverlayRef.current;
+    if (!ov) return;
+    const el = ov.getElement();
+    if (el) {
+      el.style.transformOrigin = "center center";
+      el.style.rotate = rotation ? `${rotation}deg` : "";
+    }
+  }, [rotation]);
 
   // Actualizar bounds del overlay al arrastrar el plano (nudge)
   const nudge = useCallback((dLat: number, dLng: number) => {
