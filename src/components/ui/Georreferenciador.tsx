@@ -21,9 +21,10 @@ const RotatedOverlay = (L.ImageOverlay as any).extend({
     (L.ImageOverlay.prototype as any)._reset.call(this);
     if (this.options.rotation) {
       this._image.style.transformOrigin = "center center";
-      const parts = (this._image.style.transform || "").split(" ").filter((p: string) => !p.startsWith("rotate("));
-      parts.push(`rotate(${this.options.rotation}deg)`);
-      this._image.style.transform = parts.join(" ");
+      // Use CSS rotate property (independent from transform)
+      this._image.style.rotate = `${this.options.rotation}deg`;
+    } else {
+      this._image.style.rotate = "";
     }
   },
   setRotation: function(this: any, deg: number) {
@@ -156,6 +157,9 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         L.latLng(saved.bounds.sw[0], saved.bounds.sw[1]),
         L.latLng(saved.bounds.ne[0], saved.bounds.ne[1])
       );
+      console.log("Using saved bounds:", JSON.stringify(saved.bounds.sw), JSON.stringify(saved.bounds.ne));
+    } else {
+      console.log("Using recalcBounds, zoom:", zoom, "saved?.bounds?.sw:", !!saved?.bounds?.sw);
     }
 
     const ov = new (RotatedOverlay as any)(imageUrl, useBounds, { opacity, rotation }).addTo(m);
