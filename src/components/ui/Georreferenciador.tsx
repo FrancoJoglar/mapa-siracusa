@@ -149,8 +149,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     // Remover overlay anterior
     if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current);
 
-    const ov = new (RotatedOverlay as any)(imageUrl, bounds, { opacity, rotation }).addTo(m);
-    console.log("Overlay creado, zoom:", zoom, "bounds:", bounds.toBBoxString());
+    // Use saved bounds if available (exact restore), otherwise recalc from center
+    let useBounds = bounds;
+    if (saved?.bounds?.sw && saved?.bounds?.ne) {
+      useBounds = L.latLngBounds(
+        L.latLng(saved.bounds.sw[0], saved.bounds.sw[1]),
+        L.latLng(saved.bounds.ne[0], saved.bounds.ne[1])
+      );
+    }
+
+    const ov = new (RotatedOverlay as any)(imageUrl, useBounds, { opacity, rotation }).addTo(m);
+    console.log("Overlay creado, zoom:", zoom, "bounds:", useBounds.toBBoxString());
     imgOverlayRef.current = ov;
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
   }, [imageUrl, zoom, rotation, opacity, ready]);
@@ -443,12 +452,19 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const m = mapRef.current;
     if (!m) { alert("Mapa no disponible"); return; }
     setSaving(true);
-    // Calculate center from overlay bounds
+    // Calculate center and exact bounds from overlay
     const ov = imgOverlayRef.current;
     if (!ov) { setSaving(false); alert("Plano no disponible"); return; }
     const bounds = ov.getBounds();
     const ctr = bounds.getCenter();
-    onSave({ center: [ctr.lat, ctr.lng], rotation, opacity, zoom_level: zoom, mapZoom: m.getZoom() });
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+    onSave({
+      center: [ctr.lat, ctr.lng],
+      sw: [sw.lat, sw.lng],
+      ne: [ne.lat, ne.lng],
+      rotation, opacity, zoom_level: zoom, mapZoom: m.getZoom(),
+    });
   };
 
   // --- Load existing elements for this equipo ---
