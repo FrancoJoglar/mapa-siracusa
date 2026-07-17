@@ -16,8 +16,6 @@ L.Icon.Default.mergeOptions({
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
-type DraftType = "matriz" | "impulsion" | "submatriz" | "valvula_electrica" | "valvula_aire" | "antena" | "sonda";
-
 interface Props {
   planoUrl: string;
   equipoCodigo: string;
@@ -46,8 +44,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const equipoNum = equipoCodigo.replace("Equipo ", "").trim();
 
   // --- Geoman drawing state ---
-  const [draft, setDraft] = useState<{ geojson: any; layer: any; tipo: DraftType | null } | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [pendingItems, setPendingItems] = useState<{ id: string; layer: any; geojson: any; tipo: string; codigo: string; material: string; diametro_mm: string }[]>([]);
+  const [editPanel, setEditPanel] = useState<{ id: string; tipo: string; codigo: string; material: string; diametro_mm: string; isExisting: boolean; existingTipo?: string } | null>(null);
   const layerRefs = useRef<Map<string, any>>(new Map());
   const capasRef = useRef<any[]>([]);
 
@@ -274,16 +272,22 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const handleCreate = (e: any) => {
       const layer = e.layer;
       const geojson = layer.toGeoJSON();
-      // For markers, use a colored circle immediately instead of broken default icon
+      const id = "pending_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+      
+      // Apply draft style (gray, dashed for lines, circle for points)
       if (geojson.geometry.type === "Point") {
         layer.setIcon(L.divIcon({
           className: "",
           html: `<div style="width:12px;height:12px;background:#999;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
           iconSize: [12, 12], iconAnchor: [6, 6],
         }));
+      } else {
+        layer.setStyle({ color: "#999", weight: 3, dashArray: "5,5" });
       }
-      setDraft({ geojson, layer, tipo: null });
-      setShowForm(true);
+      (layer.pm as any)?.setOptions?.({ layerId: id, snappable: true });
+      layerRefs.current.set(id, layer);
+
+      setPendingItems(prev => [...prev, { id, layer, geojson, tipo: "", codigo: "", material: "PVC", diametro_mm: "" }]);
     };
     m.on("pm:create", handleCreate);
     return () => { m.off("pm:create", handleCreate); };
@@ -308,69 +312,103 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return () => { m.off("pm:cut", handleCut); };
   }, []);
 
-  // --- Save draft ---
-  const handleConfirmarDraft = async (tipo: DraftType, codigo: string, extra?: any) => {
-    if (!draft) return;
-    const { geojson } = draft;
+  // --- Click to select layer and show edit panel ---
+  useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
+    const onClick = (e: L.LeafletMouseEvent) => {
+      // Ignore clicks on the map itself (no layer)
+      if (!e.propagatedFrom) return;
+      // Check if click was on one of our layers
+      for (const [id, layer] of layerRefs.current.entries()) {
+        if ((layer as any)._leaflet_id === (e.propagatedFrom as any)._leaflet_id) {
+          // Found the layer
+          const pending = pendingItems.find(p => p.id === id);
+          if (pending) {
+            setEditPanel({
+              id: pending.id, tipo: pending.tipo, codigo: pending.codigo,
+              material: pending.material, diametro_mm: pending.diametro_mm,
+              isExisting: false,
+            });
+          } else {
+            // It's an existing saved element - we could add edit-by-click later
+          }
+          return;
+        }
+      }
+    };
+    m.on("click", onClick);
+    return () => { m.off("click", onClick); };
+  }, [pendingItems]);
 
+  const handleSaveItem = async (item: { id: string; tipo: string; codigo: string; material: string; diametro_mm: string; isExisting: boolean; existingTipo?: string }) => {
+    if (!item.tipo || !item.codigo) { alert("Seleccioná tipo y código"); return; }
+    if (!equipoId) { alert("Equipo no encontrado"); return; }
+
+    const isLine = item.tipo === "matriz" || item.tipo === "impulsion" || item.tipo === "submatriz";
+    const table = isLine ? "tuberias" : (item.tipo === "valvula_electrica" || item.tipo === "valvula_aire" ? "valvulas" : "antenas");
     const colores: Record<string, string> = {
       matriz: "#1565c0", impulsion: "#2e7d32", submatriz: "#c62828",
       valvula_electrica: "#e65100", valvula_aire: "#42a5f5",
       antena: "#6a1b9a", sonda: "#f9a825",
     };
 
-    if (!equipoId) { alert("Equipo no encontrado"); return; }
-
-    const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
-    const table = isLine ? "tuberias" : (tipo === "valvula_electrica" || tipo === "valvula_aire" ? "valvulas" : (tipo === "antena" ? "antenas" : "sondas"));
-
-    const insertData: any = {
-      codigo,
-      geometria: geojson.geometry,
-    };
-
-    if (isLine) {
-      insertData.nivel = tipo;
-      insertData.material = extra?.material || "PVC";
-      insertData.diametro_mm = extra?.diametro_mm ? Number(extra.diametro_mm) : null;
-      insertData.equipo_id = equipoId;
-    } else if (tipo === "valvula_electrica" || tipo === "valvula_aire") {
-      insertData.tipo = tipo === "valvula_aire" ? "aire" : "transicion";
-      insertData.diametro_mm = extra?.diametro_mm ? Number(extra.diametro_mm) : null;
-      insertData.equipo_id = equipoId;
-    } else if (tipo === "antena" || tipo === "sonda") {
-      insertData.equipo_id = equipoId;
-    }
-
-    // Insert via authenticated supabase client (bypasses RLS anon restrictions)
-    const { data, error } = await supabase.from(table).insert(insertData).select();
-    if (error) { alert("Error al guardar: " + error.message); return; }
-    if (!data || data.length === 0) return;
-    const nuevo = data[0];
-    // Add layer to map with correct style
-    const color = colores[tipo];
-    let layer: any;
-    if (geojson.geometry.type === "LineString") {
-      layer = L.geoJSON(geojson, {
-        style: { color, weight: 4, opacity: 0.85 },
-      }).addTo(m);
+    if (item.isExisting) {
+      // UPDATE existing element in Supabase
+      const updateData: any = { codigo: item.codigo };
+      if (item.material) updateData.material = item.material;
+      if (item.diametro_mm) updateData.diametro_mm = Number(item.diametro_mm);
+      if (item.existingTipo) updateData.nivel = item.existingTipo;
+      const { error } = await supabase.from(table).update(updateData).eq("id", item.id);
+      if (error) { alert("Error al actualizar: " + error.message); return; }
+      // Update layer style
+      const layer = layerRefs.current.get(item.id);
+      if (layer) {
+        if (layer.setStyle) layer.setStyle({ color: colores[item.tipo] || "#1565c0", weight: 4, dashArray: undefined });
+      }
+      setContador(c => c + 1);
     } else {
-      layer = L.marker([geojson.geometry.coordinates[1], geojson.geometry.coordinates[0]], {
-        icon: L.divIcon({
-          className: "",
-          html: `<div style="width:12px;height:12px;background:${color};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
-          iconSize: [12, 12], iconAnchor: [6, 6],
-        }),
-      }).addTo(m);
+      // INSERT new element
+      const layer = layerRefs.current.get(item.id);
+      if (!layer) return;
+      const geojson = layer.toGeoJSON();
+      const insertData: any = { codigo: item.codigo, geometria: geojson.geometry };
+
+      if (isLine) {
+        insertData.nivel = item.tipo;
+        insertData.material = item.material || "PVC";
+        insertData.diametro_mm = item.diametro_mm ? Number(item.diametro_mm) : null;
+        insertData.equipo_id = equipoId;
+      } else if (item.tipo === "valvula_electrica" || item.tipo === "valvula_aire") {
+        insertData.tipo = item.tipo === "valvula_aire" ? "aire" : "transicion";
+        insertData.diametro_mm = item.diametro_mm ? Number(item.diametro_mm) : null;
+        insertData.equipo_id = equipoId;
+      } else if (item.tipo === "antena") {
+        insertData.equipo_id = equipoId;
+      }
+
+      const { data, error } = await supabase.from(table).insert(insertData).select();
+      if (error) { alert("Error al guardar: " + error.message); return; }
+      if (!data || data.length === 0) return;
+      const nuevo = data[0];
+      const color = colores[item.tipo];
+
+      // Update layer style to saved style
+      layer.setStyle ? layer.setStyle({ color, weight: 4, dashArray: undefined }) : layer.setIcon(L.divIcon({
+        className: "",
+        html: `<div style="width:12px;height:12px;background:${color};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
+        iconSize: [12, 12], iconAnchor: [6, 6],
+      }));
+      
+      // Replace pending ID with real ID
+      layerRefs.current.delete(item.id);
+      layerRefs.current.set(nuevo.id, layer);
+      (layer.pm as any)?.setOptions?.({ layerId: nuevo.id });
+
+      setPendingItems(prev => prev.filter(p => p.id !== item.id));
+      setContador(c => c + 1);
     }
-    (layer.pm as any)?.setOptions?.({ layerId: nuevo.id, snappable: true });
-    layerRefs.current.set(nuevo.id, layer);
-    capasRef.current.push(layer);
-    setDraft(null);
-    setShowForm(false);
-    setContador(c => c + 1);
+    setEditPanel(null);
   };
 
   // --- Save ---
@@ -526,16 +564,29 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         {/* Geoman drawing info bar */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderBottom: "1px solid #eee", background: "#f5f5f5", flexShrink: 0 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-            Dibujar: usar las herramientas del mapa (🟦 línea, 📍 punto) o ✂️ Cortar para dividir tuberías
+            🗺️ Dibujar con herramientas del mapa — luego hacé click en el elemento para editarlo
           </span>
+          {pendingItems.length > 0 && (
+            <span style={{ fontSize: 11, color: "#e65100", fontWeight: 600 }}>
+              ({pendingItems.length} pendiente{pendingItems.length !== 1 ? "s" : ""} — click para editar)
+            </span>
+          )}
         </div>
 
-        {showForm && draft && (
-          <DraftForm
-            tipo={draft.tipo}
-            onChangeTipo={(t: DraftType) => setDraft({ ...draft, tipo: t })}
-            onConfirm={(tipo, codigo, extra) => handleConfirmarDraft(tipo, codigo, extra)}
-            onCancel={() => { setDraft(null); setShowForm(false); }}
+        {editPanel && (
+          <EditPanel
+            data={editPanel}
+            onSave={handleSaveItem}
+            onCancel={() => setEditPanel(null)}
+            onDelete={async (id) => {
+              if (!confirm("¿Eliminar este elemento?")) return;
+              const layer = layerRefs.current.get(id);
+              if (layer) mapRef.current?.removeLayer(layer);
+              layerRefs.current.delete(id);
+              setPendingItems(prev => prev.filter(p => p.id !== id));
+              setEditPanel(null);
+              setContador(c => c + 1);
+            }}
           />
         )}
 
@@ -555,27 +606,30 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   );
 }
 
-// ─── Draft Form Component ─────────────────────────────────────────────────────
+// ─── Edit Panel Component ────────────────────────────────────────────────────
 
-function DraftForm({ tipo, onChangeTipo, onConfirm, onCancel }: {
-  tipo: DraftType | null;
-  onChangeTipo: (t: DraftType) => void;
-  onConfirm: (tipo: DraftType, codigo: string, extra?: any) => void;
+function EditPanel({ data, onSave, onCancel, onDelete }: {
+  data: { id: string; tipo: string; codigo: string; material: string; diametro_mm: string; isExisting: boolean; existingTipo?: string };
+  onSave: (item: any) => Promise<void>;
   onCancel: () => void;
+  onDelete: (id: string) => Promise<void>;
 }) {
-  const [codigo, setCodigo] = useState("");
-  const [material, setMaterial] = useState("PVC");
-  const [diametro, setDiametro] = useState("");
-  const options: DraftType[] = ["matriz", "impulsion", "submatriz", "valvula_electrica", "valvula_aire", "antena", "sonda"];
+  const [tipo, setTipo] = useState(data.tipo);
+  const [codigo, setCodigo] = useState(data.codigo);
+  const [material, setMaterial] = useState(data.material || "PVC");
+  const [diametro, setDiametro] = useState(data.diametro_mm);
   const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
+  const options = ["matriz", "impulsion", "submatriz", "valvula_electrica", "valvula_aire", "antena"];
 
   return (
     <div style={{ padding: 12, borderBottom: "1px solid #eee", background: "#fff3e0", fontSize: 13 }}>
-      <div style={{ fontWeight: 600, marginBottom: 8, color: "#e65100" }}>Confirmar nuevo elemento</div>
+      <div style={{ fontWeight: 600, marginBottom: 8, color: "#e65100" }}>
+        {data.isExisting ? "✎ Editar elemento" : "✚ Nuevo elemento"}
+      </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <select value={tipo || ""} onChange={e => onChangeTipo(e.target.value as DraftType)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12 }}>
-          <option value="" disabled>Seleccionar tipo</option>
-          {options.map(o => <option key={o} value={o}>{o}</option>)}
+        <select value={tipo} onChange={e => setTipo(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12 }}>
+          <option value="">Tipo...</option>
+          {options.map(o => <option key={o} value={o}>{o.replace("_", " ")}</option>)}
         </select>
         <input placeholder="Código" value={codigo} onChange={e => setCodigo(e.target.value)} style={{ width: 80, padding: "4px 8px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12 }} />
         {isLine && (
@@ -586,8 +640,11 @@ function DraftForm({ tipo, onChangeTipo, onConfirm, onCancel }: {
           </select>
         )}
         <input placeholder="Ø mm" value={diametro} onChange={e => setDiametro(e.target.value)} style={{ width: 60, padding: "4px 8px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12 }} />
-        <button onClick={() => { if (!tipo || !codigo) { alert("Seleccioná tipo y código"); return; } onConfirm(tipo, codigo, { material, diametro_mm: diametro }); }} style={{ padding: "6px 14px", background: "#2e7d32", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 12 }}>✓ Guardar</button>
-        <button onClick={onCancel} style={{ padding: "6px 14px", background: "#c62828", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>✕ Cancelar</button>
+        <button onClick={() => onSave({ ...data, tipo, codigo, material, diametro_mm: diametro })} style={{ padding: "6px 14px", background: "#2e7d32", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 12 }}>✓ Guardar</button>
+        <button onClick={onCancel} style={{ padding: "6px 14px", background: "#666", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>✕</button>
+        {!data.isExisting && (
+          <button onClick={() => onDelete(data.id)} style={{ padding: "6px 14px", background: "#c62828", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>🗑</button>
+        )}
       </div>
     </div>
   );
