@@ -14,23 +14,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-// Custom ImageOverlay with rotation
-const RotatedOverlay = (L.ImageOverlay as any).extend({
-  options: { rotation: 0 },
-  _initImage: function(this: any) {
-    (L.ImageOverlay.prototype as any)._initImage.call(this);
-    if (this.options.rotation) {
-      this._image.style.transformOrigin = "center center";
-      this._image.style.rotate = `${this.options.rotation}deg`;
-    }
-  },
-  setRotation: function(this: any, deg: number) {
-    this.options.rotation = deg;
-    if (this._image) this._image.style.rotate = deg ? `${deg}deg` : "";
-    this._reset();
-  },
-});
-
 export interface PuntoGeo { lat: number; lng: number; }
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -157,11 +140,15 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       );
     }
 
-    const ov = new (RotatedOverlay as any)(imageUrl, useBounds, { 
-      opacity, rotation, 
-      interactive: false, 
-      bubblingMouseEvents: false,
+    const ov = L.imageOverlay(imageUrl, useBounds, { 
+      opacity, interactive: false, bubblingMouseEvents: false,
     }).addTo(m);
+    // Apply rotation via CSS (one time, not during zoom)
+    const el = ov.getElement();
+    if (el && rotation) {
+      el.style.transformOrigin = "center center";
+      el.style.rotate = `${rotation}deg`;
+    }
     console.log("Overlay creado, zoom:", zoom, "bounds:", useBounds.toBBoxString());
     imgOverlayRef.current = ov;
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
