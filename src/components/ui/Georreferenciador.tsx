@@ -441,16 +441,13 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const handleSave = () => {
     if (!imageUrl) return alert("Espera que cargue el plano...");
     const m = mapRef.current;
-    const img = document.querySelector(".geo-plano-img") as HTMLImageElement;
-    if (!m || !img) { alert("Mapa o imagen no disponible"); return; }
+    if (!m) { alert("Mapa no disponible"); return; }
     setSaving(true);
-    const parent = mapContainerRef.current?.parentElement;
-    if (!parent) return;
-    const imgRect = img.getBoundingClientRect();
-    const ctrRect = parent.getBoundingClientRect();
-    const cxPx = (imgRect.left + imgRect.right) / 2 - ctrRect.left;
-    const cyPx = (imgRect.top + imgRect.bottom) / 2 - ctrRect.top;
-    const ctr = m.containerPointToLatLng([cxPx, cyPx]);
+    // Calculate center from overlay bounds
+    const ov = imgOverlayRef.current;
+    if (!ov) { setSaving(false); alert("Plano no disponible"); return; }
+    const bounds = ov.getBounds();
+    const ctr = bounds.getCenter();
     onSave({ center: [ctr.lat, ctr.lng], rotation, opacity, zoom_level: zoom, mapZoom: m.getZoom() });
   };
 
@@ -481,10 +478,20 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
-    // Clear previous
-    capasRef.current.forEach(l => m.removeLayer(l));
-    capasRef.current = [];
-    layerRefs.current.clear();
+    // Remove only previously rendered existing-element layers (not pending)
+    const toRemove: any[] = [];
+    capasRef.current.forEach(l => {
+      const id = (l as any).pm?.getOptions()?.layerId || "";
+      if (!id.startsWith("pending_")) {
+        toRemove.push(l);
+        m.removeLayer(l);
+      }
+    });
+    capasRef.current = capasRef.current.filter(l => (l as any).pm?.getOptions()?.layerId?.startsWith("pending_"));
+    // Also clean layerRefs of non-pending entries (they'll be re-added)
+    for (const [key] of layerRefs.current.entries()) {
+      if (!key.startsWith("pending_")) layerRefs.current.delete(key);
+    }
 
     const colores: Record<string, string> = {
       matriz: "#1565c0", impulsion: "#2e7d32", submatriz: "#c62828",
@@ -531,8 +538,12 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     });
 
     return () => {
-      capasRef.current.forEach(l => m.removeLayer(l));
-      capasRef.current = [];
+      // Don't remove pending layers in cleanup
+      capasRef.current.forEach(l => {
+        const id = (l as any).pm?.getOptions()?.layerId || "";
+        if (!id.startsWith("pending_")) m.removeLayer(l);
+      });
+      capasRef.current = capasRef.current.filter(l => (l as any).pm?.getOptions()?.layerId?.startsWith("pending_"));
       layerRefs.current.clear();
     };
   }, [tuberiasExistentes, valvulasExistentes, antenasExistentes, sondasExistentes, ready]);
