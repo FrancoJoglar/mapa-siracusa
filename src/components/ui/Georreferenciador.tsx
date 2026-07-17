@@ -71,6 +71,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     }).addTo(m);
     mapRef.current = m;
     if (savedCenter) geoCenterRef.current = L.latLng(savedCenter[0], savedCenter[1]);
+    // Fijar zoom de referencia al zoom INICIAL del mapa
+    refZoomRef.current = savedZoom || m.getZoom();
     setTimeout(() => { m.invalidateSize(); setReady(true); }, 200);
     return () => { m.remove(); mapRef.current = null; };
   }, []);
@@ -173,9 +175,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   function recalcBounds() {
     const m = mapRef.current;
     if (!m) return null;
-    const mapZoom = m.getZoom();
-    // Si es la primera vez, guardar el zoom actual como referencia
-    if (!refZoomRef.current) refZoomRef.current = mapZoom;
     const refCtr = saved?.bounds?.center || [geoCenterRef.current.lat, geoCenterRef.current.lng];
     const refZoom = saved?.bounds?.map_zoom || refZoomRef.current;
     const refLevel = saved?.zoom_level || zoom;
