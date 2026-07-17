@@ -2,10 +2,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "@geoman-io/leaflet-geoman-free";
+import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
-export interface PuntoGeo { lat: number; lng: number; }
+type DraftType = "matriz" | "impulsion" | "submatriz" | "valvula_electrica" | "valvula_aire" | "antena" | "sonda";
 
 interface Props {
   planoUrl: string;
@@ -15,23 +17,9 @@ interface Props {
   onSave: (data: { center: [number, number]; sw?: [number, number]; ne?: [number, number]; zoom_level: number; mapZoom: number; rotation: number; opacity: number }) => void;
   onClose: () => void;
   saved?: { bounds: { center?: [number, number]; sw?: [number, number]; ne?: [number, number]; map_zoom?: number }; rotation: number; opacity: number; zoom_level?: number } | null;
-  onCreateTuberia?: (data: { codigo: string; nivel: string; material?: string; diametro_mm?: number; nombre?: string; puntos: PuntoGeo[] }) => Promise<void>;
-  onCreateValvula?: (data: { codigo: string; tipo: string; diametro_mm?: number; tuberia_id?: string; punto: PuntoGeo }) => Promise<void>;
-  onCreateAntena?: (data: { codigo: string; tipo?: string; punto: PuntoGeo }) => Promise<void>;
-  onCreateSonda?: (data: { codigo: string; tipo?: string; profundidad_m?: number; punto: PuntoGeo }) => Promise<void>;
-  onUpdateTuberia?: (id: string, data: any) => Promise<void>;
-  onUpdateValvula?: (id: string, data: any) => Promise<void>;
-  onUpdateAntena?: (id: string, data: any) => Promise<void>;
-  onUpdateSonda?: (id: string, data: any) => Promise<void>;
-  onDeleteTuberia?: (id: string) => Promise<void>;
-  onDeleteValvula?: (id: string) => Promise<void>;
-  onDeleteAntena?: (id: string) => Promise<void>;
-  onDeleteSonda?: (id: string) => Promise<void>;
 }
 
-type ModoDibujo = null | "matriz" | "impulsion" | "submatriz" | "valvula_electrica" | "valvula_aire" | "antena" | "sonda";
-
-export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, initialCenter, onSave, onClose, saved, onCreateTuberia, onCreateValvula, onCreateAntena, onCreateSonda, onUpdateTuberia, onUpdateValvula, onUpdateAntena, onUpdateSonda, onDeleteTuberia, onDeleteValvula, onDeleteAntena, onDeleteSonda }: Props) {
+export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, initialCenter, onSave, onClose, saved }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -48,30 +36,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const geoCenterRef = useRef<L.LatLng>(L.latLng(initialCenter[0], initialCenter[1]));
   const equipoNum = equipoCodigo.replace("Equipo ", "").trim();
 
-  // --- Drawing state ---
-  const [modoDibujo, setModoDibujo] = useState<ModoDibujo>(null);
-  const modoRef = useRef<ModoDibujo>(null);  // sync for event handlers
-  modoRef.current = modoDibujo;
-  const [puntosTemp, setPuntosTemp] = useState<PuntoGeo[]>([]);
-  const puntosRef = useRef<PuntoGeo[]>([]);
-  puntosRef.current = puntosTemp;
-  const [formCrear, setFormCrear] = useState<{ tipo: string; codigo: string; material?: string; diametro_mm?: number; tuberia_id?: string; tipo_valvula?: string; profundidad_m?: number; nombre?: string } | null>(null);
-  const formCrearRef = useRef<any>(null);
-  formCrearRef.current = formCrear;
-  const [contador, setContador] = useState(0);
+  // --- Geoman drawing state ---
+  const [draft, setDraft] = useState<{ geojson: any; layer: any; tipo: DraftType | null } | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const layerRefs = useRef<Map<string, any>>(new Map());
+  const capasRef = useRef<any[]>([]);
+
+  const [tuberiasExistentes, setTuberiasExistentes] = useState<any[]>([]);
+  const [valvulasExistentes, setValvulasExistentes] = useState<any[]>([]);
   const [antenasExistentes, setAntenasExistentes] = useState<any[]>([]);
   const [sondasExistentes, setSondasExistentes] = useState<any[]>([]);
-  const [editandoElemento, setEditandoElemento] = useState<{ tipo: string; id: string } | null>(null);
-
-  // Refs to callbacks so event handlers always call the latest version
-  const onCreateTuberiaRef = useRef(onCreateTuberia);
-  onCreateTuberiaRef.current = onCreateTuberia;
-  const onCreateValvulaRef = useRef(onCreateValvula);
-  onCreateValvulaRef.current = onCreateValvula;
-  const onCreateAntenaRef = useRef(onCreateAntena);
-  onCreateAntenaRef.current = onCreateAntena;
-  const onCreateSondaRef = useRef(onCreateSonda);
-  onCreateSondaRef.current = onCreateSonda;
+  const [contador, setContador] = useState(0);
 
   // --- Init map ---
   useEffect(() => {
@@ -91,9 +66,40 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return () => { m.remove(); mapRef.current = null; };
   }, []);
 
+  // --- Inicializar Geoman ---
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !ready) return;
+
+    m.pm.addControls({
+      position: "topleft",
+      drawMarker: true,
+      drawPolyline: true,
+      drawPolygon: false,
+      drawRectangle: false,
+      drawCircle: false,
+      drawCircleMarker: false,
+      drawText: false,
+      cutPolygon: true,
+      editMode: true,
+      dragMode: true,
+      removalMode: true,
+      rotateMode: false,
+      snapOption: true,
+    });
+
+    m.pm.setGlobalOptions({
+      snappable: true,
+      snapDistance: 20,
+      snapMiddle: true,
+      allowSelfIntersection: false,
+    });
+
+    return () => { m.pm.removeControls(); };
+  }, [ready]);
+
   // --- L.imageOverlay: el plano es una capa de Leaflet (zoom/pan automatico) ---
   const imgOverlayRef = useRef<L.ImageOverlay | null>(null);
-
 
   function recalcBounds() {
     const m = mapRef.current;
@@ -129,9 +135,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     imgOverlayRef.current = ov;
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
   }, [imageUrl, zoom, rotation, opacity, ready]);
-
-  // Los bounds geograficos son FIJOS - Leaflet maneja zoom/pan automaticamente.
-  // Solo se actualizan cuando el usuario cambia el slider de zoom o arrastra el plano.
 
   // --- Reference polygons ---
   useEffect(() => {
@@ -184,6 +187,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   }, [planoUrl]);
 
   // --- Center overlay initially ---
+  const [, setForce] = useState(0);
   useEffect(() => {
     if (!ready || !containerRef.current) return;
     const parent = containerRef.current.parentElement;
@@ -191,76 +195,14 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     setForce(n => n + 1);
   }, [ready]);
 
-
-
-  const [, setForce] = useState(0);
-
-  // --- Actualizar bounds del overlay Leaflet tras mover el plano ---
-  function atualizarOverlay() {
-    const ov = imgOverlayRef.current;
-    if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
-  }
-
   const nudge = useCallback((dLat: number, dLng: number) => {
     geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
-    atualizarOverlay();
+    const ov = imgOverlayRef.current;
+    if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
     setForce(n => n + 1);
   }, [zoom]);
   const nudgeRef = useRef<(dLat: number, dLng: number) => void>(() => {});
   nudgeRef.current = nudge;
-
-  const handleConfirmCrear = useCallback((data: any) => {
-    const fc = formCrearRef.current;
-    const pts = puntosRef.current;
-    if (!fc || pts.length === 0) return;
-    const tipo = fc.tipo;
-    const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
-    const nivelMap: Record<string, string> = { matriz: "matriz", impulsion: "impulsion", submatriz: "submatriz" };
-    const createTub = onCreateTuberiaRef.current;
-    const createVal = onCreateValvulaRef.current;
-    const createAnt = onCreateAntenaRef.current;
-    const createSnd = onCreateSondaRef.current;
-
-    if (isLine) {
-      createTub?.({ codigo: data.codigo, nivel: nivelMap[tipo] || "matriz", material: data.material || "PVC", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, nombre: data.nombre, puntos: pts })
-        ?.catch((e: any) => console.error("Error tubería:", e));
-    } else if (tipo === "valvula_electrica" || tipo === "valvula_aire") {
-      createVal?.({ codigo: data.codigo, tipo: data.tipo_valvula || "transicion", diametro_mm: data.diametro_mm ? Number(data.diametro_mm) : undefined, tuberia_id: data.tuberia_id || undefined, punto: pts[0] })
-        ?.catch((e: any) => console.error("Error válvula:", e));
-    } else if (tipo === "antena") {
-      createAnt?.({ codigo: data.codigo, tipo: "", punto: pts[0] })?.catch((e: any) => console.error("Error antena:", e));
-    } else if (tipo === "sonda") {
-      createSnd?.({ codigo: data.codigo, tipo: "", profundidad_m: data.profundidad_m ? Number(data.profundidad_m) : undefined, punto: pts[0] })?.catch((e: any) => console.error("Error sonda:", e));
-    }
-    setFormCrear(null);
-    setPuntosTemp([]);
-    setContador(c => c + 1);
-  }, []);
-
-  const handleUpdate = useCallback(async (tipo: string, id: string, d: any) => {
-    const updateData: any = {};
-    if (d.codigo) updateData.codigo = d.codigo;
-    if (d.material) updateData.material = d.material;
-    if (d.diametro_mm) updateData.diametro_mm = Number(d.diametro_mm);
-    if (d.tipo_valvula) updateData.tipo = d.tipo_valvula;
-    if (tipo === "tuberia" && d.nombre !== undefined) updateData.nombre = d.nombre;
-
-    if (tipo === "tuberia") await onUpdateTuberia?.(id, updateData);
-    else if (tipo === "valvula" || tipo === "valvula_electrica" || tipo === "valvula_aire") await onUpdateValvula?.(id, updateData);
-    else if (tipo === "antena") await onUpdateAntena?.(id, updateData);
-    else if (tipo === "sonda") await onUpdateSonda?.(id, updateData);
-    setEditandoElemento(null);
-    setContador(c => c + 1);
-  }, [onUpdateTuberia, onUpdateValvula, onUpdateAntena, onUpdateSonda]);
-
-  const handleDelete = useCallback(async (tipo: string, id: string) => {
-    if (!confirm("Estas seguro de eliminar este elemento?")) return;
-    if (tipo === "tuberia") await onDeleteTuberia?.(id);
-    else if (tipo === "valvula" || tipo === "valvula_electrica" || tipo === "valvula_aire") await onDeleteValvula?.(id);
-    else if (tipo === "antena") await onDeleteAntena?.(id);
-    else if (tipo === "sonda") await onDeleteSonda?.(id);
-    setContador(c => c + 1);
-  }, [onDeleteTuberia, onDeleteValvula, onDeleteAntena, onDeleteSonda]);
 
   // Cleanup
   useEffect(() => () => {
@@ -275,7 +217,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     let dragging = false;
     let startLatLng = L.latLng(0, 0);
     const onDown = (e: MouseEvent) => {
-      if (modoDibujo || e.button !== 1) return;
+      if (e.button !== 1) return;
       e.preventDefault();
       const m = mapRef.current;
       if (!m) return;
@@ -298,7 +240,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const dLng = curLL.lng - startLatLng.lng;
       geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
       startLatLng = curLL;
-      atualizarOverlay();
+      const ov = imgOverlayRef.current;
+      if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
       setForce(n => n + 1);
     };
     const onUp = () => {
@@ -313,7 +256,116 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [modoDibujo]);
+  }, []);
+
+  // --- pm:create handler ---
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    const handleCreate = (e: any) => {
+      const layer = e.layer;
+      const geojson = layer.toGeoJSON();
+      // Remove from map until confirmed
+      m.removeLayer(layer);
+      setDraft({ geojson, layer, tipo: null });
+      setShowForm(true);
+    };
+    m.on("pm:create", handleCreate);
+    return () => { m.off("pm:create", handleCreate); };
+  }, []);
+
+  // --- pm:cut handler ---
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    const handleCut = (e: any) => {
+      // Build a list of resulting layers to insert
+      // The original layer was already removed by Geoman
+      const nuevas: any[] = [];
+      e.layers.eachLayer((l: any) => {
+        nuevas.push({ geojson: l.toGeoJSON(), layer: l });
+      });
+      // TODO: save both pieces
+      console.log("Cut result:", nuevas.length, "pieces");
+      setContador(c => c + 1);
+    };
+    m.on("pm:cut", handleCut);
+    return () => { m.off("pm:cut", handleCut); };
+  }, []);
+
+  // --- Save draft ---
+  const handleConfirmarDraft = async (tipo: DraftType, codigo: string, extra?: any) => {
+    if (!draft) return;
+    const { geojson } = draft;
+    const m = mapRef.current;
+    if (!m) return;
+
+    const colores: Record<string, string> = {
+      matriz: "#1565c0", impulsion: "#2e7d32", submatriz: "#c62828",
+      valvula_electrica: "#e65100", valvula_aire: "#42a5f5",
+      antena: "#6a1b9a", sonda: "#f9a825",
+    };
+
+    if (!equipoId) { alert("Equipo no encontrado"); return; }
+
+    const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
+    const table = isLine ? "tuberias" : (tipo === "valvula_electrica" || tipo === "valvula_aire" ? "valvulas" : (tipo === "antena" ? "antenas" : "sondas"));
+
+    const insertData: any = {
+      codigo,
+      geometria: geojson.geometry,
+    };
+
+    if (isLine) {
+      insertData.nivel = tipo;
+      insertData.material = extra?.material || "PVC";
+      insertData.diametro_mm = extra?.diametro_mm ? Number(extra.diametro_mm) : null;
+      insertData.equipo_id = equipoId;
+    } else if (tipo === "valvula_electrica" || tipo === "valvula_aire") {
+      insertData.tipo = tipo === "valvula_aire" ? "aire" : "transicion";
+      insertData.diametro_mm = extra?.diametro_mm ? Number(extra.diametro_mm) : null;
+      insertData.equipo_id = equipoId;
+    } else if (tipo === "antena" || tipo === "sonda") {
+      insertData.equipo_id = equipoId;
+    }
+
+    const h = { "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk" };
+    const api = "https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/";
+
+    fetch(api + table, {
+      method: "POST",
+      headers: { ...h, "Content-Type": "application/json", "Prefer": "return=representation" },
+      body: JSON.stringify(insertData),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!Array.isArray(data)) { console.warn("Insert response:", data); return; }
+        const nuevo = data[0];
+        // Add layer to map with correct style
+        const color = colores[tipo];
+        let layer: any;
+        if (geojson.geometry.type === "LineString") {
+          layer = L.geoJSON(geojson, {
+            style: { color, weight: 4, opacity: 0.85 },
+          }).addTo(m);
+        } else {
+          layer = L.marker([geojson.geometry.coordinates[1], geojson.geometry.coordinates[0]], {
+            icon: L.divIcon({
+              className: "",
+              html: `<div style="width:12px;height:12px;background:${color};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
+              iconSize: [12, 12], iconAnchor: [6, 6],
+            }),
+          }).addTo(m);
+        }
+        (layer.pm as any)?.setOptions?.({ layerId: nuevo.id, snappable: true });
+        layerRefs.current.set(nuevo.id, layer);
+        capasRef.current.push(layer);
+        setDraft(null);
+        setShowForm(false);
+        setContador(c => c + 1);
+      })
+      .catch(e => alert("Error al guardar: " + e.message));
+  };
 
   // --- Save ---
   const handleSave = () => {
@@ -332,109 +384,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     onSave({ center: [ctr.lat, ctr.lng], rotation, opacity, zoom_level: zoom, mapZoom: m.getZoom() });
   };
 
-  // --- Drawing system: all event handlers read from refs, no stale closures ---
-
-  // Disable double-click zoom while in drawing mode
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m) return;
-    if (modoDibujo) {
-      m.doubleClickZoom.disable();
-      return () => { m.doubleClickZoom.enable(); };
-    }
-  }, [modoDibujo]);
-
-  // Single click: add point (line modes) or place element (point modes)
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m) return;
-    const onClick = (e: L.LeafletMouseEvent) => {
-      const md = modoRef.current;
-      if (!md) return;
-      const punto: PuntoGeo = { lat: e.latlng.lat, lng: e.latlng.lng };
-      if (md === "matriz" || md === "impulsion" || md === "submatriz") {
-        setPuntosTemp(prev => [...prev, punto]);
-      } else {
-        setPuntosTemp([punto]);
-        setFormCrear({ tipo: md, codigo: "Nuevo" });
-        setModoDibujo(null);
-      }
-    };
-    m.on("click", onClick);
-    return () => { m.off("click", onClick); };
-  }, []);
-
-  // Double click: finish line (remove extra click point, add dblclick position)
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m) return;
-    const onDouble = (e: L.LeafletMouseEvent) => {
-      const md = modoRef.current;
-      if (!(md === "matriz" || md === "impulsion" || md === "submatriz")) return;
-      L.DomEvent.stopPropagation(e.originalEvent);
-      const pts = puntosRef.current;
-      if (pts.length < 2) {
-        setPuntosTemp([]);
-        setModoDibujo(null);
-        modoRef.current = null;
-        return;
-      }
-      // dblclick fires after a click event that added an extra point.
-      // The functional update removes that last point and adds the dblclick position instead.
-      const ultimo: PuntoGeo = { lat: e.latlng.lat, lng: e.latlng.lng };
-      setPuntosTemp(prev => [...prev.slice(0, -1), ultimo]);
-      setFormCrear({ tipo: md, codigo: "Nuevo" });
-      setModoDibujo(null);
-      modoRef.current = null;
-    };
-    m.on("dblclick", onDouble);
-    return () => { m.off("dblclick", onDouble); };
-  }, []); // refs are stable, no deps needed
-
-  // --- Render preview of the line being drawn & draggable vertex markers ---
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m) return;
-    const md = modoRef.current;
-    const isLine = md === "matriz" || md === "impulsion" || md === "submatriz";
-    if (!isLine) return;
-    const colorMap: Record<string, string> = { matriz: "#1565c0", impulsion: "#2e7d32", submatriz: "#c62828" };
-    const layer = L.polyline([], { color: colorMap[md] || "#1565c0", weight: 4, dashArray: "8,8" }).addTo(m);
-    const verts: L.Marker[] = [];
-    const updateLine = () => {
-      const pts = puntosRef.current;
-      layer.setLatLngs(pts.map(p => L.latLng(p.lat, p.lng)));
-      while (verts.length < pts.length) {
-        const i = verts.length;
-        const icon = L.divIcon({
-          className: "",
-          html: `<div style="width:14px;height:14px;background:#fff;border:3px solid ${colorMap[md] || "#e65100"};border-radius:50%;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
-          iconSize: [14, 14], iconAnchor: [7, 7],
-        });
-        const mk = L.marker(pts[i], { icon, draggable: true, zIndexOffset: 1000 }).addTo(m);
-        mk.on("drag", () => {
-          const pos = mk.getLatLng();
-          setPuntosTemp(prev => {
-            const next = [...prev];
-            if (next[i]) next[i] = { lat: pos.lat, lng: pos.lng };
-            return next;
-          });
-        });
-        verts.push(mk);
-      }
-      while (verts.length > pts.length) m.removeLayer(verts.pop()!);
-      pts.forEach((p, i) => { if (verts[i]) verts[i].setLatLng([p.lat, p.lng]); });
-    };
-    updateLine();
-    const interval = setInterval(updateLine, 100);
-    return () => { clearInterval(interval); m.removeLayer(layer); verts.forEach(v => m.removeLayer(v)); };
-  }, [modoDibujo]);
-
-  // --- Markers of confirmed tuberias/valvulas (to be loaded from DB) ---
-  const [tuberiasExistentes, setTuberiasExistentes] = useState<any[]>([]);
-  const [valvulasExistentes, setValvulasExistentes] = useState<any[]>([]);
-
-  // Load existing elements for this equipo when drawing mode opens
+  // --- Load existing elements for this equipo ---
   useEffect(() => {
     if (!ready || !equipoId) return;
     const h = { "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk" };
@@ -457,69 +407,65 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setSondasExistentes(d); }).catch(e => console.warn("Error sondas:", e));
   }, [ready, equipoId, contador]);
 
-  // Render tuberias as polylines
+  // --- Render ALL existing elements as Geoman-capable layers ---
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
-    const layers: L.Polyline[] = [];
-    tuberiasExistentes.forEach(t => {
-      if (!t.geometria?.coordinates?.[0]) return;
-      const color = t.nivel === "matriz" ? "#1565c0" : t.nivel === "impulsion" ? "#2e7d32" : "#c62828";
-      const line = L.polyline(t.geometria.coordinates[0].map((c: number[]) => L.latLng(c[1], c[0])), { color, weight: 3 }).addTo(m);
-      line.bindTooltip(t.codigo, { permanent: true, direction: "center", className: "cuartel-tooltip" });
-      layers.push(line);
-    });
-    return () => { layers.forEach(l => m.removeLayer(l)); };
-  }, [tuberiasExistentes]);
+    // Clear previous
+    capasRef.current.forEach(l => m.removeLayer(l));
+    capasRef.current = [];
+    layerRefs.current.clear();
 
-  // Render valvulas as circles
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m) return;
-    const layers: L.CircleMarker[] = [];
-    valvulasExistentes.forEach(v => {
+    const colores: Record<string, string> = {
+      matriz: "#1565c0", impulsion: "#2e7d32", submatriz: "#c62828",
+      valvula_electrica: "#e65100", valvula_aire: "#42a5f5",
+      antena: "#6a1b9a", sonda: "#f9a825",
+    };
+
+    [...tuberiasExistentes, ...antenasExistentes, ...sondasExistentes].forEach((item: any) => {
+      if (!item.geometria?.coordinates) return;
+      const isLine = item.geometria.type === "LineString" || item.geometria.type === "MultiLineString";
+      const key = isLine ? (item.nivel || "otro") : item.tipo || "otro";
+      const color = colores[key] || "#999";
+      let layer: any;
+      if (isLine) {
+        layer = L.geoJSON(item.geometria, { style: { color, weight: 4, opacity: 0.85 } }).addTo(m);
+      } else {
+        layer = L.marker([item.geometria.coordinates[1], item.geometria.coordinates[0]], {
+          icon: L.divIcon({
+            className: "",
+            html: `<div style="width:12px;height:12px;background:${color};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
+            iconSize: [12, 12], iconAnchor: [6, 6],
+          }),
+        }).addTo(m);
+      }
+      (layer.pm as any)?.setOptions?.({ layerId: item.id, snappable: true, draggable: false });
+      layerRefs.current.set(item.id, layer);
+      capasRef.current.push(layer);
+    });
+
+    // Valvulas separately with specific colors
+    valvulasExistentes.forEach((v: any) => {
       if (!v.geometria?.coordinates) return;
-      const [lng, lat] = v.geometria.coordinates;
       const color = v.tipo === "aire" ? "#42a5f5" : "#e65100";
-      const c = L.circleMarker([lat, lng], { radius: 6, color, fillColor: color, fillOpacity: 0.9 });
-      c.bindTooltip(v.codigo, { permanent: false, className: "cuartel-tooltip" });
-      c.addTo(m);
-      layers.push(c);
+      const layer = L.marker([v.geometria.coordinates[1], v.geometria.coordinates[0]], {
+        icon: L.divIcon({
+          className: "",
+          html: `<div style="width:12px;height:12px;background:${color};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
+          iconSize: [12, 12], iconAnchor: [6, 6],
+        }),
+      }).addTo(m);
+      (layer.pm as any)?.setOptions?.({ layerId: v.id, snappable: true, draggable: false });
+      layerRefs.current.set(v.id, layer);
+      capasRef.current.push(layer);
     });
-    return () => { layers.forEach(l => m.removeLayer(l)); };
-  }, [valvulasExistentes]);
 
-  // Render antenas as purple circles
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m) return;
-    const layers: L.CircleMarker[] = [];
-    antenasExistentes.forEach(a => {
-      if (!a.geometria?.coordinates) return;
-      const [lng, lat] = a.geometria.coordinates;
-      const c = L.circleMarker([lat, lng], { radius: 6, color: "#6a1b9a", fillColor: "#6a1b9a", fillOpacity: 0.9 });
-      c.bindTooltip(a.codigo, { permanent: false, className: "cuartel-tooltip" });
-      c.addTo(m);
-      layers.push(c);
-    });
-    return () => { layers.forEach(l => m.removeLayer(l)); };
-  }, [antenasExistentes]);
-
-  // Render sondas as yellow circles
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m) return;
-    const layers: L.CircleMarker[] = [];
-    sondasExistentes.forEach(s => {
-      if (!s.geometria?.coordinates) return;
-      const [lng, lat] = s.geometria.coordinates;
-      const c = L.circleMarker([lat, lng], { radius: 6, color: "#f9a825", fillColor: "#f9a825", fillOpacity: 0.9 });
-      c.bindTooltip(s.codigo, { permanent: false, className: "cuartel-tooltip" });
-      c.addTo(m);
-      layers.push(c);
-    });
-    return () => { layers.forEach(l => m.removeLayer(l)); };
-  }, [sondasExistentes]);
+    return () => {
+      capasRef.current.forEach(l => m.removeLayer(l));
+      capasRef.current = [];
+      layerRefs.current.clear();
+    };
+  }, [tuberiasExistentes, valvulasExistentes, antenasExistentes, sondasExistentes, ready]);
 
   const ctr: React.CSSProperties = {
     position: "fixed", inset: 0, zIndex: 5000,
@@ -571,39 +517,21 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
           </div>
         </div>
 
-        {/* Drawing toolbar */}
+        {/* Geoman drawing info bar */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderBottom: "1px solid #eee", background: "#f5f5f5", flexShrink: 0 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#555", marginRight: 4 }}>Dibujar:</span>
-          <button onClick={() => setModoDibujo(modoDibujo === "matriz" ? null : "matriz")}
-            style={{ ...btn, background: modoDibujo === "matriz" ? "#1565c0" : "white", color: modoDibujo === "matriz" ? "white" : "#1565c0", fontWeight: 600, borderLeft: "3px solid #1565c0" }}>🔵 Matriz</button>
-          <button onClick={() => setModoDibujo(modoDibujo === "impulsion" ? null : "impulsion")}
-            style={{ ...btn, background: modoDibujo === "impulsion" ? "#2e7d32" : "white", color: modoDibujo === "impulsion" ? "white" : "#2e7d32", fontWeight: 600, borderLeft: "3px solid #2e7d32" }}>🟢 Impulsión</button>
-          <button onClick={() => setModoDibujo(modoDibujo === "submatriz" ? null : "submatriz")}
-            style={{ ...btn, background: modoDibujo === "submatriz" ? "#c62828" : "white", color: modoDibujo === "submatriz" ? "white" : "#c62828", fontWeight: 600, borderLeft: "3px solid #c62828" }}>🔴 Submatriz</button>
-          <span style={{ color: "#ddd" }}>|</span>
-          <button onClick={() => setModoDibujo(modoDibujo === "valvula_electrica" ? null : "valvula_electrica")}
-            style={{ ...btn, background: modoDibujo === "valvula_electrica" ? "#e65100" : "white", color: modoDibujo === "valvula_electrica" ? "white" : "#e65100", fontWeight: 600, borderLeft: "3px solid #e65100" }}>🟠 V. Eléctrica</button>
-          <button onClick={() => setModoDibujo(modoDibujo === "valvula_aire" ? null : "valvula_aire")}
-            style={{ ...btn, background: modoDibujo === "valvula_aire" ? "#42a5f5" : "white", color: modoDibujo === "valvula_aire" ? "white" : "#42a5f5", fontWeight: 600, borderLeft: "3px solid #42a5f5" }}>🔵 V. Aire</button>
-          <span style={{ color: "#ddd" }}>|</span>
-          <button onClick={() => setModoDibujo(modoDibujo === "antena" ? null : "antena")}
-            style={{ ...btn, background: modoDibujo === "antena" ? "#6a1b9a" : "white", color: modoDibujo === "antena" ? "white" : "#6a1b9a", fontWeight: 600, borderLeft: "3px solid #6a1b9a" }}>🟣 Antena</button>
-          <button onClick={() => setModoDibujo(modoDibujo === "sonda" ? null : "sonda")}
-            style={{ ...btn, background: modoDibujo === "sonda" ? "#f9a825" : "white", color: modoDibujo === "sonda" ? "white" : "#f9a825", fontWeight: 600, borderLeft: "3px solid #f9a825" }}>🟡 Sonda</button>
-          {(modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz") && (
-            <span style={{ fontSize: 12, color: "#e65100", fontWeight: 600, marginLeft: 16 }}>
-              Click para puntos, doble click para cerrar ({puntosTemp.length} pts)
-              {puntosTemp.length > 0 && (
-                <button onClick={() => setPuntosTemp(prev => prev.slice(0, -1))} style={{ marginLeft: 8, background: "#c62828", color: "white", border: "none", borderRadius: 3, padding: "2px 8px", fontSize: 11, cursor: "pointer", verticalAlign: "middle" }}>✕ último</button>
-              )}
-            </span>
-          )}
-          {modoDibujo && !(modoDibujo === "matriz" || modoDibujo === "impulsion" || modoDibujo === "submatriz") && (
-            <span style={{ fontSize: 12, color: "#e65100", fontWeight: 600, marginLeft: 16 }}>
-              Click en el mapa para colocar
-            </span>
-          )}
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+            Dibujar: usar las herramientas del mapa (🟦 línea, 📍 punto) o ✂️ Cortar para dividir tuberías
+          </span>
         </div>
+
+        {showForm && draft && (
+          <DraftForm
+            tipo={draft.tipo}
+            onChangeTipo={(t: DraftType) => setDraft({ ...draft, tipo: t })}
+            onConfirm={(tipo, codigo, extra) => handleConfirmarDraft(tipo, codigo, extra)}
+            onCancel={() => { setDraft(null); setShowForm(false); }}
+          />
+        )}
 
         <div ref={containerRef} style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex" }}>
           <div style={{ flex: 1, position: "relative" }}>
@@ -611,186 +539,50 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
             {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, background: "rgba(255,255,255,0.7)" }}><p style={{ color: "#666", fontSize: 14 }}>Cargando plano...</p></div>}
             {!loading && (
               <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", color: "#fff", padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 200, pointerEvents: "none", whiteSpace: "nowrap" }}>
-                {modoDibujo ? `Modo: ${modoDibujo}` : "Rueda: agarrar plano | Click izq: navegar"}
+                Rueda: agarrar plano | Click izq: navegar
               </div>
             )}
           </div>
-
-          {/* LAYER PANEL */}
-          <LayerPanelSide
-            tuberias={tuberiasExistentes}
-            valvulas={valvulasExistentes}
-            antenas={antenasExistentes}
-            sondas={sondasExistentes}
-            setModoDibujo={setModoDibujo}
-            editandoElemento={editandoElemento}
-            setEditandoElemento={setEditandoElemento}
-            formCrear={formCrear}
-            onConfirmCrear={handleConfirmCrear}
-            onCancelCrear={() => { setFormCrear(null); setPuntosTemp([]); }}
-            onUpdate={handleUpdate}
-            onDelete={handleDelete}
-            setFormCrear={setFormCrear}
-          />
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Layer Panel Components ──────────────────────────────────────────────────
+// ─── Draft Form Component ─────────────────────────────────────────────────────
 
-function FormCrearElemento({ formCrear, onConfirm, onCancel, tuberias }: {
-  formCrear: any;
-  onConfirm: (data: any) => void;
+function DraftForm({ tipo, onChangeTipo, onConfirm, onCancel }: {
+  tipo: DraftType | null;
+  onChangeTipo: (t: DraftType) => void;
+  onConfirm: (tipo: DraftType, codigo: string, extra?: any) => void;
   onCancel: () => void;
-  tuberias: any[];
 }) {
-  const [data, setData] = useState<{ codigo: string; material?: string; diametro_mm?: number; nombre?: string; tipo_valvula?: string; tuberia_id?: string; profundidad_m?: number }>({ ...formCrear });
-  const isLine = formCrear.tipo === "matriz" || formCrear.tipo === "impulsion" || formCrear.tipo === "submatriz";
-  const isValve = formCrear.tipo === "valvula_electrica" || formCrear.tipo === "valvula_aire";
-
-  useEffect(() => {
-    setData({ ...formCrear });
-  }, [formCrear]);
+  const [codigo, setCodigo] = useState("");
+  const [material, setMaterial] = useState("PVC");
+  const [diametro, setDiametro] = useState("");
+  const options: DraftType[] = ["matriz", "impulsion", "submatriz", "valvula_electrica", "valvula_aire", "antena", "sonda"];
+  const isLine = tipo === "matriz" || tipo === "impulsion" || tipo === "submatriz";
 
   return (
-    <div style={{ padding: 8, borderTop: "1px solid #ddd", background: "#fafafa" }}>
-      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Nuevo: {formCrear.tipo}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <label style={{ fontSize: 11 }}>Código:
-          <input value={data.codigo} onChange={e => setData(d => ({ ...d, codigo: e.target.value }))} style={{ width: "100%", fontSize: 11, padding: "2px 4px", boxSizing: "border-box" }} />
-        </label>
-        {isLine && <>
-          <label style={{ fontSize: 11 }}>Nombre:
-            <input value={data.nombre || ""} onChange={e => setData(d => ({ ...d, nombre: e.target.value }))} style={{ width: "100%", fontSize: 11, padding: "2px 4px", boxSizing: "border-box" }} />
-          </label>
-          <label style={{ fontSize: 11 }}>Material:
-            <select value={data.material || "PVC"} onChange={e => setData(d => ({ ...d, material: e.target.value }))} style={{ width: "100%", fontSize: 11 }}>
-              <option>PVC</option>
-              <option>HDPE</option>
-              <option>acero</option>
-            </select>
-          </label>
-          <label style={{ fontSize: 11 }}>Diámetro mm:
-            <input type="number" value={data.diametro_mm || ""} onChange={e => setData(d => ({ ...d, diametro_mm: e.target.value ? Number(e.target.value) : undefined }))} style={{ width: "100%", fontSize: 11, padding: "2px 4px", boxSizing: "border-box" }} />
-          </label>
-        </>}
-        {isValve && <>
-          <label style={{ fontSize: 11 }}>Tipo:
-            <select value={data.tipo_valvula || "transicion"} onChange={e => setData(d => ({ ...d, tipo_valvula: e.target.value }))} style={{ width: "100%", fontSize: 11 }}>
-              <option>transicion</option>
-              <option>purga</option>
-              <option>aire</option>
-              <option>compuerta</option>
-              <option>otro</option>
-            </select>
-          </label>
-          <label style={{ fontSize: 11 }}>Diámetro mm:
-            <input type="number" value={data.diametro_mm || ""} onChange={e => setData(d => ({ ...d, diametro_mm: e.target.value ? Number(e.target.value) : undefined }))} style={{ width: "100%", fontSize: 11, padding: "2px 4px", boxSizing: "border-box" }} />
-          </label>
-          <label style={{ fontSize: 11 }}>Tubería asociada:
-            <select value={data.tuberia_id || ""} onChange={e => setData(d => ({ ...d, tuberia_id: e.target.value || undefined }))} style={{ width: "100%", fontSize: 11 }}>
-              <option value="">— Ninguna —</option>
-              {tuberias.map((t: any) => <option key={t.id} value={t.id}>{t.codigo}</option>)}
-            </select>
-          </label>
-        </>}
-        {formCrear.tipo === "sonda" && <>
-          <label style={{ fontSize: 11 }}>Profundidad m:
-            <input type="number" value={data.profundidad_m || ""} onChange={e => setData(d => ({ ...d, profundidad_m: e.target.value ? Number(e.target.value) : undefined }))} style={{ width: "100%", fontSize: 11, padding: "2px 4px", boxSizing: "border-box" }} />
-          </label>
-        </>}
-        <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-          <button onClick={() => onConfirm(data)} style={{ background: "#1565c0", color: "white", border: "none", borderRadius: 3, padding: "4px 10px", fontSize: 11, cursor: "pointer" }}>✓ Crear</button>
-          <button onClick={onCancel} style={{ background: "#ccc", border: "none", borderRadius: 3, padding: "4px 10px", fontSize: 11, cursor: "pointer" }}>✕ Cancelar</button>
-        </div>
+    <div style={{ padding: 12, borderBottom: "1px solid #eee", background: "#fff3e0", fontSize: 13 }}>
+      <div style={{ fontWeight: 600, marginBottom: 8, color: "#e65100" }}>Confirmar nuevo elemento</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <select value={tipo || ""} onChange={e => onChangeTipo(e.target.value as DraftType)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12 }}>
+          <option value="" disabled>Seleccionar tipo</option>
+          {options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+        <input placeholder="Código" value={codigo} onChange={e => setCodigo(e.target.value)} style={{ width: 80, padding: "4px 8px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12 }} />
+        {isLine && (
+          <select value={material} onChange={e => setMaterial(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12 }}>
+            <option value="PVC">PVC</option>
+            <option value="HDPE">HDPE</option>
+            <option value="Acero">Acero</option>
+          </select>
+        )}
+        <input placeholder="Ø mm" value={diametro} onChange={e => setDiametro(e.target.value)} style={{ width: 60, padding: "4px 8px", borderRadius: 4, border: "1px solid #ccc", fontSize: 12 }} />
+        <button onClick={() => { if (!tipo || !codigo) { alert("Seleccioná tipo y código"); return; } onConfirm(tipo, codigo, { material, diametro_mm: diametro }); }} style={{ padding: "6px 14px", background: "#2e7d32", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 12 }}>✓ Guardar</button>
+        <button onClick={onCancel} style={{ padding: "6px 14px", background: "#c62828", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>✕ Cancelar</button>
       </div>
-    </div>
-  );
-}
-
-function LayerItem({ item, tipo, editando, onEdit, onDelete, onStartEdit }: {
-  item: any;
-  tipo: string;
-  editando: boolean;
-  onEdit: (id: string, data: any) => void;
-  onDelete: (id: string) => void;
-  onStartEdit: (tipo: string, id: string) => void;
-}) {
-  const [editData, setEditData] = useState<any>({ codigo: item.codigo, material: item.material, diametro_mm: item.diametro_mm });
-
-  if (editando) {
-    return (
-      <div style={{ fontSize: 11, padding: "4px 8px", borderBottom: "1px solid #f0f0f0" }}>
-        <input value={editData.codigo || ""} onChange={e => setEditData((d: any) => ({ ...d, codigo: e.target.value }))} style={{ width: "60%", fontSize: 10, padding: "1px 3px", marginRight: 4 }} />
-        <button onClick={() => onEdit(item.id, editData)} style={{ background: "#2e7d32", color: "white", border: "none", borderRadius: 2, padding: "2px 6px", fontSize: 10, cursor: "pointer", marginRight: 2 }}>✓</button>
-        <button onClick={() => onStartEdit(tipo, "")} style={{ background: "#ccc", border: "none", borderRadius: 2, padding: "2px 6px", fontSize: 10, cursor: "pointer" }}>✕</button>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, padding: "3px 8px", borderBottom: "1px solid #f0f0f0" }}>
-      <span>{item.codigo || "—"}</span>
-      <div>
-        <button onClick={() => onStartEdit(tipo, item.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#1565c0", padding: "0 2px" }} title="Editar">✎</button>
-        <button onClick={() => onDelete(item.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#c62828", padding: "0 2px" }} title="Eliminar">🗑</button>
-      </div>
-    </div>
-  );
-}
-
-function LayerPanelSide({ tuberias, valvulas, antenas, sondas, setModoDibujo, editandoElemento, setEditandoElemento, formCrear, onConfirmCrear, onCancelCrear, onUpdate, onDelete, setFormCrear }: {
-  tuberias: any[];
-  valvulas: any[];
-  antenas: any[];
-  sondas: any[];
-  setModoDibujo: (m: ModoDibujo) => void;
-  editandoElemento: { tipo: string; id: string } | null;
-  setEditandoElemento: (e: { tipo: string; id: string } | null) => void;
-  formCrear: any;
-  onConfirmCrear: (data: any) => void;
-  onCancelCrear: () => void;
-  onUpdate: (tipo: string, id: string, data: any) => void;
-  onDelete: (tipo: string, id: string) => void;
-  setFormCrear: (f: any) => void;
-}) {
-  const groups = [
-    { key: "matriz", label: "Matrices", icon: "🔵", color: "#1565c0", data: tuberias.filter(t => t.nivel === "matriz") },
-    { key: "impulsion", label: "Impulsiones", icon: "🟢", color: "#2e7d32", data: tuberias.filter(t => t.nivel === "impulsion") },
-    { key: "submatriz", label: "Submatrices", icon: "🔴", color: "#c62828", data: tuberias.filter(t => t.nivel === "submatriz") },
-    { key: "valvula_electrica", label: "V. Eléctricas", icon: "🟠", color: "#e65100", data: valvulas.filter((v: any) => v.tipo !== "aire") },
-    { key: "valvula_aire", label: "V. Aire", icon: "🔵", color: "#42a5f5", data: valvulas.filter((v: any) => v.tipo === "aire") },
-    { key: "antena", label: "Antenas", icon: "🟣", color: "#6a1b9a", data: antenas },
-    { key: "sonda", label: "Sondas", icon: "🟡", color: "#f9a825", data: sondas },
-  ];
-
-  return (
-    <div style={{ width: 260, borderLeft: "1px solid #ddd", display: "flex", flexDirection: "column", background: "#fafafa", flexShrink: 0 }}>
-      <div style={{ padding: "8px 12px", borderBottom: "1px solid #ddd", fontWeight: 700, fontSize: 13, background: "#f0f0f0" }}>📋 CAPAS</div>
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        {groups.map(g => (
-          <div key={g.key}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", background: "#f5f5f5", borderBottom: "1px solid #e0e0e0", fontSize: 11, fontWeight: 600 }}>
-              <span>{g.icon} {g.label} ({g.data.length})</span>
-              <button onClick={() => { setModoDibujo(g.key as ModoDibujo); setFormCrear(null); }}
-                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: g.color, fontWeight: 700, padding: "0 4px" }} title={`Agregar ${g.label}`}>＋</button>
-            </div>
-            {g.data.map((item: any) => (
-              <LayerItem key={item.id} item={item} tipo={g.key}
-                editando={editandoElemento?.tipo === g.key && editandoElemento?.id === item.id}
-                onEdit={(id, d) => onUpdate(g.key === "matriz" || g.key === "impulsion" || g.key === "submatriz" ? "tuberia" : g.key, id, d)}
-                onDelete={(id) => onDelete(g.key === "matriz" || g.key === "impulsion" || g.key === "submatriz" ? "tuberia" : g.key, id)}
-                onStartEdit={(t, id) => setEditandoElemento(id ? { tipo: t, id } : null)} />
-            ))}
-          </div>
-        ))}
-      </div>
-      {formCrear && (
-        <FormCrearElemento formCrear={formCrear} onConfirm={(data) => onConfirmCrear(data)} onCancel={onCancelCrear}
-          tuberias={tuberias.filter(t => t.nivel === "matriz" || t.nivel === "impulsion" || t.nivel === "submatriz")} />
-      )}
     </div>
   );
 }

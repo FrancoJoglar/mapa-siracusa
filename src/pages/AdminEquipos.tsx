@@ -100,91 +100,6 @@ export default function AdminEquipos() {
           equipoId={equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo)?.id || ""}
           initialCenter={[-35.14, -71.62]}
           saved={savedGeo}
-           onCreateTuberia={async (data) => {
-            const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
-            if (!eq) return;
-            const insertData: any = {
-              codigo: data.codigo,
-              equipo_id: eq.id,
-              nivel: data.nivel,
-              material: data.material,
-              diametro_mm: data.diametro_mm,
-              geometria: { type: "LineString", coordinates: data.puntos.map(p => [p.lng, p.lat]) },
-            };
-            if (data.nombre) insertData.nombre = data.nombre;
-            const { error } = await supabase.from('tuberias').insert(insertData);
-            if (error) alert("Error: " + error.message);
-          }}
-          onCreateValvula={async (data) => {
-            const insertData: any = {
-              codigo: data.codigo,
-              tipo: data.tipo,
-              diametro_mm: data.diametro_mm,
-              geometria: { type: "Point", coordinates: [data.punto.lng, data.punto.lat] },
-            };
-            if (data.tuberia_id) insertData.tuberia_id = data.tuberia_id;
-            const { error } = await supabase.from('valvulas').insert(insertData);
-            if (error) alert("Error: " + error.message);
-          }}
-          onCreateAntena={async (data) => {
-            const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
-            if (!eq) return;
-            const { error } = await supabase.from('antenas').insert({
-              codigo: data.codigo,
-              tipo: data.tipo,
-              equipo_id: eq.id,
-              geometria: { type: "Point", coordinates: [data.punto.lng, data.punto.lat] },
-            });
-            if (error) alert("Error: " + error.message);
-          }}
-          onCreateSonda={async (data) => {
-            const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
-            if (!eq) return;
-            const { error } = await supabase.from('sondas').insert({
-              codigo: data.codigo,
-              tipo: data.tipo,
-              profundidad_m: data.profundidad_m,
-              equipo_id: eq.id,
-              geometria: { type: "Point", coordinates: [data.punto.lng, data.punto.lat] },
-            });
-            if (error) alert("Error: " + error.message);
-          }}
-          onUpdateTuberia={async (id: string, data: any) => {
-            const { error } = await supabase.from('tuberias').update(data).eq('id', id);
-            if (error) alert('Error al actualizar tubería: ' + error.message);
-          }}
-          onUpdateValvula={async (id: string, data: any) => {
-            const { error } = await supabase.from('valvulas').update(data).eq('id', id);
-            if (error) alert('Error al actualizar válvula: ' + error.message);
-          }}
-          onUpdateAntena={async (id: string, data: any) => {
-            const { error } = await supabase.from('antenas').update(data).eq('id', id);
-            if (error) alert('Error al actualizar antena: ' + error.message);
-          }}
-          onUpdateSonda={async (id: string, data: any) => {
-            const { error } = await supabase.from('sondas').update(data).eq('id', id);
-            if (error) alert('Error al actualizar sonda: ' + error.message);
-          }}
-          onDeleteTuberia={async (id: string) => {
-            if (!confirm('¿Eliminar esta tubería?')) return;
-            const { error } = await supabase.from('tuberias').delete().eq('id', id);
-            if (error) alert('Error al eliminar: ' + error.message);
-          }}
-          onDeleteValvula={async (id: string) => {
-            if (!confirm('¿Eliminar esta válvula?')) return;
-            const { error } = await supabase.from('valvulas').delete().eq('id', id);
-            if (error) alert('Error al eliminar: ' + error.message);
-          }}
-          onDeleteAntena={async (id: string) => {
-            if (!confirm('¿Eliminar esta antena?')) return;
-            const { error } = await supabase.from('antenas').delete().eq('id', id);
-            if (error) alert('Error al eliminar: ' + error.message);
-          }}
-          onDeleteSonda={async (id: string) => {
-            if (!confirm('¿Eliminar esta sonda?')) return;
-            const { error } = await supabase.from('sondas').delete().eq('id', id);
-            if (error) alert('Error al eliminar: ' + error.message);
-          }}
           onSave={async (data) => {
             const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
             if (!eq) return alert('Equipo no encontrado');
@@ -192,13 +107,13 @@ export default function AdminEquipos() {
             const boundsValue: any = { center: data.center, map_zoom: data.mapZoom };
             if (data.sw) boundsValue.sw = data.sw;
             if (data.ne) boundsValue.ne = data.ne;
-            const payload = { 
-              equipo_id: eq.id, 
+            const payload = {
+              equipo_id: eq.id,
               bounds: boundsValue,
               zoom_level: data.zoom_level,
-              rotation: data.rotation, 
+              rotation: data.rotation,
               opacity: data.opacity,
-              updated_at: now 
+              updated_at: now
             };
             const { data: existing } = await supabase.from('georreferencias').select('id').eq('equipo_id', eq.id).single();
             let error;
