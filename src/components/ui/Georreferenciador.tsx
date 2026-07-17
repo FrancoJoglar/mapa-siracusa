@@ -287,6 +287,15 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       (layer.pm as any)?.setOptions?.({ layerId: id, snappable: true });
       layerRefs.current.set(id, layer);
 
+      // Direct click handler on the layer to open edit panel (no stale closure)
+      const layerId = id;
+      layer.on("click", () => {
+        setEditPanel({
+          id: layerId, tipo: "", codigo: "", material: "PVC", diametro_mm: "",
+          isExisting: false,
+        });
+      });
+
       setPendingItems(prev => [...prev, { id, layer, geojson, tipo: "", codigo: "", material: "PVC", diametro_mm: "" }]);
     };
     m.on("pm:create", handleCreate);
@@ -312,17 +321,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return () => { m.off("pm:cut", handleCut); };
   }, []);
 
-  // --- Click to select layer and show edit panel ---
+  // --- Click on existing elements opens edit panel ---
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
     const onClick = (e: L.LeafletMouseEvent) => {
-      // Ignore clicks on the map itself (no layer)
-      if (!e.propagatedFrom) return;
-      // Check if click was on one of our layers
+      const target = e.propagatedFrom || e.target;
+      if (!target) return;
       for (const [id, layer] of layerRefs.current.entries()) {
-        if ((layer as any)._leaflet_id === (e.propagatedFrom as any)._leaflet_id) {
-          // Found the layer
+        const l = layer as any;
+        if (l._leaflet_id === (target as any)._leaflet_id ||
+            (l._layers && Object.values(l._layers).some((sl: any) => sl._leaflet_id === (target as any)._leaflet_id))) {
           const pending = pendingItems.find(p => p.id === id);
           if (pending) {
             setEditPanel({
@@ -330,8 +339,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
               material: pending.material, diametro_mm: pending.diametro_mm,
               isExisting: false,
             });
-          } else {
-            // It's an existing saved element - we could add edit-by-click later
           }
           return;
         }
