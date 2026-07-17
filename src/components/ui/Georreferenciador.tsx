@@ -166,14 +166,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
   // --- L.imageOverlay: plano georreferenciado que escala con el mapa ---
   const imgOverlayRef = useRef<any>(null);
+  const refZoomRef = useRef<number>(0);  // zoom del mapa al crear el overlay por 1ra vez
   const [, setForce] = useState(0);
 
   function recalcBounds() {
     const m = mapRef.current;
     if (!m) return null;
-    // Usar centro y zoom del MAPA guardados como referencia fija
+    const mapZoom = m.getZoom();
+    // Si es la primera vez, guardar el zoom actual como referencia
+    if (!refZoomRef.current) refZoomRef.current = mapZoom;
     const refCtr = saved?.bounds?.center || [geoCenterRef.current.lat, geoCenterRef.current.lng];
-    const refZoom = saved?.bounds?.map_zoom || m.getZoom();
+    const refZoom = saved?.bounds?.map_zoom || refZoomRef.current;
     const refLevel = saved?.zoom_level || zoom;
     const ctr = L.latLng(refCtr[0], refCtr[1]);
     const ctrPt = m.project(ctr, refZoom);
