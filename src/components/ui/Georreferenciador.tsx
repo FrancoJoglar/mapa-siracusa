@@ -189,7 +189,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return L.latLngBounds(sw, ne);
   }
 
-  // Crear overlay UNA SOLA VEZ (cuando se carga la imagen)
+  // Crear overlay (se recrea al cambiar zoom slider, opacity o imagen)
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !imageUrl || !ready) return;
@@ -210,25 +210,9 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const el = ov.getElement();
     if (el && rotation) { el.style.transformOrigin = "center center"; el.style.rotate = `${rotation}deg`; }
     imgOverlayRef.current = ov;
-    return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
-  }, [imageUrl, opacity, ready]);
-
-  // Zoom slider: escalar bounds del overlay (sin recrear)
-  useEffect(() => {
-    const ov = imgOverlayRef.current;
-    if (!ov) { prevZoomRef.current = zoom; return; }
-    if (!prevZoomRef.current) { prevZoomRef.current = zoom; return; }
-    const ratio = zoom / prevZoomRef.current;
     prevZoomRef.current = zoom;
-    if (Math.abs(ratio - 1) < 0.001) return;
-    const c = ov.getBounds().getCenter();
-    const sw = ov.getBounds().getSouthWest();
-    const ne = ov.getBounds().getNorthEast();
-    ov.setBounds(L.latLngBounds(
-      L.latLng(c.lat + (sw.lat - c.lat) * ratio, c.lng + (sw.lng - c.lng) * ratio),
-      L.latLng(c.lat + (ne.lat - c.lat) * ratio, c.lng + (ne.lng - c.lng) * ratio)
-    ));
-  }, [zoom]);
+    return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
+  }, [imageUrl, zoom, opacity, ready]);
 
   // Rotacion: solo CSS, sin recrear overlay
   useEffect(() => {
