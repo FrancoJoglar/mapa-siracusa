@@ -260,19 +260,14 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const dLng = curLL.lng - startLatLng.lng;
       geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
       startLatLng = curLL;
-      // Transladar bounds del overlay
-      const ov = imgOverlayRef.current;
-      if (ov) {
-        const ob = ov.getBounds();
-        ov.setBounds(L.latLngBounds(
-          L.latLng(ob.getSouthWest().lat + dLat, ob.getSouthWest().lng + dLng),
-          L.latLng(ob.getNorthEast().lat + dLat, ob.getNorthEast().lng + dLng)
-        ));
-      }
     };
     const onUp = () => {
       dragging = false;
-      mapRef.current?.dragging.enable();
+      const m = mapRef.current;
+      if (m) m.dragging.enable();
+      // Sincronizar bounds del overlay con el nuevo centro
+      const ov = imgOverlayRef.current;
+      if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
     };
     el.addEventListener("mousedown", onDown);
     window.addEventListener("mousemove", onMove);
