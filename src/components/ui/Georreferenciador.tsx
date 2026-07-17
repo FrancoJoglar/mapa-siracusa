@@ -107,28 +107,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return () => { m.pm.removeControls(); };
   }, [ready]);
 
-  // --- DOM overlay: plano como div fijo, no se actualiza en zoom ---
-  const [, setForce] = useState(0);
-
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m || !ready) return;
-    let zooming = false;
-    m.on("zoomstart", () => { zooming = true; });
-    m.on("zoomend", () => { zooming = false; });
-    m.on("move", () => { if (!zooming) setForce(n => n + 1); });
-    return () => { m.off("move"); m.off("zoomstart"); m.off("zoomend"); };
-  }, [ready]);
-
-  function getPixelPos() {
-    const m = mapRef.current;
-    if (!m) return { x: 0, y: 0 };
-    const pt = m.latLngToContainerPoint(geoCenterRef.current);
-    return { x: pt.x, y: pt.y };
-  }
-  const { x: posX, y: posY } = getPixelPos();
-  const scaleFactor = zoom / 100;
-
   // --- Reference polygons ---
   useEffect(() => {
     const m = mapRef.current;
@@ -162,7 +140,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         canvas.width = vp.width; canvas.height = vp.height;
         rawCanvasRef.current = canvas;
         await page.render({ canvas, viewport: vp }).promise;
-        // Create transparent version
         const transCanvas = document.createElement("canvas");
         transCanvas.width = canvas.width; transCanvas.height = canvas.height;
         const tCtx = transCanvas.getContext("2d")!;
@@ -187,8 +164,49 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     setForce(n => n + 1);
   }, [ready]);
 
+  // --- L.imageOverlay: plano georreferenciado que escala con el mapa ---
+  const imgOverlayRef = useRef<any>(null);
+  const [, setForce] = useState(0);
+
+  function recalcBounds() {
+    const m = mapRef.current;
+    if (!m) return null;
+    const ctr = geoCenterRef.current;
+    const ctrPt = m.latLngToContainerPoint(ctr);
+    const natW = rawCanvasRef.current?.width || 1000;
+    const natH = rawCanvasRef.current?.height || 1000;
+    const s = zoom / 100;
+    const sw = m.containerPointToLatLng([ctrPt.x - natW * s / 2, ctrPt.y + natH * s / 2]);
+    const ne = m.containerPointToLatLng([ctrPt.x + natW * s / 2, ctrPt.y - natH * s / 2]);
+    return L.latLngBounds(sw, ne);
+  }
+
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !imageUrl || !ready) return;
+    const bounds = recalcBounds();
+    if (!bounds) return;
+    if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current);
+    let useBounds = bounds;
+    if (saved?.bounds?.sw && saved?.bounds?.ne) {
+      useBounds = L.latLngBounds(
+        L.latLng(saved.bounds.sw[0], saved.bounds.sw[1]),
+        L.latLng(saved.bounds.ne[0], saved.bounds.ne[1])
+      );
+    }
+    const ov = L.imageOverlay(imageUrl, useBounds, { opacity, interactive: false, bubblingMouseEvents: false }).addTo(m);
+    // Rotacion via CSS (una vez, no interfiere con Leaflet)
+    const el = ov.getElement();
+    if (el && rotation) { el.style.transformOrigin = "center center"; el.style.rotate = `${rotation}deg`; }
+    imgOverlayRef.current = ov;
+    return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
+  }, [imageUrl, zoom, rotation, opacity, ready]);
+
+  // Actualizar bounds del overlay al arrastrar el plano (nudge)
   const nudge = useCallback((dLat: number, dLng: number) => {
     geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
+    const ov = imgOverlayRef.current;
+    if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
     setForce(n => n + 1);
   }, []);
   const nudgeRef = useRef<(dLat: number, dLng: number) => void>(() => {});
@@ -224,8 +242,15 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const dLng = curLL.lng - startLatLng.lng;
       geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
       startLatLng = curLL;
-      setForce(n => n + 1);
-      setForce(n => n + 1);
+      // Transladar bounds del overlay
+      const ov = imgOverlayRef.current;
+      if (ov) {
+        const ob = ov.getBounds();
+        ov.setBounds(L.latLngBounds(
+          L.latLng(ob.getSouthWest().lat + dLat, ob.getSouthWest().lng + dLng),
+          L.latLng(ob.getNorthEast().lat + dLat, ob.getNorthEast().lng + dLng)
+        ));
+      }
     };
     const onUp = () => {
       dragging = false;
@@ -400,18 +425,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const m = mapRef.current;
     if (!m) { alert("Mapa no disponible"); return; }
     setSaving(true);
-    // Calculate center from the DOM image
-    const img = document.querySelector("img.geo-plan-img") as HTMLImageElement;
-    if (!img) { setSaving(false); alert("Imagen no disponible"); return; }
-    const parent = mapContainerRef.current?.parentElement;
-    if (!parent) return;
-    const imgRect = img.getBoundingClientRect();
-    const ctrRect = parent.getBoundingClientRect();
-    const cxPx = (imgRect.left + imgRect.right) / 2 - ctrRect.left;
-    const cyPx = (imgRect.top + imgRect.bottom) / 2 - ctrRect.top;
-    const ctr = m.containerPointToLatLng([cxPx, cyPx]);
+    // Calculate center from overlay bounds
+    const ov = imgOverlayRef.current;
+    if (!ov) { setSaving(false); alert("Plano no disponible"); return; }
+    const bounds = ov.getBounds();
+    const ctr = bounds.getCenter();
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
     onSave({
       center: [ctr.lat, ctr.lng],
+      sw: [sw.lat, sw.lng],
+      ne: [ne.lat, ne.lng],
       rotation, opacity, zoom_level: zoom, mapZoom: m.getZoom(),
     });
   };
@@ -596,15 +620,6 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
           <div style={{ flex: 1, position: "relative" }}>
             <div ref={mapContainerRef} style={{ position: "absolute", inset: 0, zIndex: 1 }} />
             {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, background: "rgba(255,255,255,0.7)" }}><p style={{ color: "#666", fontSize: 14 }}>Cargando plano...</p></div>}
-            {imageUrl && !loading && (
-              <div style={{
-                position: "absolute", left: posX, top: posY, zIndex: 10, pointerEvents: "none",
-                transform: `translate(-50%, -50%) scale(${scaleFactor}) rotate(${rotation}deg)`,
-                transformOrigin: "center center",
-              }}>
-                <img src={imageUrl} alt="Plano" className="geo-plan-img" style={{ display: "block", maxWidth: "none", opacity }} />
-              </div>
-            )}
             {!loading && (
               <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.75)", color: "#fff", padding: "6px 14px", borderRadius: 4, fontSize: 12, zIndex: 200, pointerEvents: "none", whiteSpace: "nowrap" }}>
                 Rueda: agarrar plano | Click izq: navegar
