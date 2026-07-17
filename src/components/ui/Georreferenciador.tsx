@@ -202,7 +202,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       if (b) useBounds = b;
     }
     if (!useBounds) return;
-    const ov = L.imageOverlay(imageUrl, useBounds, { opacity, interactive: false, bubblingMouseEvents: false }).addTo(m);
+    const ov = L.imageOverlay(imageUrl, useBounds, { opacity }).addTo(m);
     const el = ov.getElement();
     if (el && rotation) { el.style.transformOrigin = "center center"; el.style.rotate = `${rotation}deg`; }
     imgOverlayRef.current = ov;
