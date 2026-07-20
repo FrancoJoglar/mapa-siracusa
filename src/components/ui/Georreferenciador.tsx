@@ -212,18 +212,10 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (!m || !imageUrl || !ready) return;
     if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current);
 
-    let useBounds: L.LatLngBounds | null = null;
-    if (saved?.bounds?.sw && saved?.bounds?.ne) {
-      useBounds = L.latLngBounds(
-        L.latLng(saved.bounds.sw[0], saved.bounds.sw[1]),
-        L.latLng(saved.bounds.ne[0], saved.bounds.ne[1])
-      );
-    } else {
-      const b = recalcBounds();
-      if (b) useBounds = b;
-    }
-    if (!useBounds) return;
-    const ov = new (RotatedOverlay as any)(imageUrl, useBounds, { opacity, rotation }).addTo(m);
+    // Siempre usar recalcBounds con geoCenterRef.current (actualizado en arrastre)
+    const b = recalcBounds();
+    if (!b) return;
+    const ov = new (RotatedOverlay as any)(imageUrl, b, { opacity, rotation }).addTo(m);
     imgOverlayRef.current = ov;
     prevZoomRef.current = zoom;
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
