@@ -206,23 +206,10 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     }
     if (!useBounds) return;
     const ov = L.imageOverlay(imageUrl, useBounds, { opacity }).addTo(m);
-    const el = ov.getElement();
-    if (el && rotation) { el.style.transformOrigin = "center center"; el.style.rotate = `${rotation}deg`; }
     imgOverlayRef.current = ov;
     prevZoomRef.current = zoom;
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
   }, [imageUrl, zoom, opacity, ready]);
-
-  // Rotacion: solo CSS, sin recrear overlay
-  useEffect(() => {
-    const ov = imgOverlayRef.current;
-    if (!ov) return;
-    const el = ov.getElement();
-    if (el) {
-      el.style.transformOrigin = "center center";
-      el.style.rotate = rotation ? `${rotation}deg` : "";
-    }
-  }, [rotation]);
 
   // Actualizar bounds del overlay al arrastrar el plano (nudge)
   const nudge = useCallback((dLat: number, dLng: number) => {
