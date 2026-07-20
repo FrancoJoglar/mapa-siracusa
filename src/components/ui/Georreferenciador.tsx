@@ -193,16 +193,27 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     return L.latLngBounds(sw, ne);
   }
 
-  // Crear overlay (se recrea al cambiar zoom slider, opacity o imagen)
+  // Crear overlay (primera vez usa saved bounds si existen, despues recalcBounds)
+  const isFirstCreate = useRef(true);
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !imageUrl || !ready) return;
     if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current);
 
-    // Siempre usar recalcBounds con geoCenterRef.current (actualizado en arrastre)
-    const b = recalcBounds();
-    if (!b) return;
-    const ov = new (RotatedOverlay as any)(imageUrl, b, { opacity }).addTo(m);
+    let useBounds: L.LatLngBounds | null = null;
+    if (isFirstCreate.current && saved?.bounds?.sw && saved?.bounds?.ne) {
+      useBounds = L.latLngBounds(
+        L.latLng(saved.bounds.sw[0], saved.bounds.sw[1]),
+        L.latLng(saved.bounds.ne[0], saved.bounds.ne[1])
+      );
+      isFirstCreate.current = false;
+    } else {
+      const b = recalcBounds();
+      if (b) useBounds = b;
+      isFirstCreate.current = false;
+    }
+    if (!useBounds) return;
+    const ov = new (RotatedOverlay as any)(imageUrl, useBounds, { opacity }).addTo(m);
     imgOverlayRef.current = ov;
     prevZoomRef.current = zoom;
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
