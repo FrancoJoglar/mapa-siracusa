@@ -201,13 +201,17 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current);
 
     let useBounds: L.LatLngBounds | null = null;
-    if (isFirstCreate.current && saved?.bounds?.sw && saved?.bounds?.ne) {
+    const sw = saved?.bounds?.sw;
+    const ne = saved?.bounds?.ne;
+    if (isFirstCreate.current && sw && ne) {
+      console.log("OVERLAY: usando saved bounds");
       useBounds = L.latLngBounds(
-        L.latLng(saved.bounds.sw[0], saved.bounds.sw[1]),
-        L.latLng(saved.bounds.ne[0], saved.bounds.ne[1])
+        L.latLng(sw[0], sw[1]),
+        L.latLng(ne[0], ne[1])
       );
       isFirstCreate.current = false;
     } else {
+      console.log("OVERLAY: recalcBounds (isFirst=" + isFirstCreate.current + " hasSaved=" + !!(sw&&ne) + ")");
       const b = recalcBounds();
       if (b) useBounds = b;
       isFirstCreate.current = false;
