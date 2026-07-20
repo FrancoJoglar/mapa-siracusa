@@ -16,23 +16,8 @@ L.Icon.Default.mergeOptions({
 
 export interface PuntoGeo { lat: number; lng: number; }
 
-// Custom ImageOverlay with rotation (rotation in _reset, no separate CSS rotate)
-const RotatedOverlay = (L.ImageOverlay as any).extend({
-  options: { rotation: 0 },
-  _reset: function(this: any) {
-    (L.ImageOverlay.prototype as any)._reset.call(this);
-    if (this.options.rotation && this._image) {
-      var t = this._image.style.transform || "";
-      var cleaned = t.replace(/rotate\([^)]*\)/gi, "").trim();
-      this._image.style.transform = cleaned + " rotate(" + this.options.rotation + "deg)";
-      this._image.style.transformOrigin = "center center";
-    }
-  },
-  setRotation: function(this: any, deg: number) {
-    this.options.rotation = deg;
-    this._reset();
-  },
-});
+// RotatedOverlay - solo para crear la capa, la rotacion se maneja aparte con CSS
+const RotatedOverlay = (L.ImageOverlay as any).extend({});
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -217,16 +202,21 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     // Siempre usar recalcBounds con geoCenterRef.current (actualizado en arrastre)
     const b = recalcBounds();
     if (!b) return;
-    const ov = new (RotatedOverlay as any)(imageUrl, b, { opacity, rotation }).addTo(m);
+    const ov = new (RotatedOverlay as any)(imageUrl, b, { opacity }).addTo(m);
     imgOverlayRef.current = ov;
     prevZoomRef.current = zoom;
     return () => { if (imgOverlayRef.current) m.removeLayer(imgOverlayRef.current); imgOverlayRef.current = null; };
   }, [imageUrl, zoom, opacity, ready]);
 
-  // Rotacion
+  // Rotacion via CSS style.rotate (independiente de transform de Leaflet)
   useEffect(() => {
     const ov = imgOverlayRef.current;
-    if (ov && (ov as any).setRotation) (ov as any).setRotation(rotation);
+    if (!ov) return;
+    const el = ov.getElement();
+    if (el) {
+      el.style.transformOrigin = "center center";
+      el.style.rotate = rotation ? `${rotation}deg` : "";
+    }
   }, [rotation]);
 
   // Actualizar bounds del overlay al arrastrar el plano (nudge)
