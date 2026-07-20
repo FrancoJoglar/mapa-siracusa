@@ -193,7 +193,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   function recalcBounds() {
     const m = mapRef.current;
     if (!m) return null;
-    const refCtr = saved?.bounds?.center || [geoCenterRef.current.lat, geoCenterRef.current.lng];
+    const refCtr = [geoCenterRef.current.lat, geoCenterRef.current.lng];
     const refZoom = saved?.bounds?.map_zoom || refZoomRef.current;
     const refLevel = saved?.zoom_level || zoom;
     const ctr = L.latLng(refCtr[0], refCtr[1]);
