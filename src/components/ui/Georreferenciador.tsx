@@ -195,7 +195,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (!m) return null;
     const refCtr = [geoCenterRef.current.lat, geoCenterRef.current.lng];
     const refZoom = saved?.bounds?.map_zoom || refZoomRef.current;
-    const refLevel = saved?.zoom_level || zoom;
+    const refLevel = zoom;
     const ctr = L.latLng(refCtr[0], refCtr[1]);
     const ctrPt = m.project(ctr, refZoom);
     const natW = rawCanvasRef.current?.width || 1000;
