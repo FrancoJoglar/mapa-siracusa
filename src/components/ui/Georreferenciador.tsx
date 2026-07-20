@@ -55,6 +55,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const [opacity, setOpacity] = useState(0.6);
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(saved?.zoom_level || 200);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -195,7 +197,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (!m) return null;
     const refCtr = [geoCenterRef.current.lat, geoCenterRef.current.lng];
     const refZoom = saved?.bounds?.map_zoom || refZoomRef.current;
-    const refLevel = zoom;
+    const refLevel = zoomRef.current;
     const ctr = L.latLng(refCtr[0], refCtr[1]);
     const ctrPt = m.project(ctr, refZoom);
     const natW = rawCanvasRef.current?.width || 1000;
