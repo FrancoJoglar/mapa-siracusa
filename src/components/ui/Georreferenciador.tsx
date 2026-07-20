@@ -272,14 +272,9 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const dLng = curLL.lng - startLatLng.lng;
       geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
       startLatLng = curLL;
+      // Recalcular bounds desde el nuevo centro
       const ov = imgOverlayRef.current;
-      if (ov) {
-        const ob = ov.getBounds();
-        ov.setBounds(L.latLngBounds(
-          L.latLng(ob.getSouthWest().lat + dLat, ob.getSouthWest().lng + dLng),
-          L.latLng(ob.getNorthEast().lat + dLat, ob.getNorthEast().lng + dLng)
-        ));
-      }
+      if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
     };
     const onUp = () => {
       dragging = false;
