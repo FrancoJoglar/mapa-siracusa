@@ -181,7 +181,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     const m = mapRef.current;
     if (!m) return null;
     const refCtr = [geoCenterRef.current.lat, geoCenterRef.current.lng];
-    const refZoom = saved?.bounds?.map_zoom || refZoomRef.current;
+    const refZoom = refZoomRef.current;
     const refLevel = zoomRef.current;
     const ctr = L.latLng(refCtr[0], refCtr[1]);
     const ctrPt = m.project(ctr, refZoom);
@@ -279,9 +279,15 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       const dLng = curLL.lng - startLatLng.lng;
       geoCenterRef.current = L.latLng(geoCenterRef.current.lat + dLat, geoCenterRef.current.lng + dLng);
       startLatLng = curLL;
-      // Recalcular bounds desde el nuevo centro
+      // Trasladar bounds (como nudge), no recalcular
       const ov = imgOverlayRef.current;
-      if (ov) { const b = recalcBounds(); if (b) ov.setBounds(b); }
+      if (ov) {
+        const ob = ov.getBounds();
+        ov.setBounds(L.latLngBounds(
+          L.latLng(ob.getSouthWest().lat + dLat, ob.getSouthWest().lng + dLng),
+          L.latLng(ob.getNorthEast().lat + dLat, ob.getNorthEast().lng + dLng)
+        ));
+      }
     };
     const onUp = () => {
       dragging = false;
@@ -595,7 +601,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
           <span style={{ whiteSpace: "nowrap" }}>Georreferenciar: {equipoCodigo}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
             <button onClick={() => setZoom(z => Math.max(3, z - 0.1))} style={btn}>🔽</button>
-            <input type="number" min={3} max={2000} step={0.1} value={zoom} onChange={e => setZoom(Number(e.target.value))} style={{ width: 52, fontSize: 12, textAlign: "center", border: "1px solid #ccc", borderRadius: 4, padding: "4px 2px" }} />
+            <input type="number" min={3} max={2000} step={0.1} value={zoom} onChange={e => setZoom(Math.max(3, Number(e.target.value) || 3))} style={{ width: 52, fontSize: 12, textAlign: "center", border: "1px solid #ccc", borderRadius: 4, padding: "4px 2px" }} />
             <button onClick={() => setZoom(z => Math.min(2000, z + 0.1))} style={btn}>🔼</button>
             <input type="range" min={3} max={2000} step={0.1} value={zoom} onChange={e => setZoom(Number(e.target.value))} style={{ width: 50, accentColor: "#1565c0" }} />
             <span style={{ color: "#ddd" }}>|</span>
