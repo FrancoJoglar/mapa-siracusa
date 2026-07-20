@@ -595,9 +595,9 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
             <button onClick={() => setZoom(z => Math.min(2000, z + 0.1))} style={btn}>🔼</button>
             <input type="range" min={3} max={2000} step={0.1} value={zoom} onChange={e => setZoom(Number(e.target.value))} style={{ width: 50, accentColor: "#1565c0" }} />
             <span style={{ color: "#ddd" }}>|</span>
-            <button onClick={() => setRotation(r => +(r - 0.5 < 0 ? 359.5 : r - 0.5).toFixed(1))} style={btn}>⟲</button>
-            <input type="number" min={0} max={359.5} step={0.5} value={rotation} onChange={e => setRotation(Number(e.target.value) % 360)} style={{ width: 48, fontSize: 12, textAlign: "center", border: "1px solid #ccc", borderRadius: 4, padding: "4px 2px" }} />
-            <button onClick={() => setRotation(r => +(r + 0.5 >= 360 ? 0 : r + 0.5).toFixed(1))} style={btn}>⟳</button>
+            <button onClick={() => setRotation(r => (r - 1 + 360) % 360)} style={btn}>⟲</button>
+            <input type="number" min={0} max={359} step={1} value={Math.round(rotation)} onChange={e => setRotation((Number(e.target.value) % 360 + 360) % 360)} style={{ width: 48, fontSize: 12, textAlign: "center", border: "1px solid #ccc", borderRadius: 4, padding: "4px 2px" }} />
+            <button onClick={() => setRotation(r => (r + 1) % 360)} style={btn}>⟳</button>
             <span style={{ color: "#ddd" }}>|</span>
             <button onClick={() => nudge(-0.00005, 0)} style={btn}>⬆</button>
             <button onClick={() => nudge(0, -0.00005)} style={btn}>⬅</button>
