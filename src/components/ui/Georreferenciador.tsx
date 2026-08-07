@@ -54,6 +54,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
   const [pendingItems, setPendingItems] = useState<{ id: string; layer: any; geojson: any; nombre: string; categoria: string; color: string }[]>([]);
   const [editPanel, setEditPanel] = useState<{ id: string; nombre: string; categoria: string; color: string; isExisting: boolean } | null>(null);
   const [importPreview, setImportPreview] = useState<{ nombre: string; categoria: string; lat: number; lng: number; color: string }[] | null>(null);
+  const [colocandoPunto, setColocandoPunto] = useState(false);
   const layerRefs = useRef<Map<string, any>>(new Map());
   const capasRef = useRef<any[]>([]);
 
@@ -114,6 +115,33 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
 
     return () => { m.pm.removeControls(); };
   }, [ready]);
+
+  // --- Click para colocar punto manual ---
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    const onClick = (e: L.LeafletMouseEvent) => {
+      if (!colocandoPunto) return;
+      const id = "pending_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+      const marker = L.marker(e.latlng, {
+        icon: L.divIcon({
+          className: "",
+          html: `<div style="width:12px;height:12px;background:#999;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
+          iconSize: [12, 12], iconAnchor: [6, 6],
+        }),
+      }).addTo(m);
+      const geojson = marker.toGeoJSON();
+      (marker.pm as any)?.setOptions?.({ layerId: id, snappable: true });
+      layerRefs.current.set(id, marker);
+      marker.on("click", () => {
+        setEditPanel({ id, nombre: "", categoria: "", color: "#e65100", isExisting: false });
+      });
+      setPendingItems(prev => [...prev, { id, layer: marker, geojson, nombre: "", categoria: "", color: "#e65100" }]);
+      setColocandoPunto(false);
+    };
+    m.on("click", onClick);
+    return () => { m.off("click", onClick); };
+  }, [colocandoPunto]);
 
   // --- Reference polygons ---
   useEffect(() => {
@@ -685,13 +713,20 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         {/* Drawing toolbar */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderBottom: "1px solid #eee", background: "#f5f5f5", flexShrink: 0 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-            📍 Click en el mapa para colocar puntos — luego click en el punto para editar
+            📍 Botón "Colocar punto" → click en el mapa → click en el punto gris para editar
           </span>
           {pendingItems.length > 0 && (
             <span style={{ fontSize: 11, color: "#e65100", fontWeight: 600 }}>
               ({pendingItems.length} pendiente{pendingItems.length !== 1 ? "s" : ""})
             </span>
           )}
+          <button onClick={() => setColocandoPunto(!colocandoPunto)} style={{
+            margin: "0 4px", padding: "4px 12px", borderRadius: 4, border: "1px solid", cursor: "pointer",
+            fontSize: 12, fontWeight: 600,
+            background: colocandoPunto ? "#e65100" : "white",
+            color: colocandoPunto ? "white" : "#e65100",
+            borderColor: "#e65100",
+          }}>📍 {colocandoPunto ? "Click en el mapa..." : "Colocar punto"}</button>
           <span style={{ color: "#ddd", margin: "0 8px" }}>|</span>
           <label style={{ fontSize: 12, fontWeight: 600, color: "#2e7d32", cursor: "pointer", padding: "4px 10px", border: "1px solid #2e7d32", borderRadius: 4 }}>
             📁 Importar (KMZ/Excel)
