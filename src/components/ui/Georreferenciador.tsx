@@ -89,7 +89,7 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
     if (!m || !ready) return;
 
     m.pm.addControls({
-      position: "topleft",
+      position: "topright",
       drawMarker: true,
       drawPolyline: false,
       drawPolygon: false,
@@ -102,7 +102,8 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
       dragMode: false,
       removalMode: true,
       rotateMode: false,
-      snapOption: true,
+      snapOption: false,
+      oneBlock: false,
     });
 
     m.pm.setGlobalOptions({
