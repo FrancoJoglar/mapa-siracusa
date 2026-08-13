@@ -711,31 +711,27 @@ export default function Georreferenciador({ planoUrl, equipoCodigo, equipoId, in
         </div>
 
         {/* Drawing toolbar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderBottom: "1px solid #eee", background: "#f5f5f5", flexShrink: 0 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-            📍 Botón "Colocar punto" → click en el mapa → click en el punto gris para editar
-          </span>
-          {pendingItems.length > 0 && (
-            <span style={{ fontSize: 11, color: "#e65100", fontWeight: 600 }}>
-              ({pendingItems.length} pendiente{pendingItems.length !== 1 ? "s" : ""})
-            </span>
-          )}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "2px solid #e65100", background: "#fff3e0", flexShrink: 0, flexWrap: "wrap" }}>
           <button onClick={() => setColocandoPunto(!colocandoPunto)} style={{
-            margin: "0 4px", padding: "4px 12px", borderRadius: 4, border: "1px solid", cursor: "pointer",
-            fontSize: 12, fontWeight: 600,
-            background: colocandoPunto ? "#e65100" : "white",
-            color: colocandoPunto ? "white" : "#e65100",
-            borderColor: "#e65100",
-          }}>📍 {colocandoPunto ? "Click en el mapa..." : "Colocar punto"}</button>
-          <span style={{ color: "#ddd", margin: "0 8px" }}>|</span>
-          <label style={{ fontSize: 12, fontWeight: 600, color: "#2e7d32", cursor: "pointer", padding: "4px 10px", border: "1px solid #2e7d32", borderRadius: 4 }}>
-            📁 Importar (KMZ/Excel)
+            padding: "8px 18px", borderRadius: 4, border: "none", cursor: "pointer",
+            fontSize: 14, fontWeight: 700,
+            background: colocandoPunto ? "#e65100" : "#1565c0",
+            color: "white",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+          }}>{colocandoPunto ? "📍 Click en el mapa para colocar..." : "➕ AGREGAR PUNTO"}</button>
+          <label style={{ fontSize: 14, fontWeight: 700, color: "#2e7d32", cursor: "pointer", padding: "8px 18px", border: "2px solid #2e7d32", borderRadius: 4, background: "white" }}>
+            📁 IMPORTAR (KMZ/Excel)
             <input type="file" accept=".kmz,.kml,.xlsx,.xls,.csv" style={{ display: "none" }} onChange={async (e) => {
               const file = e.target.files?.[0];
               if (file) await handleFileImport(file);
               e.target.value = '';
             }} />
           </label>
+          {pendingItems.length > 0 && (
+            <span style={{ fontSize: 13, color: "#e65100", fontWeight: 700 }}>
+              {pendingItems.length} punto{pendingItems.length !== 1 ? "s" : ""} pendiente{pendingItems.length !== 1 ? "s" : ""} — click en el punto gris para editar
+            </span>
+          )}
         </div>
 
         {editPanel && (
