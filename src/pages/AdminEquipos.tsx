@@ -14,8 +14,7 @@ export default function AdminEquipos() {
   const [editing, setEditing] = useState<Equipo | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [visorPdf, setVisorPdf] = useState<{ url: string; nombre: string } | null>(null);
-  const [geoRef, setGeoRef] = useState<{ url: string; codigo: string } | null>(null);
-  const [savedGeo, setSavedGeo] = useState<any>(null);
+  const [geoRef, setGeoRef] = useState<{ codigo: string; id: string } | null>(null);
 
   if (loading) return <CenterMsg msg="Cargando equipos..." />;
   if (error) return <CenterMsg msg={`Error: ${error}`} />;
@@ -56,11 +55,7 @@ export default function AdminEquipos() {
         </thead>
         <tbody>
           {equipos.map((e) => (
-            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} onViewPlano={(url, nombre) => setVisorPdf({ url, nombre })} onGeoref={async (url, codigo) => {
-              const { data } = await supabase.from('georreferencias').select('*').eq('equipo_id', e.id).single();
-              setSavedGeo(data);
-              setGeoRef({ url, codigo });
-            }} />
+            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} onViewPlano={(url, nombre) => setVisorPdf({ url, nombre })} onPuntos={() => setGeoRef({ codigo: 'Equipo ' + e.codigo, id: e.id })} />
           ))}
           {equipos.length === 0 && (
             <tr>
@@ -95,36 +90,8 @@ export default function AdminEquipos() {
 
       {geoRef && (
         <Georreferenciador
-          planoUrl={geoRef.url}
           equipoCodigo={geoRef.codigo}
-          equipoId={equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo)?.id || ""}
-          initialCenter={[-35.14, -71.62]}
-          saved={savedGeo}
-          onSave={async (data) => {
-            const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
-            if (!eq) return alert('Equipo no encontrado');
-            const now = new Date().toISOString();
-            const boundsValue: any = { center: data.center, map_zoom: data.mapZoom };
-            if (data.sw) boundsValue.sw = data.sw;
-            if (data.ne) boundsValue.ne = data.ne;
-            const payload = {
-              equipo_id: eq.id,
-              bounds: boundsValue,
-              zoom_level: data.zoom_level,
-              rotation: data.rotation,
-              opacity: data.opacity,
-              updated_at: now
-            };
-            const { data: existing } = await supabase.from('georreferencias').select('id').eq('equipo_id', eq.id).single();
-            let error;
-            if (existing) {
-              ({ error } = await supabase.from('georreferencias').update(payload).eq('equipo_id', eq.id));
-            } else {
-              ({ error } = await supabase.from('georreferencias').insert(payload));
-            }
-            if (error) alert('Error al guardar: ' + error.message);
-            else { alert('Georreferencia guardada'); setGeoRef(null); }
-          }}
+          equipoId={geoRef.id}
           onClose={() => setGeoRef(null)}
         />
       )}
@@ -132,7 +99,7 @@ export default function AdminEquipos() {
   );
 }
 
-function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onViewPlano, onGeoref }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void; onViewPlano: (url: string, nombre: string) => void; onGeoref: (url: string, codigo: string) => Promise<void> }) {
+function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onViewPlano, onPuntos }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void; onViewPlano: (url: string, nombre: string) => void; onPuntos: () => void }) {
   const [uploading, setUploading] = useState(false);
   const [deletingPlano, setDeletingPlano] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -185,7 +152,7 @@ function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onViewPlano, onGeoref }
         {equipo.plano_url ? (
           <span>
             <a href="#" onClick={e => { e.preventDefault(); onViewPlano(equipo.plano_url!, equipo.codigo + ' - ' + equipo.nombre); }} style={{ color: "#1565c0", fontWeight: 500, marginRight: 8, cursor: "pointer" }}>Ver Plano</a>
-            {isAdmin && <a href="#" onClick={e => { e.preventDefault(); onGeoref(equipo.plano_url!, 'Equipo ' + equipo.codigo); }} style={{ ...btnSmStyle, fontSize: 11, marginRight: 4, textDecoration: "none", color: "#2e7d32" }}>Georreferenciar</a>}
+            {isAdmin && <a href="#" onClick={e => { e.preventDefault(); onPuntos(); }} style={{ ...btnSmStyle, fontSize: 11, marginRight: 4, textDecoration: "none", color: "#2e7d32" }}>Puntos</a>}
             <a href={equipo.plano_url} download style={{ ...btnSmStyle, textDecoration: "none", fontSize: 11, marginRight: 4 }}>Descargar</a>
             {isAdmin && <button onClick={() => handleDeletePlano(equipo)} disabled={deletingPlano === equipo.id} style={{ ...btnSmStyle, color: "#c62828", fontWeight: 600 }}>Eliminar</button>}
           </span>
