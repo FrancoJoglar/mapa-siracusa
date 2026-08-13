@@ -121,6 +121,7 @@ export interface Valvula {
   id: string;
   codigo: string;
   tuberia_id: string;
+  equipo_id?: string;
   tipo: string;
   diametro_mm: number | null;
   color?: string;
@@ -131,7 +132,9 @@ export interface Valvula {
 export interface Antena {
   id: string;
   codigo: string;
+  equipo_id?: string;
   tipo: string;
+  color?: string;
   geojson?: Feature;
   created_at: string;
 }
@@ -139,7 +142,9 @@ export interface Antena {
 export interface Sonda {
   id: string;
   codigo: string;
+  equipo_id?: string;
   tipo: string;
+  color?: string;
   profundidad_m: number | null;
   geojson?: Feature;
   created_at: string;

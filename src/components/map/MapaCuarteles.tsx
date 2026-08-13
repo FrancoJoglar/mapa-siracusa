@@ -55,6 +55,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [showCuartelLabels, setShowCuartelLabels] = useState(false);
+  const [filtroPuntosEquipo, setFiltroPuntosEquipo] = useState<string>("todos");
 
   const layersRef = useRef<LayersMap>(new Map());
   const selectedRef = useRef<string | null>(null);
@@ -364,7 +365,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           {vista === "sectores" && fitBounds && <FlyToBounds bounds={fitBounds} />}
 
           {/* EQUIPOS DE RIEGO: controlado por master toggle */}
-          {equiposActivo && mostrarValvulas && valvulas.length > 0 && valvulas.map(v => v.geojson && (
+          {equiposActivo && mostrarValvulas && valvulas.filter(v => filtroPuntosEquipo === "todos" || v.equipo_id === filtroPuntosEquipo).length > 0 && valvulas.filter(v => filtroPuntosEquipo === "todos" || v.equipo_id === filtroPuntosEquipo).map(v => v.geojson && (
             <GeoJSON key={"val-" + v.id} data={v.geojson} pointToLayer={(_f, latlng) => {
               const fillCol = v.color || "#ef5350";
               const c = L.circleMarker(latlng, { radius: 5, color: fillCol, fillColor: fillCol, fillOpacity: 0.9, pane: "valvulas" });
@@ -388,14 +389,14 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           ))}
 
           {/* ANTENAS Y SONDAS: independientes */}
-          {mostrarAntenas && antenas.length > 0 && antenas.map(a => a.geojson && (
+          {mostrarAntenas && antenas.filter(a => filtroPuntosEquipo === "todos" || a.equipo_id === filtroPuntosEquipo).length > 0 && antenas.filter(a => filtroPuntosEquipo === "todos" || a.equipo_id === filtroPuntosEquipo).map(a => a.geojson && (
             <GeoJSON key={"ant-" + a.id} data={a.geojson} pointToLayer={(_f, latlng) =>
-              L.circleMarker(latlng, { radius: 6, color: "#1565c0", fillColor: "#42a5f5", fillOpacity: 0.9 })
+              L.circleMarker(latlng, { radius: 6, color: a.color || "#1565c0", fillColor: "#42a5f5", fillOpacity: 0.9 })
             } />
           ))}
-          {mostrarSondas && sondas.length > 0 && sondas.map(s => s.geojson && (
+          {mostrarSondas && sondas.filter(s => filtroPuntosEquipo === "todos" || s.equipo_id === filtroPuntosEquipo).length > 0 && sondas.filter(s => filtroPuntosEquipo === "todos" || s.equipo_id === filtroPuntosEquipo).map(s => s.geojson && (
             <GeoJSON key={"son-" + s.id} data={s.geojson} pointToLayer={(_f, latlng) =>
-              L.circleMarker(latlng, { radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 0.9 })
+              L.circleMarker(latlng, { radius: 6, color: s.color || "#2e7d32", fillColor: "#66bb6a", fillOpacity: 0.9 })
             } />
           ))}
           {vista === "cuarteles" && <BuscadorCuartel cuarteles={cuarteles} />}
@@ -414,6 +415,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
         </>}
         <ToggleAntenas visible={mostrarAntenas} onToggle={() => setMostrarAntenas(!mostrarAntenas)} />
         <ToggleSondas visible={mostrarSondas} onToggle={() => setMostrarSondas(!mostrarSondas)} />
+        <FiltroEquipos equipos={equipos} valor={filtroPuntosEquipo} onChange={setFiltroPuntosEquipo} />
         <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
         <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
         <Leyenda />
@@ -672,6 +674,24 @@ function ToggleMedir({ visible, onToggle }: { visible: boolean; onToggle: () => 
           padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
           background: visible ? "#2e7d32" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
         }}>Medir</button>
+      </div>
+    </div>
+  );
+}
+
+function FiltroEquipos({ equipos, valor, onChange }: { equipos: any[]; valor: string; onChange: (v: string) => void }) {
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 528 }}>
+      <div className="leaflet-control">
+        <select value={valor} onChange={(e) => { e.stopPropagation(); onChange(e.target.value); }} style={{
+          padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
+          background: "white", color: "#333", border: "1px solid #ccc",
+        }}>
+          <option value="todos">🌐 Todos los equipos</option>
+          {equipos.map(eq => (
+            <option key={eq.id} value={eq.id}>Equipo {eq.codigo}</option>
+          ))}
+        </select>
       </div>
     </div>
   );
