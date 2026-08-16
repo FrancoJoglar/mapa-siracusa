@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useEquipos } from "../hooks/useEquipos";
 import { Equipo } from "../lib/types";
 import FormularioEquipo from "../components/equipos/FormularioEquipo";
@@ -14,7 +14,14 @@ export default function AdminEquipos() {
   const [editing, setEditing] = useState<Equipo | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [visorPdf, setVisorPdf] = useState<{ url: string; nombre: string } | null>(null);
-  const [geoRef, setGeoRef] = useState<{ codigo: string; id: string } | null>(null);
+  const [geoRef, setGeoRef] = useState<{ codigo: string; id: string; planoUrl?: string } | null>(null);
+  const [savedGeo, setSavedGeo] = useState<any>(null);
+
+  useEffect(() => {
+    if (!geoRef?.id) { setSavedGeo(null); return; }
+    supabase.from('georreferencias').select('*').eq('equipo_id', geoRef.id).maybeSingle()
+      .then(({ data }) => setSavedGeo(data || null));
+  }, [geoRef?.id]);
 
   if (loading) return <CenterMsg msg="Cargando equipos..." />;
   if (error) return <CenterMsg msg={`Error: ${error}`} />;
@@ -55,7 +62,7 @@ export default function AdminEquipos() {
         </thead>
         <tbody>
           {equipos.map((e) => (
-            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} onViewPlano={(url, nombre) => setVisorPdf({ url, nombre })} onPuntos={() => setGeoRef({ codigo: 'Equipo ' + e.codigo, id: e.id })} />
+            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} onViewPlano={(url, nombre) => setVisorPdf({ url, nombre })} onPuntos={() => setGeoRef({ codigo: 'Equipo ' + e.codigo, id: e.id, planoUrl: e.plano_url })} />
           ))}
           {equipos.length === 0 && (
             <tr>
@@ -90,6 +97,7 @@ export default function AdminEquipos() {
 
       {geoRef && (
         <Georreferenciador
+          planoUrl={geoRef.planoUrl || ""}
           equipoCodigo={geoRef.codigo}
           equipoId={equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo)?.id || ""}
           initialCenter={[-35.14, -71.62]}
