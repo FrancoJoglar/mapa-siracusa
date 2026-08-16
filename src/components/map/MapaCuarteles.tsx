@@ -6,6 +6,7 @@ import {
   COLOR_EDIFICACION, colorPorEspecie, COLOR_POR_ESPECIE,
 } from "../../lib/colors";
 import BarraFiltros from "./BarraFiltros";
+import FiltrosAvanzados, { FiltrosAvanzadosState } from "./FiltrosAvanzados";
 import BuscadorCuartel from "./BuscadorCuartel";
 import { exportarCuarteles, exportarCuartelesGeoJSON } from "../../lib/export";
 import L from "leaflet";
@@ -56,6 +57,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [showCuartelLabels, setShowCuartelLabels] = useState(false);
   const [filtroPuntosEquipo, setFiltroPuntosEquipo] = useState<string>("todos");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<FiltrosAvanzadosState>({ sectoresSeleccionados: [] });
 
   const layersRef = useRef<LayersMap>(new Map());
   const selectedRef = useRef<string | null>(null);
@@ -177,9 +180,13 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.equipo && (!c.equipo_riego || !parts(c.equipo_riego).includes(filtros.equipo))) return false;
       if (filtros.sector && (!c.sector_raw || !parts(c.sector_raw).includes(filtros.sector))) return false;
       if (filtros.jefeCampo && c.jefe_campo !== filtros.jefeCampo) return false;
+      // Advanced: if sectors selected, only show cuarteles belonging to those sectors
+      if (advancedFilters.sectoresSeleccionados.length > 0) {
+        if (!c.sector_ids?.some(sid => advancedFilters.sectoresSeleccionados.includes(sid))) return false;
+      }
       return true;
     });
-  }, [cuarteles, filtros]);
+  }, [cuarteles, filtros, advancedFilters]);
 
   const filteredSectores = useMemo(() => {
     return sectores.filter(s => {
@@ -190,6 +197,10 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.equipo && s.equipo !== filtros.equipo) return false;
       if (filtros.sector && s.codigo !== filtros.sector) return false;
       if (filtros.jefeCampo && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jefeCampo))) return false;
+      // Advanced: if sectors selected, only show those sectors
+      if (advancedFilters.sectoresSeleccionados.length > 0) {
+        if (!advancedFilters.sectoresSeleccionados.includes(s.id)) return false;
+      }
       return true;
     });
   }, [sectores, cuarteles, filtros]);
@@ -249,6 +260,16 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           ? { ...uniqueCuarteles, sectores: sectoresFiltradosPorEquipo }
           : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo })}
         vista={vista}
+        onOpenAdvanced={() => setShowAdvanced(true)}
+        advancedActive={advancedFilters.sectoresSeleccionados.length > 0}
+      />
+      <FiltrosAvanzados
+        open={showAdvanced}
+        onClose={() => setShowAdvanced(false)}
+        onApply={(state) => { setAdvancedFilters(state); setShowAdvanced(false); }}
+        initialState={advancedFilters}
+        sectores={sectores}
+        cuarteles={cuarteles}
       />
       <div style={{ flex: 1, position: "relative" }}>
         <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} zoomAnimation={false} style={{ height: "100%", width: "100%" }}>
