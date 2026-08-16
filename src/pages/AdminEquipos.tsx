@@ -91,7 +91,120 @@ export default function AdminEquipos() {
       {geoRef && (
         <Georreferenciador
           equipoCodigo={geoRef.codigo}
-          equipoId={geoRef.id}
+          equipoId={equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo)?.id || ""}
+          initialCenter={[-35.14, -71.62]}
+          saved={savedGeo}
+          onCreateTuberia={async (data) => {
+            try {
+              const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
+              if (!eq) return;
+              const payload: any = {
+                codigo: data.codigo,
+                equipo_id: eq.id,
+                nivel: data.nivel,
+                material: data.material,
+                diametro_mm: data.diametro_mm,
+                geometria: { type: "LineString", coordinates: data.puntos.map(p => [p.lng, p.lat]) },
+              };
+              if (data.tuberia_padre_id) payload.tuberia_padre_id = data.tuberia_padre_id;
+              const { error } = await supabase.from('tuberias').insert(payload);
+              if (error) alert("Error tubería: " + error.message);
+            } catch (e: any) { alert("Error tubería: " + e.message); }
+          }}
+          onDeleteTuberia={async (id) => {
+            const { error } = await supabase.from('tuberias').delete().eq('id', id);
+            if (error) alert("Error al eliminar tubería: " + error.message);
+          }}
+          onCreateValvula={async (data) => {
+            try {
+              const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
+              if (!eq) return;
+              const { error } = await supabase.from('valvulas').insert({
+                codigo: data.codigo,
+                tipo: data.tipo || 'transicion',
+                diametro_mm: data.diametro_mm,
+                equipo_id: eq.id,
+                sector_codigo: data.sector_codigo,
+                geometria: { type: "Point", coordinates: [data.punto.lng, data.punto.lat] },
+              });
+              if (error) alert("Error válvula: " + error.message);
+            } catch (e: any) { alert("Error válvula: " + e.message); }
+          }}
+          onUpdateValvula={async (id, punto) => {
+            const { error } = await supabase.from('valvulas').update({
+              geometria: { type: "Point", coordinates: [punto.lng, punto.lat] },
+            }).eq('id', id);
+            if (error) alert("Error al mover válvula: " + error.message);
+          }}
+          onUpdateValvulaData={async (id, data) => {
+            const payload: any = {};
+            if (data.bloque_riego !== undefined) payload.bloque_riego = data.bloque_riego;
+            if (data.diametro_mm !== undefined) payload.diametro_mm = data.diametro_mm;
+            if (data.activacion !== undefined) payload.activacion = data.activacion;
+            if (data.sector_codigo !== undefined) payload.sector_codigo = data.sector_codigo;
+            if (data.color !== undefined) payload.color = data.color;
+            const { error } = await supabase.from('valvulas').update(payload).eq('id', id);
+            if (error) alert("Error al guardar válvula: " + error.message);
+          }}
+          onUpdateTuberia={async (id, puntos) => {
+            const { error } = await supabase.from('tuberias').update({
+              geometria: { type: "LineString", coordinates: puntos.map(p => [p.lng, p.lat]) },
+            }).eq('id', id);
+            if (error) alert("Error al actualizar tubería: " + error.message);
+          }}
+          onDeleteValvula={async (id) => {
+            const { error } = await supabase.from('valvulas').delete().eq('id', id);
+            if (error) alert("Error al eliminar válvula: " + error.message);
+          }}
+          onCreateAntena={async (data) => {
+            try {
+              const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
+              if (!eq) return;
+              const { error } = await supabase.from('antenas').insert({
+                codigo: data.codigo,
+                tipo: data.tipo,
+                equipo_id: eq.id,
+                geometria: { type: "Point", coordinates: [data.punto.lng, data.punto.lat] },
+              });
+              if (error) alert("Error antena: " + error.message);
+            } catch (e: any) { alert("Error antena: " + e.message); }
+          }}
+          onCreateSonda={async (data) => {
+            try {
+              const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
+              if (!eq) return;
+              const { error } = await supabase.from('sondas').insert({
+                codigo: data.codigo,
+                tipo: data.tipo,
+                profundidad_m: data.profundidad_m,
+                equipo_id: eq.id,
+                geometria: { type: "Point", coordinates: [data.punto.lng, data.punto.lat] },
+              });
+              if (error) alert("Error sonda: " + error.message);
+            } catch (e: any) { alert("Error sonda: " + e.message); }
+          }}
+          onSave={async (data) => {
+            const eq = equipos.find(e => 'Equipo ' + e.codigo === geoRef.codigo);
+            if (!eq) return alert('Equipo no encontrado');
+            const now = new Date().toISOString();
+            const boundsValue: any = { center: data.center, map_zoom: data.mapZoom };
+            if (data.sw) boundsValue.sw = data.sw;
+            if (data.ne) boundsValue.ne = data.ne;
+            const payload = { 
+              equipo_id: eq.id, 
+              bounds: boundsValue,
+              zoom_level: data.zoom_level,
+              rotation: data.rotation, 
+              opacity: data.opacity,
+              updated_at: now 
+            };
+            const { data: existing } = await supabase.from('georreferencias').select('id').eq('equipo_id', eq.id).maybeSingle();
+            const { error } = existing
+              ? await supabase.from('georreferencias').update(payload).eq('equipo_id', eq.id)
+              : await supabase.from('georreferencias').insert(payload);
+            if (error) alert('Error al guardar: ' + error.message);
+            else { alert('Georreferencia guardada'); setGeoRef(null); }
+          }}
           onClose={() => setGeoRef(null)}
         />
       )}

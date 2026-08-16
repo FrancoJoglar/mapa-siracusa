@@ -124,6 +124,8 @@ export interface Valvula {
   equipo_id?: string;
   tipo: string;
   diametro_mm: number | null;
+  bloque_riego?: string;
+  activacion?: string;
   color?: string;
   geojson?: Feature;
   created_at: string;
