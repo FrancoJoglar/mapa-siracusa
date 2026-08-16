@@ -100,8 +100,8 @@ export interface FiltrosCuartel {
   variedad: string;
   anioDesde: number | null;
   anioHasta: number | null;
-  equipos: string[];
-  sectores: string[];
+  equipo: string;
+  sector: string;
   jefeCampo: string;
 }
 

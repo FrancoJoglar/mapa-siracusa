@@ -30,7 +30,7 @@ interface Props {
 
 const FILTROS_VACIOS: FiltrosCuartel = {
   especie: "", variedad: "", anioDesde: null, anioHasta: null,
-  equipos: [], sectores: [], jefeCampo: "",
+  equipo: "", sector: "", jefeCampo: "",
 };
 
 type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions; kind: 'cuartel' | 'sector' | 'unidad' };
@@ -151,21 +151,21 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
     };
   }, [sectores, cuarteles]);
 
-  // Sector codes filtered by selected equipos (cascading checkboxes)
+  // Sector codes filtered by selected equipo (cascading dropdown)
   const sectoresFiltradosPorEquipo = useMemo(() => {
     if (vista === "sectores") {
-      if (filtros.equipos.length === 0) return uniqueSectores.sectores;
-      return sectores.filter(s => filtros.equipos.includes(s.equipo)).map(s => s.codigo).sort(numSort);
+      if (!filtros.equipo) return uniqueSectores.sectores;
+      return sectores.filter(s => s.equipo === filtros.equipo).map(s => s.codigo).sort(numSort);
     }
-    if (filtros.equipos.length === 0) return uniqueCuarteles.sectores;
+    if (!filtros.equipo) return uniqueCuarteles.sectores;
     const nums = new Set<number>();
     cuarteles.forEach(c => {
-      if (c.equipo_riego && filtros.equipos.some(eq => parts(c.equipo_riego).includes(eq)) && c.sector_raw) {
+      if (c.equipo_riego && parts(c.equipo_riego).includes(filtros.equipo) && c.sector_raw) {
         parts(c.sector_raw).forEach(n => nums.add(Number(n)));
       }
     });
     return Array.from(nums).sort((a, b) => a - b).map(String);
-  }, [vista, filtros.equipos, sectores, cuarteles, uniqueSectores.sectores, uniqueCuarteles.sectores]);
+  }, [vista, filtros.equipo, sectores, cuarteles, uniqueSectores.sectores, uniqueCuarteles.sectores]);
 
   // ====== FILTERING ======
   const filteredCuarteles = useMemo(() => {
@@ -174,8 +174,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.variedad && c.variedad !== filtros.variedad) return false;
       if (filtros.anioDesde && (!c.anio_plantacion || c.anio_plantacion < filtros.anioDesde)) return false;
       if (filtros.anioHasta && (!c.anio_plantacion || c.anio_plantacion > filtros.anioHasta)) return false;
-      if (filtros.equipos.length > 0 && (!c.equipo_riego || !filtros.equipos.some(eq => parts(c.equipo_riego).includes(eq)))) return false;
-      if (filtros.sectores.length > 0 && (!c.sector_raw || !filtros.sectores.some(s => parts(c.sector_raw).includes(s)))) return false;
+      if (filtros.equipo && (!c.equipo_riego || !parts(c.equipo_riego).includes(filtros.equipo))) return false;
+      if (filtros.sector && (!c.sector_raw || !parts(c.sector_raw).includes(filtros.sector))) return false;
       if (filtros.jefeCampo && c.jefe_campo !== filtros.jefeCampo) return false;
       return true;
     });
@@ -187,20 +187,16 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.variedad && !cuarteles.some(c => c.sector_ids?.includes(s.id) && c.variedad === filtros.variedad)) return false;
       if (filtros.anioDesde && (!s.anio || s.anio < filtros.anioDesde)) return false;
       if (filtros.anioHasta && (!s.anio || s.anio > filtros.anioHasta)) return false;
-      if (filtros.equipos.length > 0 && !filtros.equipos.includes(s.equipo)) return false;
-      if (filtros.sectores.length > 0 && !filtros.sectores.includes(s.codigo)) return false;
+      if (filtros.equipo && s.equipo !== filtros.equipo) return false;
+      if (filtros.sector && s.codigo !== filtros.sector) return false;
       if (filtros.jefeCampo && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jefeCampo))) return false;
       return true;
     });
   }, [sectores, cuarteles, filtros]);
 
   const handleFiltroChange = (f: FiltrosCuartel) => {
-    // When equipos change, reset sectores
-    if (JSON.stringify(f.equipos) !== JSON.stringify(filtros.equipos)) {
-      setFiltros({ ...f, sectores: [] });
-    } else {
-      setFiltros(f);
-    }
+    if (f.equipo !== filtros.equipo) { setFiltros({ ...f, sector: "" }); }
+    else { setFiltros(f); }
   };
 
   const numFiltrados = vista === "cuarteles" ? filteredCuarteles.length : filteredSectores.length;
@@ -249,23 +245,10 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
             ? exportarCuartelesGeoJSON(filteredCuarteles, "siracusa_cuarteles")
             : exportarCuartelesGeoJSON(filteredSectores as any, "siracusa_sectores")
         }
-        onExportImage={async () => {
-          const mapEl = document.querySelector('.leaflet-container') as HTMLElement;
-          if (!mapEl) return;
-          try {
-            const html2canvas = (await import('html2canvas')).default;
-            const canvas = await html2canvas(mapEl, { useCORS: true, allowTaint: true });
-            const link = document.createElement('a');
-            link.download = `siracusa_${vista}_${new Date().toISOString().slice(0,10)}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-          } catch (e) {
-            alert('Error al exportar imagen: ' + (e as Error).message);
-          }
-        }}
         {...(vista === "cuarteles"
           ? { ...uniqueCuarteles, sectores: sectoresFiltradosPorEquipo }
           : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo })}
+        vista={vista}
       />
       <div style={{ flex: 1, position: "relative" }}>
         <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} zoomAnimation={false} style={{ height: "100%", width: "100%" }}>
