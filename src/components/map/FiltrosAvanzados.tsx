@@ -43,7 +43,13 @@ export default function FiltrosAvanzados({ open, onClose, onApply, initialState,
     return map;
   }, [cuarteles]);
 
-  const equipos = useMemo(() => Array.from(sectoresPorEquipo.keys()).sort(), [sectoresPorEquipo]);
+  const equipos = useMemo(() => {
+    return Array.from(sectoresPorEquipo.keys()).sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+      return numA - numB;
+    });
+  }, [sectoresPorEquipo]);
 
   const toggleSector = (sectorId: string) => {
     setLocal(prev => {
