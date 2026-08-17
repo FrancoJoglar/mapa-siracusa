@@ -203,7 +203,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       }
       return true;
     });
-  }, [sectores, cuarteles, filtros]);
+  }, [sectores, cuarteles, filtros, advancedFilters]);
 
   const handleFiltroChange = (f: FiltrosCuartel) => {
     if (f.equipo !== filtros.equipo) { setFiltros({ ...f, sector: "" }); }
