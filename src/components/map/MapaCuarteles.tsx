@@ -916,7 +916,7 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
   };
 
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 280 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 560 }}>
       <div className="leaflet-control">
         <button onClick={(e) => { e.stopPropagation(); handleExport(); }} disabled={exporting}
           style={{ padding: "6px 12px", borderRadius: 4, cursor: exporting ? "wait" : "pointer", fontSize: 12, fontWeight: 500, background: exporting ? "#f5f5f5" : "white", color: "#333", border: "1px solid #ccc" }}>
