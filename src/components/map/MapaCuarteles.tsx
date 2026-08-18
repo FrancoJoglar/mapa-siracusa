@@ -866,28 +866,50 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
       const lngs = allCoords.map(c => c[1]);
       const bounds = L.latLngBounds([Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]);
 
+      // Create visible container (covers viewport temporarily)
       const imgW = 8000, imgH = 6000;
       const container = document.createElement("div");
-      container.style.cssText = "position:fixed;left:0;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:99999;overflow:hidden;background:#000;";
+      container.id = "export-map-container";
+      container.style.cssText = "position:fixed;left:0;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:99999;overflow:hidden;background:#1a1a1a;";
       document.body.appendChild(container);
 
-      const map = L.map(container, { center: bounds.getCenter(), zoom: 15, zoomControl: false, attributionControl: false, crs: L.CRS.EPSG3857 });
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 }).addTo(map);
-      map.fitBounds(bounds, { padding: [100, 100] });
-
-      await new Promise<void>((resolve) => {
-        let loaded = 0;
-        const check = () => { loaded++; if (loaded >= 40) resolve(); };
-        map.on("tileload", check);
-        map.on("tileerror", check);
-        setTimeout(resolve, 8000);
+      // Create map with canvas renderer for better capture
+      const map = L.map(container, {
+        center: bounds.getCenter(),
+        zoom: 15,
+        zoomControl: false,
+        attributionControl: false,
+        preferCanvas: true,
       });
 
+      // Add satellite tiles
+      const tileLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19,
+        crossOrigin: true,
+      });
+      tileLayer.addTo(map);
+      map.fitBounds(bounds, { padding: [50, 50] });
+
+      // Wait for tiles to load
+      await new Promise<void>((resolve) => {
+        let loaded = 0;
+        const needed = 30;
+        const check = () => { loaded++; if (loaded >= needed) resolve(); };
+        tileLayer.on("load", () => resolve());
+        map.on("tileload", check);
+        map.on("tileerror", check);
+        setTimeout(resolve, 10000);
+      });
+
+      // Extra wait for render
+      await new Promise(r => setTimeout(r, 2000));
+
+      // Add GeoJSON polygons
       const geoJsonData = vista === "cuarteles"
         ? { type: "FeatureCollection" as const, features: filteredCuarteles.filter(c => c.geojson).map(c => ({ ...c.geojson!, properties: { nombre: c.nombre, especie: c.especie } })) }
         : { type: "FeatureCollection" as const, features: filteredSectores.filter(s => s.geojson).map(s => ({ ...s.geojson!, properties: { codigo: s.codigo, especie: s.especie } })) };
 
-      L.geoJSON(geoJsonData, {
+      const geoLayer = L.geoJSON(geoJsonData, {
         style: (feature) => {
           const color = colorPorEspecie(feature?.properties?.especie || "");
           return { color, weight: 3, fillColor: color, fillOpacity: 0.35, opacity: 0.9 };
@@ -896,18 +918,32 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
           const name = vista === "cuarteles" ? feature.properties?.nombre : feature.properties?.codigo;
           if (name) layer.bindTooltip(name, { permanent: true, direction: "center", className: "cuartel-label", opacity: 1 });
         },
-      }).addTo(map);
+      });
+      geoLayer.addTo(map);
 
-      await new Promise(r => setTimeout(r, 3000));
+      // Wait for GeoJSON to render
+      await new Promise(r => setTimeout(r, 2000));
 
+      // Capture with html2canvas
       const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(container, { useCORS: true, allowTaint: true, width: imgW, height: imgH, scale: 1, backgroundColor: null });
+      const canvas = await html2canvas(container, {
+        useCORS: true,
+        allowTaint: true,
+        width: imgW,
+        height: imgH,
+        scale: 1,
+        logging: false,
+        backgroundColor: null,
+      });
 
+      // Download
       const link = document.createElement("a");
       link.download = "mapa_siracusa_" + vista + "_" + new Date().toISOString().slice(0, 10) + ".png";
       link.href = canvas.toDataURL("image/png");
       link.click();
 
+      // Cleanup
+      map.remove();
       container.remove();
     } catch (e) {
       console.error("Error exporting:", e);
