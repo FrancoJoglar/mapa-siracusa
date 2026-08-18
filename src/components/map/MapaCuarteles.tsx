@@ -439,6 +439,11 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
         <FiltroEquipos equipos={equipos} valor={filtroPuntosEquipo} onChange={setFiltroPuntosEquipo} />
         <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
         <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
+        <ExportMapImage
+          filteredCuarteles={filteredCuarteles}
+          filteredSectores={filteredSectores}
+          vista={vista}
+        />
         <Leyenda />
       </div>
     </div>
@@ -827,6 +832,97 @@ function Leyenda() {
           {c.especie}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ====== EXPORT MAP IMAGE ======
+function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
+  filteredCuarteles: Cuartel[];
+  filteredSectores: SectorGeo[];
+  vista: "cuarteles" | "sectores";
+}) {
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const features = vista === "cuarteles"
+        ? filteredCuarteles.filter(c => c.geojson).map(c => c.geojson!)
+        : filteredSectores.filter(s => s.geojson).map(s => s.geojson!);
+
+      if (features.length === 0) { alert("No hay datos para exportar"); setExporting(false); return; }
+
+      let allCoords: [number, number][] = [];
+      features.forEach(f => {
+        const geom = f.geometry;
+        if (geom.type === "Polygon") geom.coordinates[0].forEach(c => allCoords.push([c[1], c[0]]));
+        else if (geom.type === "MultiPolygon") geom.coordinates.forEach(poly => poly[0].forEach(c => allCoords.push([c[1], c[0]])));
+      });
+
+      if (allCoords.length === 0) { alert("No se pudieron calcular los limites"); setExporting(false); return; }
+
+      const lats = allCoords.map(c => c[0]);
+      const lngs = allCoords.map(c => c[1]);
+      const bounds = L.latLngBounds([Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]);
+
+      const imgW = 8000, imgH = 6000;
+      const container = document.createElement("div");
+      container.style.cssText = "position:fixed;left:-9999px;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:-1;";
+      document.body.appendChild(container);
+
+      const map = L.map(container, { center: bounds.getCenter(), zoom: 15, zoomControl: false, attributionControl: false });
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 }).addTo(map);
+      map.fitBounds(bounds, { padding: [100, 100] });
+
+      await new Promise<void>((resolve) => {
+        let loaded = 0;
+        const check = () => { loaded++; if (loaded >= 40) resolve(); };
+        map.on("tileload", check);
+        map.on("tileerror", check);
+        setTimeout(resolve, 8000);
+      });
+
+      const geoJsonData = vista === "cuarteles"
+        ? { type: "FeatureCollection" as const, features: filteredCuarteles.filter(c => c.geojson).map(c => ({ ...c.geojson!, properties: { nombre: c.nombre } })) }
+        : { type: "FeatureCollection" as const, features: filteredSectores.filter(s => s.geojson).map(s => ({ ...s.geojson!, properties: { codigo: s.codigo } })) };
+
+      L.geoJSON(geoJsonData, {
+        style: () => ({ color: vista === "cuarteles" ? colorPorEspecie("") : "#22c55e", weight: 2, fillColor: vista === "cuarteles" ? colorPorEspecie("") : "#22c55e", fillOpacity: 0.2 }),
+        onEachFeature: (feature, layer) => {
+          const name = vista === "cuarteles" ? feature.properties?.nombre : feature.properties?.codigo;
+          if (name) layer.bindTooltip(name, { permanent: true, direction: "center", className: "cuartel-label", opacity: 0.95 });
+        },
+      }).addTo(map);
+
+      await new Promise(r => setTimeout(r, 2000));
+
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(container, { useCORS: true, allowTaint: true, width: imgW, height: imgH, scale: 1 });
+
+      const link = document.createElement("a");
+      link.download = "mapa_siracusa_" + vista + "_" + new Date().toISOString().slice(0, 10) + ".png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+
+      map.remove();
+      document.body.removeChild(container);
+    } catch (e) {
+      console.error("Error exporting:", e);
+      alert("Error al exportar: " + (e as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 280 }}>
+      <div className="leaflet-control">
+        <button onClick={(e) => { e.stopPropagation(); handleExport(); }} disabled={exporting}
+          style={{ padding: "6px 12px", borderRadius: 4, cursor: exporting ? "wait" : "pointer", fontSize: 12, fontWeight: 500, background: exporting ? "#f5f5f5" : "white", color: "#333", border: "1px solid #ccc" }}>
+          {exporting ? "Generando..." : "\uD83D\uDCF7 Mapa"}
+        </button>
+      </div>
     </div>
   );
 }
