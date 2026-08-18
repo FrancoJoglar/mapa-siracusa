@@ -853,6 +853,7 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
 
       if (features.length === 0) { alert("No hay datos para exportar"); setExporting(false); return; }
 
+      // Calculate bounds
       let allCoords: [number, number][] = [];
       features.forEach(f => {
         const geom = f.geometry;
@@ -866,74 +867,131 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
       const lngs = allCoords.map(c => c[1]);
       const bounds = L.latLngBounds([Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]);
 
-      // Create visible container (covers viewport temporarily)
-      const imgW = 4000, imgH = 3000;
-      const container = document.createElement("div");
-      container.id = "export-map-container";
-      container.style.cssText = "position:fixed;left:0;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:99999;overflow:hidden;background:#1a1a1a;";
-      document.body.appendChild(container);
+      // Canvas settings
+      const TILE_SIZE = 256;
+      const SCALE = 2; // 2x for good resolution
 
-      // Create map with canvas renderer for better capture
-      const map = L.map(container, {
-        center: bounds.getCenter(),
-        zoom: 15,
-        zoomControl: false,
-        attributionControl: false,
-        preferCanvas: true,
-      });
+      // Create temporary map to calculate tile coordinates
+      const tempDiv = document.createElement("div");
+      tempDiv.style.cssText = "position:fixed;left:-9999px;top:0;width:1px;height:1px;";
+      document.body.appendChild(tempDiv);
+      const tempMap = L.map(tempDiv, { center: bounds.getCenter(), zoom: 15, zoomControl: false, attributionControl: false });
+      tempMap.fitBounds(bounds);
 
-      // Add satellite tiles
-      const tileLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-        maxZoom: 19,
-        crossOrigin: true,
-      });
-      tileLayer.addTo(map);
-      map.fitBounds(bounds, { padding: [50, 50] });
+      const zoom = tempMap.getZoom();
+      const pixelBounds = tempMap.getPixelBounds();
+      const nw = tempMap.containerPointToLatLng(pixelBounds.min as L.Point);
+      const se = tempMap.containerPointToLatLng(pixelBounds.max as L.Point);
 
-      // Wait for tiles to load
-      await new Promise<void>((resolve) => {
-        let loaded = 0;
-        const needed = 30;
-        const check = () => { loaded++; if (loaded >= needed) resolve(); };
-        tileLayer.on("load", () => resolve());
-        map.on("tileload", check);
-        map.on("tileerror", check);
-        setTimeout(resolve, 10000);
-      });
+      // Calculate tile coordinates
+      const pow2Zoom = Math.pow(2, zoom);
+      const tileMinX = Math.floor((nw.lng + 180) / 360 * pow2Zoom);
+      const tileMinY = Math.floor((1 - Math.log(Math.tan(nw.lat * Math.PI / 180) + 1 / Math.cos(nw.lat * Math.PI / 180)) / Math.PI) / 2 * pow2Zoom);
+      const tileMaxX = Math.ceil((se.lng + 180) / 360 * pow2Zoom);
+      const tileMaxY = Math.ceil((1 - Math.log(Math.tan(se.lat * Math.PI / 180) + 1 / Math.cos(se.lat * Math.PI / 180)) / Math.PI) / 2 * pow2Zoom);
 
-      // Extra wait for render
-      await new Promise(r => setTimeout(r, 2000));
+      const tilesX = tileMaxX - tileMinX + 1;
+      const tilesY = tileMaxY - tileMinY + 1;
+      const canvasW = tilesX * TILE_SIZE * SCALE;
+      const canvasH = tilesY * TILE_SIZE * SCALE;
 
-      // Add GeoJSON polygons
-      const geoJsonData = vista === "cuarteles"
-        ? { type: "FeatureCollection" as const, features: filteredCuarteles.filter(c => c.geojson).map(c => ({ ...c.geojson!, properties: { nombre: c.nombre, especie: c.especie } })) }
-        : { type: "FeatureCollection" as const, features: filteredSectores.filter(s => s.geojson).map(s => ({ ...s.geojson!, properties: { codigo: s.codigo, especie: s.especie } })) };
+      tempMap.remove();
+      tempDiv.remove();
 
-      const geoLayer = L.geoJSON(geoJsonData, {
-        style: (feature) => {
-          const color = colorPorEspecie(feature?.properties?.especie || "");
-          return { color, weight: 2, fillColor: color, fillOpacity: 0.7, opacity: 0.6 };
-        },
-        onEachFeature: (feature, layer) => {
-          const name = vista === "cuarteles" ? feature.properties?.nombre : feature.properties?.codigo;
-          if (name) layer.bindTooltip(name, { permanent: true, direction: "center", className: "cuartel-label", opacity: 1 });
-        },
-      });
-      geoLayer.addTo(map);
+      // Create canvas
+      const canvas = document.createElement("canvas");
+      canvas.width = canvasW;
+      canvas.height = canvasH;
+      const ctx = canvas.getContext("2d")!;
 
-      // Wait for GeoJSON to render
-      await new Promise(r => setTimeout(r, 2000));
+      // Load and draw tiles
+      const loadTile = (x: number, y: number, z: number): Promise<void> => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            const tileX = x - tileMinX;
+            const tileY = y - tileMinY;
+            ctx.drawImage(img, tileX * TILE_SIZE * SCALE, tileY * TILE_SIZE * SCALE, TILE_SIZE * SCALE, TILE_SIZE * SCALE);
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+        });
+      };
 
-      // Capture with html2canvas
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(container, {
-        useCORS: true,
-        allowTaint: true,
-        width: imgW,
-        height: imgH,
-        scale: 1,
-        logging: false,
-        backgroundColor: null,
+      // Load all tiles in parallel
+      const tilePromises: Promise<void>[] = [];
+      for (let x = tileMinX; x <= tileMaxX; x++) {
+        for (let y = tileMinY; y <= tileMaxY; y++) {
+          tilePromises.push(loadTile(x, y, Math.round(zoom)));
+        }
+      }
+      await Promise.all(tilePromises);
+
+      // Draw polygons on canvas
+      const lngToX = (lng: number) => ((lng + 180) / 360 * pow2Zoom - tileMinX) * TILE_SIZE * SCALE;
+      const latToY = (lat: number) => {
+        const sinLat = Math.sin(lat * Math.PI / 180);
+        return ((1 - Math.log((1 + sinLat) / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * pow2Zoom - tileMinY) * TILE_SIZE * SCALE;
+      };
+
+      const drawPolygon = (coords: number[][], color: string) => {
+        ctx.beginPath();
+        coords.forEach((c, i) => {
+          const x = lngToX(c[0]);
+          const y = latToY(c[1]);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.4;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      };
+
+      const drawLabel = (lng: number, lat: number, text: string) => {
+        const x = lngToX(lng);
+        const y = latToY(lat);
+        ctx.font = "bold 14px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        // Background
+        const metrics = ctx.measureText(text);
+        const pad = 4;
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.fillRect(x - metrics.width / 2 - pad, y - 8 - pad, metrics.width + pad * 2, 16 + pad * 2);
+        // Text
+        ctx.fillStyle = "#333";
+        ctx.fillText(text, x, y);
+      };
+
+      const items = vista === "cuarteles" ? filteredCuarteles : filteredSectores;
+      items.forEach(item => {
+        if (!item.geojson) return;
+        const geom = item.geojson.geometry;
+        const color = colorPorEspecie(item.especie || "");
+        const name = vista === "cuarteles" ? (item as Cuartel).nombre : (item as SectorGeo).codigo;
+
+        const drawCoords = (coords: number[][]) => {
+          drawPolygon(coords, color);
+          // Label at centroid
+          let cx = 0, cy = 0;
+          coords.forEach(c => { cx += c[0]; cy += c[1]; });
+          cx /= coords.length;
+          cy /= coords.length;
+          if (name) drawLabel(cx, cy, name);
+        };
+
+        if (geom.type === "Polygon") {
+          drawCoords(geom.coordinates[0]);
+        } else if (geom.type === "MultiPolygon") {
+          geom.coordinates.forEach(poly => drawCoords(poly[0]));
+        }
       });
 
       // Download
@@ -941,13 +999,6 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
       link.download = "mapa_siracusa_" + vista + "_" + new Date().toISOString().slice(0, 10) + ".png";
       link.href = canvas.toDataURL("image/png");
       link.click();
-
-      // Cleanup
-      map.remove();
-      geoLayer.clearLayers();
-      container.remove();
-      // Force garbage collection hint
-      if (typeof window !== "undefined" && (window as any).gc) (window as any).gc();
     } catch (e) {
       console.error("Error exporting:", e);
       alert("Error al exportar: " + (e as Error).message);
