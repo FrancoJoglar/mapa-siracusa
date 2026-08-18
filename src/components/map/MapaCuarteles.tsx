@@ -884,14 +884,17 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
       });
 
       const geoJsonData = vista === "cuarteles"
-        ? { type: "FeatureCollection" as const, features: filteredCuarteles.filter(c => c.geojson).map(c => ({ ...c.geojson!, properties: { nombre: c.nombre } })) }
-        : { type: "FeatureCollection" as const, features: filteredSectores.filter(s => s.geojson).map(s => ({ ...s.geojson!, properties: { codigo: s.codigo } })) };
+        ? { type: "FeatureCollection" as const, features: filteredCuarteles.filter(c => c.geojson).map(c => ({ ...c.geojson!, properties: { nombre: c.nombre, especie: c.especie } })) }
+        : { type: "FeatureCollection" as const, features: filteredSectores.filter(s => s.geojson).map(s => ({ ...s.geojson!, properties: { codigo: s.codigo, especie: s.especie } })) };
 
       L.geoJSON(geoJsonData, {
-        style: () => ({ color: vista === "cuarteles" ? colorPorEspecie("") : "#22c55e", weight: 2, fillColor: vista === "cuarteles" ? colorPorEspecie("") : "#22c55e", fillOpacity: 0.2 }),
+        style: (feature) => {
+          const color = colorPorEspecie(feature?.properties?.especie || "");
+          return { color, weight: 3, fillColor: color, fillOpacity: 0.35, opacity: 0.9 };
+        },
         onEachFeature: (feature, layer) => {
           const name = vista === "cuarteles" ? feature.properties?.nombre : feature.properties?.codigo;
-          if (name) layer.bindTooltip(name, { permanent: true, direction: "center", className: "cuartel-label", opacity: 0.95 });
+          if (name) layer.bindTooltip(name, { permanent: true, direction: "center", className: "cuartel-label", opacity: 1 });
         },
       }).addTo(map);
 
