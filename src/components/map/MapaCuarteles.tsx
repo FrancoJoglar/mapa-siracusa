@@ -867,7 +867,7 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
       const bounds = L.latLngBounds([Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]);
 
       // Create visible container (covers viewport temporarily)
-      const imgW = 8000, imgH = 6000;
+      const imgW = 4000, imgH = 3000;
       const container = document.createElement("div");
       container.id = "export-map-container";
       container.style.cssText = "position:fixed;left:0;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:99999;overflow:hidden;background:#1a1a1a;";
@@ -944,7 +944,10 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
 
       // Cleanup
       map.remove();
+      geoLayer.clearLayers();
       container.remove();
+      // Force garbage collection hint
+      if (typeof window !== "undefined" && (window as any).gc) (window as any).gc();
     } catch (e) {
       console.error("Error exporting:", e);
       alert("Error al exportar: " + (e as Error).message);
