@@ -912,7 +912,7 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
       const geoLayer = L.geoJSON(geoJsonData, {
         style: (feature) => {
           const color = colorPorEspecie(feature?.properties?.especie || "");
-          return { color, weight: 3, fillColor: color, fillOpacity: 0.35, opacity: 0.9 };
+          return { color, weight: 2, fillColor: color, fillOpacity: 0.7, opacity: 0.6 };
         },
         onEachFeature: (feature, layer) => {
           const name = vista === "cuarteles" ? feature.properties?.nombre : feature.properties?.codigo;
