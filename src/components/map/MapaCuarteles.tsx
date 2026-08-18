@@ -868,10 +868,10 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
 
       const imgW = 8000, imgH = 6000;
       const container = document.createElement("div");
-      container.style.cssText = "position:fixed;left:-9999px;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:-1;";
+      container.style.cssText = "position:fixed;left:0;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:99999;overflow:hidden;background:#000;";
       document.body.appendChild(container);
 
-      const map = L.map(container, { center: bounds.getCenter(), zoom: 15, zoomControl: false, attributionControl: false });
+      const map = L.map(container, { center: bounds.getCenter(), zoom: 15, zoomControl: false, attributionControl: false, crs: L.CRS.EPSG3857 });
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 }).addTo(map);
       map.fitBounds(bounds, { padding: [100, 100] });
 
@@ -898,18 +898,17 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
         },
       }).addTo(map);
 
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 3000));
 
       const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(container, { useCORS: true, allowTaint: true, width: imgW, height: imgH, scale: 1 });
+      const canvas = await html2canvas(container, { useCORS: true, allowTaint: true, width: imgW, height: imgH, scale: 1, backgroundColor: null });
 
       const link = document.createElement("a");
       link.download = "mapa_siracusa_" + vista + "_" + new Date().toISOString().slice(0, 10) + ".png";
       link.href = canvas.toDataURL("image/png");
       link.click();
 
-      map.remove();
-      document.body.removeChild(container);
+      container.remove();
     } catch (e) {
       console.error("Error exporting:", e);
       alert("Error al exportar: " + (e as Error).message);
