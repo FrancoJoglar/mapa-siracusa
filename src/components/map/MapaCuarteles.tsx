@@ -872,9 +872,18 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
       container.style.cssText = "position:fixed;left:0;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:99999;overflow:hidden;background:#000;";
       document.body.appendChild(container);
 
-      // Create map
-      const map = L.map(container, { center: bounds.getCenter(), zoom: 15, zoomControl: false, attributionControl: false });
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 }).addTo(map);
+      // Create map with canvas renderer (preferCanvas aligns vectors perfectly)
+      const map = L.map(container, {
+        center: bounds.getCenter(),
+        zoom: 15,
+        zoomControl: false,
+        attributionControl: false,
+        preferCanvas: true,
+      });
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19,
+        crossOrigin: true,
+      }).addTo(map);
       map.fitBounds(bounds, { padding: [50, 50] });
 
       // Wait for tiles
