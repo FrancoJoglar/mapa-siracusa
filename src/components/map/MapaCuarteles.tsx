@@ -866,10 +866,10 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
       const lngs = allCoords.map(c => c[1]);
       const bounds = L.latLngBounds([Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]);
 
-      // Create off-screen container
+      // Create container (visible, covers viewport temporarily)
       const imgW = 4000, imgH = 3000;
       const container = document.createElement("div");
-      container.style.cssText = "position:fixed;left:-9999px;top:0;width:" + imgW + "px;height:" + imgH + "px;overflow:hidden;";
+      container.style.cssText = "position:fixed;left:0;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:99999;overflow:hidden;background:#000;";
       document.body.appendChild(container);
 
       // Create map
