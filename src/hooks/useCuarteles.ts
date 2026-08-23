@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, assertRowsAffected } from "../lib/supabase";
 import { Cuartel } from "../lib/types";
 
 export function useCuarteles() {
@@ -78,11 +78,13 @@ export function useCuarteles() {
 
     console.log("updateCuartel:", { id, updates });
 
-    const { error: err } = await supabase
+    const { data, error: err } = await supabase
       .from("cuarteles")
       .update(updates)
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
     if (err) { console.error("updateCuartel error:", err); throw err; }
+    assertRowsAffected(data, "Actualizar cuartel");
     console.log("updateCuartel OK, sector_ids:", cuartel.sector_ids);
 
     if (cuartel.sector_ids !== undefined) {
@@ -98,11 +100,13 @@ export function useCuarteles() {
   };
 
   const deleteCuartel = async (id: string) => {
-    const { error: err } = await supabase
+    const { data, error: err } = await supabase
       .from("cuarteles")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
     if (err) throw err;
+    assertRowsAffected(data, "Eliminar cuartel");
     await fetchCuarteles();
   };
 

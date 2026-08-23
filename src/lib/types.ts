@@ -5,6 +5,9 @@ export interface Equipo {
   codigo: number;
   nombre: string;
   descripcion: string;
+  caseta: string;
+  bomba: string;
+  filtro: string;
   plano_url?: string;
   created_at: string;
 }
@@ -17,13 +20,11 @@ export interface Sector {
   descripcion: string;
   caudal_nominal: number | null;
   hectareas: number | null;
-  caseta: string;
-  bomba: string;
-  filtro: string;
   anio: number | null;
   jefe_campo: string;
   especie: string;
   variedad: string;
+  config_bombas: "serie" | "paralelo" | "mixta" | null;
   precipitacion: number | null;
   eficiencia: number | null;
   dist_entre_hilera: number | null;
@@ -34,6 +35,19 @@ export interface Sector {
   m3_ha: number | null;
   created_at: string;
   equipo?: Equipo;
+}
+
+export interface Bomba {
+  id: string;
+  equipo_id: string;
+  marca: string | null;
+  modelo: string | null;
+  potencia_hp: number | null;
+  caudal_m3h: number | null;
+  funcion: "riego" | "helada";
+  orden: number | null;
+  revisar: boolean;
+  created_at: string;
 }
 
 export interface Cuartel {
@@ -123,8 +137,11 @@ export interface Valvula {
   id: string;
   codigo: string;
   tuberia_id: string;
+  equipo_id?: string;
   tipo: string;
   diametro_mm: number | null;
+  bloque_riego?: string;
+  activacion?: string;
   color?: string;
   geojson?: Feature;
   created_at: string;
@@ -133,7 +150,9 @@ export interface Valvula {
 export interface Antena {
   id: string;
   codigo: string;
+  equipo_id?: string;
   tipo: string;
+  color?: string;
   geojson?: Feature;
   created_at: string;
 }
@@ -141,18 +160,10 @@ export interface Antena {
 export interface Sonda {
   id: string;
   codigo: string;
+  equipo_id?: string;
   tipo: string;
+  color?: string;
   profundidad_m: number | null;
   geojson?: Feature;
   created_at: string;
-}
-
-export interface Georreferencia {
-  id: string;
-  equipo_id: string;
-  bounds: { sw: [number, number]; ne: [number, number] };
-  rotation: number;
-  opacity: number;
-  created_at: string;
-  updated_at: string;
 }

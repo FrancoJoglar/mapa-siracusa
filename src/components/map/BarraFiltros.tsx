@@ -14,6 +14,8 @@ interface Props {
   onExportExcel: () => void;
   onExportGeoJSON: () => void;
   vista: "cuarteles" | "sectores";
+  onOpenAdvanced?: () => void;
+  advancedActive?: boolean;
 }
 
 export default function BarraFiltros({
@@ -30,6 +32,8 @@ export default function BarraFiltros({
   onExportExcel,
   onExportGeoJSON,
   vista,
+  onOpenAdvanced,
+  advancedActive,
 }: Props) {
   const set = (k: keyof FiltrosCuartel, v: string | number | null) =>
     onChange({ ...filtros, [k]: v });
@@ -139,6 +143,21 @@ export default function BarraFiltros({
         <button onClick={limpiar} style={btnStyle}>
           Limpiar
         </button>
+
+        {onOpenAdvanced && (
+          <button
+            onClick={onOpenAdvanced}
+            style={{
+              ...btnStyle,
+              background: advancedActive ? "#e3f2fd" : "#fff",
+              borderColor: advancedActive ? "#1565c0" : "#ccc",
+              color: advancedActive ? "#1565c0" : "#333",
+              fontWeight: advancedActive ? 600 : 400,
+            }}
+          >
+            ⚙ Filtros avanzados
+          </button>
+        )}
 
         <div style={{ borderLeft: "1px solid #ddd", paddingLeft: 8, display: "flex", gap: 4 }}>
           <button onClick={onExportExcel} style={btnExportStyle} title="Exportar a Excel">

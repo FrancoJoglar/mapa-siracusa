@@ -11,13 +11,15 @@ export default function FormularioEquipo({ equipo, onSave, onCancel }: Props) {
   const [codigo, setCodigo] = useState(equipo?.codigo || 0);
   const [nombre, setNombre] = useState(equipo?.nombre || "");
   const [descripcion, setDescripcion] = useState(equipo?.descripcion || "");
+  const [caseta, setCaseta] = useState(equipo?.caseta || "");
+  const [filtro, setFiltro] = useState(equipo?.filtro || "");
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave({ codigo, nombre, descripcion });
+      await onSave({ codigo, nombre, descripcion, caseta, filtro });
     } finally {
       setSaving(false);
     }
@@ -59,6 +61,14 @@ export default function FormularioEquipo({ equipo, onSave, onCancel }: Props) {
               rows={3}
               style={{ ...inputStyle, resize: "vertical" }}
             />
+          </div>
+          <div style={fieldStyle}>
+            <label>Filtro</label>
+            <input type="text" value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder='3"x6 Spin Klin' style={inputStyle} />
+          </div>
+          <div style={fieldStyle}>
+            <label>Caseta</label>
+            <input type="text" value={caseta} onChange={(e) => setCaseta(e.target.value)} style={inputStyle} />
           </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button type="button" onClick={onCancel} style={btnCancelStyle}>

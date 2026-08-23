@@ -6,6 +6,7 @@ import {
   COLOR_EDIFICACION, colorPorEspecie, COLOR_POR_ESPECIE,
 } from "../../lib/colors";
 import BarraFiltros from "./BarraFiltros";
+import FiltrosAvanzados, { FiltrosAvanzadosState } from "./FiltrosAvanzados";
 import BuscadorCuartel from "./BuscadorCuartel";
 import { exportarCuarteles, exportarCuartelesGeoJSON } from "../../lib/export";
 import L from "leaflet";
@@ -55,6 +56,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [showCuartelLabels, setShowCuartelLabels] = useState(false);
+  const filtroPuntosEquipo = "todos"; // se muestran los puntos de todos los equipos (selector removido)
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<FiltrosAvanzadosState>({ sectoresSeleccionados: [] });
 
   const layersRef = useRef<LayersMap>(new Map());
   const selectedRef = useRef<string | null>(null);
@@ -176,9 +180,13 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.equipo && (!c.equipo_riego || !parts(c.equipo_riego).includes(filtros.equipo))) return false;
       if (filtros.sector && (!c.sector_raw || !parts(c.sector_raw).includes(filtros.sector))) return false;
       if (filtros.jefeCampo && c.jefe_campo !== filtros.jefeCampo) return false;
+      // Advanced: if sectors selected, only show cuarteles belonging to those sectors
+      if (advancedFilters.sectoresSeleccionados.length > 0) {
+        if (!c.sector_ids?.some(sid => advancedFilters.sectoresSeleccionados.includes(sid))) return false;
+      }
       return true;
     });
-  }, [cuarteles, filtros]);
+  }, [cuarteles, filtros, advancedFilters]);
 
   const filteredSectores = useMemo(() => {
     return sectores.filter(s => {
@@ -189,9 +197,13 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.equipo && s.equipo !== filtros.equipo) return false;
       if (filtros.sector && s.codigo !== filtros.sector) return false;
       if (filtros.jefeCampo && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jefeCampo))) return false;
+      // Advanced: if sectors selected, only show those sectors
+      if (advancedFilters.sectoresSeleccionados.length > 0) {
+        if (!advancedFilters.sectoresSeleccionados.includes(s.id)) return false;
+      }
       return true;
     });
-  }, [sectores, cuarteles, filtros]);
+  }, [sectores, cuarteles, filtros, advancedFilters]);
 
   const handleFiltroChange = (f: FiltrosCuartel) => {
     if (f.equipo !== filtros.equipo) { setFiltros({ ...f, sector: "" }); }
@@ -248,6 +260,16 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           ? { ...uniqueCuarteles, sectores: sectoresFiltradosPorEquipo }
           : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo })}
         vista={vista}
+        onOpenAdvanced={() => setShowAdvanced(true)}
+        advancedActive={advancedFilters.sectoresSeleccionados.length > 0}
+      />
+      <FiltrosAvanzados
+        open={showAdvanced}
+        onClose={() => setShowAdvanced(false)}
+        onApply={(state) => { setAdvancedFilters(state); setShowAdvanced(false); }}
+        initialState={advancedFilters}
+        sectores={sectores}
+        cuarteles={cuarteles}
       />
       <div style={{ flex: 1, position: "relative" }}>
         <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} zoomAnimation={false} style={{ height: "100%", width: "100%" }}>
@@ -364,7 +386,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           {vista === "sectores" && fitBounds && <FlyToBounds bounds={fitBounds} />}
 
           {/* EQUIPOS DE RIEGO: controlado por master toggle */}
-          {equiposActivo && mostrarValvulas && valvulas.length > 0 && valvulas.map(v => v.geojson && (
+          {equiposActivo && mostrarValvulas && valvulas.filter(v => filtroPuntosEquipo === "todos" || v.equipo_id === filtroPuntosEquipo).length > 0 && valvulas.filter(v => filtroPuntosEquipo === "todos" || v.equipo_id === filtroPuntosEquipo).map(v => v.geojson && (
             <GeoJSON key={"val-" + v.id} data={v.geojson} pointToLayer={(_f, latlng) => {
               const fillCol = v.color || "#ef5350";
               const c = L.circleMarker(latlng, { radius: 5, color: fillCol, fillColor: fillCol, fillOpacity: 0.9, pane: "valvulas" });
@@ -388,14 +410,14 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           ))}
 
           {/* ANTENAS Y SONDAS: independientes */}
-          {mostrarAntenas && antenas.length > 0 && antenas.map(a => a.geojson && (
+          {mostrarAntenas && antenas.filter(a => filtroPuntosEquipo === "todos" || a.equipo_id === filtroPuntosEquipo).length > 0 && antenas.filter(a => filtroPuntosEquipo === "todos" || a.equipo_id === filtroPuntosEquipo).map(a => a.geojson && (
             <GeoJSON key={"ant-" + a.id} data={a.geojson} pointToLayer={(_f, latlng) =>
-              L.circleMarker(latlng, { radius: 6, color: "#1565c0", fillColor: "#42a5f5", fillOpacity: 0.9 })
+              L.circleMarker(latlng, { radius: 6, color: a.color || "#1565c0", fillColor: "#42a5f5", fillOpacity: 0.9 })
             } />
           ))}
-          {mostrarSondas && sondas.length > 0 && sondas.map(s => s.geojson && (
+          {mostrarSondas && sondas.filter(s => filtroPuntosEquipo === "todos" || s.equipo_id === filtroPuntosEquipo).length > 0 && sondas.filter(s => filtroPuntosEquipo === "todos" || s.equipo_id === filtroPuntosEquipo).map(s => s.geojson && (
             <GeoJSON key={"son-" + s.id} data={s.geojson} pointToLayer={(_f, latlng) =>
-              L.circleMarker(latlng, { radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 0.9 })
+              L.circleMarker(latlng, { radius: 6, color: s.color || "#2e7d32", fillColor: "#66bb6a", fillOpacity: 0.9 })
             } />
           ))}
           {vista === "cuarteles" && <BuscadorCuartel cuarteles={cuarteles} />}
@@ -411,11 +433,16 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           <ToggleSubmatrices visible={mostrarSubmatrices} onToggle={() => setMostrarSubmatrices(!mostrarSubmatrices)} />
           <ToggleMatrices visible={mostrarMatrices} onToggle={() => setMostrarMatrices(!mostrarMatrices)} />
           <ToggleImpulsiones visible={mostrarImpulsiones} onToggle={() => setMostrarImpulsiones(!mostrarImpulsiones)} />
+          <ToggleAntenas visible={mostrarAntenas} onToggle={() => setMostrarAntenas(!mostrarAntenas)} />
+          <ToggleSondas visible={mostrarSondas} onToggle={() => setMostrarSondas(!mostrarSondas)} />
         </>}
-        <ToggleAntenas visible={mostrarAntenas} onToggle={() => setMostrarAntenas(!mostrarAntenas)} />
-        <ToggleSondas visible={mostrarSondas} onToggle={() => setMostrarSondas(!mostrarSondas)} />
         <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
         <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
+        <ExportMapImage
+          filteredCuarteles={filteredCuarteles}
+          filteredSectores={filteredSectores}
+          vista={vista}
+        />
         <Leyenda />
       </div>
     </div>
@@ -640,7 +667,7 @@ function ToggleImpulsiones({ visible, onToggle }: { visible: boolean; onToggle: 
 
 function ToggleAntenas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 460 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 454 }}>
       <div className="leaflet-control">
         <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }} style={{
           padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
@@ -653,7 +680,7 @@ function ToggleAntenas({ visible, onToggle }: { visible: boolean; onToggle: () =
 
 function ToggleSondas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 494 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 488 }}>
       <div className="leaflet-control">
         <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }} style={{
           padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
@@ -786,6 +813,154 @@ function Leyenda() {
           {c.especie}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ====== EXPORT MAP IMAGE ======
+function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
+  filteredCuarteles: Cuartel[];
+  filteredSectores: SectorGeo[];
+  vista: "cuarteles" | "sectores";
+}) {
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const features = vista === "cuarteles"
+        ? filteredCuarteles.filter(c => c.geojson).map(c => c.geojson!)
+        : filteredSectores.filter(s => s.geojson).map(s => s.geojson!);
+
+      if (features.length === 0) { alert("No hay datos para exportar"); setExporting(false); return; }
+
+      let allCoords: [number, number][] = [];
+      features.forEach(f => {
+        const geom = f.geometry;
+        if (geom.type === "Polygon") geom.coordinates[0].forEach(c => allCoords.push([c[1], c[0]]));
+        else if (geom.type === "MultiPolygon") geom.coordinates.forEach(poly => poly[0].forEach(c => allCoords.push([c[1], c[0]])));
+      });
+
+      if (allCoords.length === 0) { alert("No se pudieron calcular los limites"); setExporting(false); return; }
+
+      const lats = allCoords.map(c => c[0]);
+      const lngs = allCoords.map(c => c[1]);
+      const bounds = L.latLngBounds([Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]);
+
+      // Tamaño de salida según el aspecto real de los datos (evita distorsión
+      // y márgenes negros gigantes). Se acota el lado mayor a 4000 px.
+      const MAX = 6000, MIN = 3300;
+      const spanLat = Math.max(bounds.getNorth() - bounds.getSouth(), 1e-4);
+      const meanLat = (bounds.getNorth() + bounds.getSouth()) / 2;
+      const spanLng = Math.max((bounds.getEast() - bounds.getWest()) * Math.cos(meanLat * Math.PI / 180), 1e-4);
+      const ratio = spanLng / spanLat; // ancho/alto en metros aprox
+      let imgW: number, imgH: number;
+      if (ratio >= 1) { imgW = MAX; imgH = Math.round(Math.max(MIN, MAX / ratio)); }
+      else { imgH = MAX; imgW = Math.round(Math.max(MIN, MAX * ratio)); }
+
+      const container = document.createElement("div");
+      container.style.cssText = "position:fixed;left:0;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:99999;overflow:hidden;background:#000;";
+      document.body.appendChild(container);
+
+      const map = L.map(container, {
+        zoomControl: false, attributionControl: false, preferCanvas: true, fadeAnimation: false, zoomAnimation: false,
+      });
+      const tile = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19,
+        crossOrigin: "anonymous", // canvas limpio -> toDataURL no falla por taint
+      }).addTo(map);
+      map.invalidateSize(false);
+      map.fitBounds(bounds, { padding: [60, 60], animate: false });
+
+      // Esperar la carga REAL de tiles: el evento 'load' del tileLayer se dispara
+      // cuando todos los tiles del encuadre actual terminaron (con tope de 12s).
+      await new Promise<void>((resolve) => {
+        let done = false;
+        const finish = () => { if (!done) { done = true; resolve(); } };
+        tile.on("load", finish);
+        setTimeout(finish, 12000);
+      });
+      await new Promise(r => setTimeout(r, 400)); // asentar render
+
+      // Polígonos con los colores por especie + etiquetas
+      const geoJsonData = vista === "cuarteles"
+        ? { type: "FeatureCollection" as const, features: filteredCuarteles.filter(c => c.geojson).map(c => ({ ...c.geojson!, properties: { nombre: c.nombre, especie: c.especie } })) }
+        : { type: "FeatureCollection" as const, features: filteredSectores.filter(s => s.geojson).map(s => ({ ...s.geojson!, properties: { codigo: s.codigo, especie: s.especie } })) };
+
+      L.geoJSON(geoJsonData, {
+        style: (feature) => {
+          const color = colorPorEspecie(feature?.properties?.especie || "");
+          return { color, weight: 2, fillColor: color, fillOpacity: 0.7, opacity: 0.6 };
+        },
+        onEachFeature: (feature, layer) => {
+          const name = vista === "cuarteles" ? feature.properties?.nombre : feature.properties?.codigo;
+          if (name) layer.bindTooltip(name, { permanent: true, direction: "center", className: "cuartel-label", opacity: 1 });
+        },
+      }).addTo(map);
+
+      // Barra de escala (Leaflet la dibuja como DOM y html2canvas la captura)
+      L.control.scale({ imperial: false, metric: true, maxWidth: 320, position: "bottomleft" }).addTo(map);
+
+      // Título, fecha, leyenda y norte — como overlays dentro del contenedor
+      const especiesPresentes = new Set(
+        (vista === "cuarteles" ? filteredCuarteles : filteredSectores).map(x => (x.especie || "").toLowerCase())
+      );
+      const legendItems = COLOR_POR_ESPECIE
+        .filter(c => especiesPresentes.has(c.especie.toLowerCase()))
+        .map(c => `<div style="display:flex;align-items:center;gap:14px;margin:6px 0"><span style="width:34px;height:34px;border-radius:6px;background:${c.color};border:2px solid rgba(255,255,255,.7)"></span><span>${c.especie}</span></div>`)
+        .join("");
+      const titulo = vista === "cuarteles" ? "Cuarteles" : "Sectores de riego";
+      const fecha = new Date().toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" });
+      // Agrandar la barra de escala para que sea legible a 4000 px
+      const escalaStyle = document.createElement("style");
+      escalaStyle.textContent = ".leaflet-control-scale-line{font-size:24px!important;line-height:1.4!important;padding:4px 12px!important;border-width:3px!important;border-color:#fff!important;background:rgba(15,23,42,.7)!important;color:#fff!important}";
+      container.appendChild(escalaStyle);
+
+      const overlay = document.createElement("div");
+      overlay.style.cssText = "position:absolute;inset:0;z-index:1000;pointer-events:none;font-family:'Segoe UI',system-ui,sans-serif";
+      overlay.innerHTML = `
+        <div style="position:absolute;top:36px;left:36px;background:rgba(15,23,42,.82);color:#fff;padding:22px 30px;border-radius:14px">
+          <div style="font-size:46px;font-weight:700;line-height:1.1">Siracusa 2025 — ${titulo}</div>
+          <div style="font-size:26px;opacity:.85;margin-top:6px">${fecha}</div>
+        </div>
+        <div style="position:absolute;top:36px;right:36px;background:rgba(15,23,42,.82);color:#fff;padding:20px 26px;border-radius:14px;font-size:28px;min-width:220px">
+          <div style="font-size:22px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.7;margin-bottom:10px">Especies</div>
+          ${legendItems || '<div style="opacity:.7">—</div>'}
+        </div>
+        <div style="position:absolute;bottom:40px;right:44px;color:#fff;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,.8)">
+          <div style="font-size:48px;line-height:1">↑</div><div style="font-size:26px;font-weight:700">N</div>
+        </div>`;
+      container.appendChild(overlay);
+
+      await new Promise(r => setTimeout(r, 500)); // asentar etiquetas y overlays
+
+      // Captura (sin allowTaint: el canvas queda limpio y toDataURL no falla)
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(container, { useCORS: true, width: imgW, height: imgH, scale: 1, backgroundColor: "#000" });
+
+      const link = document.createElement("a");
+      link.download = "mapa_siracusa_" + vista + "_" + new Date().toISOString().slice(0, 10) + ".png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+
+      map.remove();
+      container.remove();
+    } catch (e) {
+      console.error("Error exporting:", e);
+      alert("Error al exportar: " + (e as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="leaflet-top leaflet-right" style={{ top: 560 }}>
+      <div className="leaflet-control">
+        <button onClick={(e) => { e.stopPropagation(); handleExport(); }} disabled={exporting}
+          style={{ padding: "6px 12px", borderRadius: 4, cursor: exporting ? "wait" : "pointer", fontSize: 12, fontWeight: 500, background: exporting ? "#f5f5f5" : "white", color: "#333", border: "1px solid #ccc" }}>
+          {exporting ? "Generando..." : "\uD83D\uDCF7 Mapa"}
+        </button>
+      </div>
     </div>
   );
 }

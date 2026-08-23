@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, assertRowsAffected } from "../lib/supabase";
 import { UnidadRiego } from "../lib/types";
 
 export function useUnidadesRiego() {
@@ -32,12 +32,14 @@ export function useUnidadesRiego() {
   }, []);
 
   const updatePorcentajeAgua = async (cuartelId: string, sectorId: string, porcentaje: number | null) => {
-    const { error: err } = await supabase
+    const { data, error: err } = await supabase
       .from("cuartel_sector")
       .update({ porcentaje_agua: porcentaje })
       .eq("cuartel_id", cuartelId)
-      .eq("sector_id", sectorId);
+      .eq("sector_id", sectorId)
+      .select("cuartel_id");
     if (err) throw err;
+    assertRowsAffected(data, "Actualizar porcentaje de agua");
     await fetchUnidades();
   };
 

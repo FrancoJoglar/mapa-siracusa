@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, assertRowsAffected } from "../lib/supabase";
 import { Sector } from "../lib/types";
 
 export function useSectores() {
@@ -40,20 +40,24 @@ export function useSectores() {
   };
 
   const updateSector = async (id: string, sector: Partial<Sector>) => {
-    const { error: err } = await supabase
+    const { data, error: err } = await supabase
       .from("sectores")
       .update(sector)
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
     if (err) throw err;
+    assertRowsAffected(data, "Actualizar sector");
     await fetchSectores();
   };
 
   const deleteSector = async (id: string) => {
-    const { error: err } = await supabase
+    const { data, error: err } = await supabase
       .from("sectores")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
     if (err) throw err;
+    assertRowsAffected(data, "Eliminar sector");
     await fetchSectores();
   };
 

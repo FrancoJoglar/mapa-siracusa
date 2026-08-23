@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Equipo, Sector } from "../../lib/types";
 import EditorGeometria from "../ui/EditorGeometria";
+import { useBombas, useSectorBombas } from "../../hooks/useBombas";
 import type { Feature } from "geojson";
 
 interface Props {
@@ -16,9 +17,6 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
   const [numero, setNumero] = useState(sector?.numero || 0);
   const [caudalNominal, setCaudalNominal] = useState(sector?.caudal_nominal ?? 0);
   const [hectareas, setHectareas] = useState(sector?.hectareas ?? 0);
-  const [caseta, setCaseta] = useState(sector?.caseta || "");
-  const [bomba, setBomba] = useState(sector?.bomba || "");
-  const [filtro, setFiltro] = useState(sector?.filtro || "");
   const [anio, setAnio] = useState(sector?.anio ?? 0);
   const [jefeCampo, setJefeCampo] = useState(sector?.jefe_campo || "");
   const [especie, setEspecie] = useState(sector?.especie || "");
@@ -32,9 +30,20 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
   const [caudalEmisor, setCaudalEmisor] = useState(sector?.caudal_emisor ?? 0);
   const [descripcion, setDescripcion] = useState(sector?.descripcion || "");
   const [m3ha, setM3ha] = useState(sector?.m3_ha ?? 0);
+  const [configBombas, setConfigBombas] = useState<Sector["config_bombas"]>(sector?.config_bombas ?? null);
   const [saving, setSaving] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [geoData, setGeoData] = useState<Feature | null>(null);
+
+  // Bombas del equipo seleccionado + las asignadas al sector
+  const { bombas } = useBombas(equipoId || undefined);
+  const { bombaIds, guardar: guardarSectorBombas } = useSectorBombas(sector?.id);
+  const [seleccion, setSeleccion] = useState<string[] | null>(null);
+  const bombasSel = seleccion ?? bombaIds; // hasta que el usuario toque algo, refleja lo guardado
+  const toggleBomba = (id: string) => {
+    const base = seleccion ?? bombaIds;
+    setSeleccion(base.includes(id) ? base.filter((x) => x !== id) : [...base, id]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,10 +53,10 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
         equipo_id: equipoId, numero,
         caudal_nominal: caudalNominal || null,
         hectareas: hectareas || null,
-        caseta, bomba, filtro,
         anio: anio || null,
         jefe_campo: jefeCampo,
         especie, variedad, descripcion,
+        config_bombas: configBombas,
         precipitacion: precipitacion || null,
         eficiencia: eficiencia || null,
         dist_entre_hilera: distHilera || null,
@@ -57,6 +66,12 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
         caudal_emisor: caudalEmisor || null,
         m3_ha: m3ha || null,
       });
+      // La relacion N:N solo se puede guardar sobre un sector existente
+      if (sector?.id && seleccion !== null) {
+        await guardarSectorBombas(sector.id, seleccion);
+      }
+    } catch (err) {
+      alert("Error: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
@@ -124,11 +139,44 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
             </Campo>
             <Campo label="Año de Plantacion"><input type="number" value={anio || ""} onChange={e => setAnio(Number(e.target.value))} style={inputStyle} /></Campo>
           </Row>
-          <Row>
-            <Campo label="Bomba"><input type="text" value={bomba} onChange={e => setBomba(e.target.value)} style={inputStyle} /></Campo>
-            <Campo label="Filtro"><input type="text" value={filtro} onChange={e => setFiltro(e.target.value)} style={inputStyle} /></Campo>
-            <Campo label="Caseta"><input type="text" value={caseta} onChange={e => setCaseta(e.target.value)} style={inputStyle} /></Campo>
-          </Row>
+          <p style={{ margin: "4px 0 12px", fontSize: 12, color: "#888" }}>
+            Filtro y caseta se editan a nivel de equipo (Admin → Equipos), no por sector.
+          </p>
+
+          <h4 style={{ margin: "16px 0 8px", fontSize: 13, color: "#555" }}>Bombas de este sector</h4>
+          {!sector?.id ? (
+            <p style={{ fontSize: 12, color: "#888", margin: "0 0 8px" }}>Guardá el sector primero para poder asignarle bombas.</p>
+          ) : !equipoId ? (
+            <p style={{ fontSize: 12, color: "#888", margin: "0 0 8px" }}>Seleccioná un equipo para ver sus bombas.</p>
+          ) : bombas.length === 0 ? (
+            <p style={{ fontSize: 12, color: "#888", margin: "0 0 8px" }}>El equipo no tiene bombas cargadas (Admin → Equipos → Bombas).</p>
+          ) : (
+            <>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+                {bombas.map((b) => {
+                  const on = bombasSel.includes(b.id);
+                  const etiqueta = [b.marca, b.modelo].filter(Boolean).join(" ") + (b.potencia_hp ? ` ${b.potencia_hp}HP` : "") + (b.funcion === "helada" ? " ❄" : "");
+                  return (
+                    <label key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, padding: "5px 10px", border: `1px solid ${on ? "#1565c0" : "#ccc"}`, borderRadius: 6, cursor: "pointer", background: on ? "#e8f0fe" : "#fff" }}>
+                      <input type="checkbox" checked={on} onChange={() => toggleBomba(b.id)} />
+                      {etiqueta || "(sin datos)"}
+                    </label>
+                  );
+                })}
+              </div>
+              <Row>
+                <Campo label="Disposición de las bombas">
+                  <select value={configBombas ?? ""} onChange={(e) => setConfigBombas((e.target.value || null) as Sector["config_bombas"])} style={inputStyle}>
+                    <option value="">— sin especificar —</option>
+                    <option value="serie">Serie (suman presión)</option>
+                    <option value="paralelo">Paralelo (suman caudal)</option>
+                    <option value="mixta">Mixta</option>
+                  </select>
+                </Campo>
+                <Campo label=""><span style={{ fontSize: 11, color: "#888" }}>{bombasSel.length} bomba(s) seleccionada(s)</span></Campo>
+              </Row>
+            </>
+          )}
           <Row>
             <Campo label="Jefe de Campo"><input type="text" value={jefeCampo} onChange={e => setJefeCampo(e.target.value)} style={inputStyle} /></Campo>
             <Campo label="Precipitación"><input type="number" step="0.01" value={precipitacion || ""} onChange={e => setPrecipitacion(Number(e.target.value))} style={inputStyle} /></Campo>

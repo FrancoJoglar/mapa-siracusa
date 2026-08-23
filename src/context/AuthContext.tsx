@@ -21,18 +21,33 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const isAdmin = user?.user_metadata?.role === "admin";
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // isAdmin se decide con la tabla profiles (RLS: solo un admin puede editarla),
+  // nunca con user_metadata — ese campo lo puede editar el propio usuario
+  // desde el navegador y no refleja el rol real.
+  const fetchRole = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+    setIsAdmin(data?.role === "admin");
+  };
 
   useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) fetchRole(session.user.id);
       setLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) fetchRole(session.user.id);
+      else setIsAdmin(false);
     });
 
     return () => subscription.unsubscribe();
