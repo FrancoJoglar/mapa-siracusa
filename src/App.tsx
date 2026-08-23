@@ -4,6 +4,7 @@ import MapaPage from "./pages/MapaPage";
 import AdminEquipos from "./pages/AdminEquipos";
 import AdminSectores from "./pages/AdminSectores";
 import AdminCuarteles from "./pages/AdminCuarteles";
+import RiegoPage from "./pages/RiegoPage";
 import LoginPage from "./pages/LoginPage";
 
 export default function App() {
@@ -40,6 +41,9 @@ function AppInner() {
           <NavLink to="/" end style={linkStyle}>
             Mapa
           </NavLink>
+          <NavLink to="/riego" style={linkStyle}>
+            Riego
+          </NavLink>
           {isAdmin && <><NavLink to="/admin/equipos" style={linkStyle}>
             Equipos
           </NavLink>
@@ -61,6 +65,7 @@ function AppInner() {
         <main style={{ flex: 1, overflow: "auto" }}>
           <Routes>
             <Route path="/" element={<MapaPage />} />
+            <Route path="/riego" element={<RiegoPage />} />
             <Route path="/admin/equipos" element={<AdminEquipos />} />
             <Route path="/admin/sectores" element={<AdminSectores />} />
             <Route path="/admin/cuarteles" element={<AdminCuarteles />} />
