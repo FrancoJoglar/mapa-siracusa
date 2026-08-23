@@ -847,39 +847,42 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
       const lngs = allCoords.map(c => c[1]);
       const bounds = L.latLngBounds([Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]);
 
-      // Create container (visible, covers viewport temporarily)
-      const imgW = 4000, imgH = 3000;
+      // Tamaño de salida según el aspecto real de los datos (evita distorsión
+      // y márgenes negros gigantes). Se acota el lado mayor a 4000 px.
+      const MAX = 6000, MIN = 3300;
+      const spanLat = Math.max(bounds.getNorth() - bounds.getSouth(), 1e-4);
+      const meanLat = (bounds.getNorth() + bounds.getSouth()) / 2;
+      const spanLng = Math.max((bounds.getEast() - bounds.getWest()) * Math.cos(meanLat * Math.PI / 180), 1e-4);
+      const ratio = spanLng / spanLat; // ancho/alto en metros aprox
+      let imgW: number, imgH: number;
+      if (ratio >= 1) { imgW = MAX; imgH = Math.round(Math.max(MIN, MAX / ratio)); }
+      else { imgH = MAX; imgW = Math.round(Math.max(MIN, MAX * ratio)); }
+
       const container = document.createElement("div");
       container.style.cssText = "position:fixed;left:0;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:99999;overflow:hidden;background:#000;";
       document.body.appendChild(container);
 
-      // Create map with canvas renderer (preferCanvas aligns vectors perfectly)
       const map = L.map(container, {
-        center: bounds.getCenter(),
-        zoom: 15,
-        zoomControl: false,
-        attributionControl: false,
-        preferCanvas: true,
+        zoomControl: false, attributionControl: false, preferCanvas: true, fadeAnimation: false, zoomAnimation: false,
       });
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      const tile = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
         maxZoom: 19,
-        crossOrigin: true,
+        crossOrigin: "anonymous", // canvas limpio -> toDataURL no falla por taint
       }).addTo(map);
-      map.fitBounds(bounds, { padding: [50, 50] });
+      map.invalidateSize(false);
+      map.fitBounds(bounds, { padding: [60, 60], animate: false });
 
-      // Wait for tiles
+      // Esperar la carga REAL de tiles: el evento 'load' del tileLayer se dispara
+      // cuando todos los tiles del encuadre actual terminaron (con tope de 12s).
       await new Promise<void>((resolve) => {
-        let count = 0;
-        const check = () => { count++; if (count >= 25) resolve(); };
-        map.on("tileload", check);
-        map.on("tileerror", check);
-        map.whenReady(() => resolve());
-        setTimeout(resolve, 8000);
+        let done = false;
+        const finish = () => { if (!done) { done = true; resolve(); } };
+        tile.on("load", finish);
+        setTimeout(finish, 12000);
       });
+      await new Promise(r => setTimeout(r, 400)); // asentar render
 
-      await new Promise(r => setTimeout(r, 1500));
-
-      // Add polygons with correct colors
+      // Polígonos con los colores por especie + etiquetas
       const geoJsonData = vista === "cuarteles"
         ? { type: "FeatureCollection" as const, features: filteredCuarteles.filter(c => c.geojson).map(c => ({ ...c.geojson!, properties: { nombre: c.nombre, especie: c.especie } })) }
         : { type: "FeatureCollection" as const, features: filteredSectores.filter(s => s.geojson).map(s => ({ ...s.geojson!, properties: { codigo: s.codigo, especie: s.especie } })) };
@@ -895,11 +898,45 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
         },
       }).addTo(map);
 
-      await new Promise(r => setTimeout(r, 1500));
+      // Barra de escala (Leaflet la dibuja como DOM y html2canvas la captura)
+      L.control.scale({ imperial: false, metric: true, maxWidth: 320, position: "bottomleft" }).addTo(map);
 
-      // Capture
+      // Título, fecha, leyenda y norte — como overlays dentro del contenedor
+      const especiesPresentes = new Set(
+        (vista === "cuarteles" ? filteredCuarteles : filteredSectores).map(x => (x.especie || "").toLowerCase())
+      );
+      const legendItems = COLOR_POR_ESPECIE
+        .filter(c => especiesPresentes.has(c.especie.toLowerCase()))
+        .map(c => `<div style="display:flex;align-items:center;gap:14px;margin:6px 0"><span style="width:34px;height:34px;border-radius:6px;background:${c.color};border:2px solid rgba(255,255,255,.7)"></span><span>${c.especie}</span></div>`)
+        .join("");
+      const titulo = vista === "cuarteles" ? "Cuarteles" : "Sectores de riego";
+      const fecha = new Date().toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" });
+      // Agrandar la barra de escala para que sea legible a 4000 px
+      const escalaStyle = document.createElement("style");
+      escalaStyle.textContent = ".leaflet-control-scale-line{font-size:24px!important;line-height:1.4!important;padding:4px 12px!important;border-width:3px!important;border-color:#fff!important;background:rgba(15,23,42,.7)!important;color:#fff!important}";
+      container.appendChild(escalaStyle);
+
+      const overlay = document.createElement("div");
+      overlay.style.cssText = "position:absolute;inset:0;z-index:1000;pointer-events:none;font-family:'Segoe UI',system-ui,sans-serif";
+      overlay.innerHTML = `
+        <div style="position:absolute;top:36px;left:36px;background:rgba(15,23,42,.82);color:#fff;padding:22px 30px;border-radius:14px">
+          <div style="font-size:46px;font-weight:700;line-height:1.1">Siracusa 2025 — ${titulo}</div>
+          <div style="font-size:26px;opacity:.85;margin-top:6px">${fecha}</div>
+        </div>
+        <div style="position:absolute;top:36px;right:36px;background:rgba(15,23,42,.82);color:#fff;padding:20px 26px;border-radius:14px;font-size:28px;min-width:220px">
+          <div style="font-size:22px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.7;margin-bottom:10px">Especies</div>
+          ${legendItems || '<div style="opacity:.7">—</div>'}
+        </div>
+        <div style="position:absolute;bottom:40px;right:44px;color:#fff;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,.8)">
+          <div style="font-size:48px;line-height:1">↑</div><div style="font-size:26px;font-weight:700">N</div>
+        </div>`;
+      container.appendChild(overlay);
+
+      await new Promise(r => setTimeout(r, 500)); // asentar etiquetas y overlays
+
+      // Captura (sin allowTaint: el canvas queda limpio y toDataURL no falla)
       const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(container, { useCORS: true, allowTaint: true, width: imgW, height: imgH, scale: 1 });
+      const canvas = await html2canvas(container, { useCORS: true, width: imgW, height: imgH, scale: 1, backgroundColor: "#000" });
 
       const link = document.createElement("a");
       link.download = "mapa_siracusa_" + vista + "_" + new Date().toISOString().slice(0, 10) + ".png";
