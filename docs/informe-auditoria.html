@@ -1,0 +1,539 @@
+<title>Auditoría Siracusa</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#f3f4ef; --surface:#fbfbf8; --surface-2:#ecede6;
+    --ink:#1c1e1a; --ink-soft:#55574f; --ink-faint:#8a8c82;
+    --line:#dcdcd2; --line-soft:#e7e7de;
+    --accent:#1b4d46; --accent-ink:#123631; --accent-soft:#e2ece9;
+    --crit:#b23a2e; --crit-bg:#f4ddd8;
+    --alto:#a96a12; --alto-bg:#f4e9d3;
+    --medio:#556f82; --medio-bg:#e2e8ed;
+    --done:#43734f; --done-bg:#e0ebe0;
+    --shadow:0 1px 2px rgba(28,30,26,.04),0 4px 16px rgba(28,30,26,.05);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#15100e; --surface:#1e1a17; --surface-2:#262019;
+      --ink:#ece9df; --ink-soft:#a8a498; --ink-faint:#736f64;
+      --line:#332c25; --line-soft:#2a241f;
+      --accent:#6cc0af; --accent-ink:#9fd8cc; --accent-soft:#1c302c;
+      --crit:#e0806c; --crit-bg:#37211c;
+      --alto:#dca648; --alto-bg:#342718;
+      --medio:#8ba7bd; --medio-bg:#212d36;
+      --done:#74b083; --done-bg:#1d2c20;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 18px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#15100e; --surface:#1e1a17; --surface-2:#262019;
+    --ink:#ece9df; --ink-soft:#a8a498; --ink-faint:#736f64;
+    --line:#332c25; --line-soft:#2a241f;
+    --accent:#6cc0af; --accent-ink:#9fd8cc; --accent-soft:#1c302c;
+    --crit:#e0806c; --crit-bg:#37211c;
+    --alto:#dca648; --alto-bg:#342718;
+    --medio:#8ba7bd; --medio-bg:#212d36;
+    --done:#74b083; --done-bg:#1d2c20;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 18px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box;margin:0}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Source Serif 4",Georgia,serif;
+    font-size:17px; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:940px; margin:0 auto; padding:0 24px}
+  h1,h2,h3,.k{font-family:"Archivo","Helvetica Neue",sans-serif}
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+
+  /* ---------- header ---------- */
+  header{border-bottom:1px solid var(--line); background:var(--surface)}
+  .head-in{max-width:940px;margin:0 auto;padding:38px 24px 30px;position:relative}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:10px}
+  .eyebrow::before{content:"";width:26px;height:2px;background:var(--accent);display:inline-block}
+  h1{font-size:clamp(32px,5vw,50px);font-weight:800;line-height:1.02;letter-spacing:-.02em;margin:16px 0 0;text-wrap:balance}
+  .sub{font-size:18px;color:var(--ink-soft);margin-top:14px;max-width:64ch}
+  .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:8px 20px;font-family:"Archivo",sans-serif;font-size:13px;color:var(--ink-faint)}
+  .meta b{color:var(--ink-soft);font-weight:600}
+  .theme-btn{position:absolute;top:38px;right:24px;font-family:"Archivo",sans-serif;font-size:12px;font-weight:600;letter-spacing:.03em;
+    background:var(--surface-2);color:var(--ink-soft);border:1px solid var(--line);border-radius:100px;padding:7px 14px;cursor:pointer}
+  .theme-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .theme-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ---------- summary band ---------- */
+  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:34px 0 8px}
+  .stat{background:var(--surface);padding:20px 20px 18px}
+  .stat .n{font-family:"Archivo",sans-serif;font-weight:800;font-size:38px;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .stat .l{font-family:"Archivo",sans-serif;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:8px}
+  .stat.done .n{color:var(--done)}
+  .stat.crit .n{color:var(--crit)}
+  .stat.pend .n{color:var(--ink)}
+  .stat.total .n{color:var(--accent)}
+  .lead{font-size:18px;line-height:1.65;color:var(--ink-soft);margin:26px 0 6px;max-width:68ch}
+  .lead b{color:var(--ink);font-weight:600}
+
+  /* ---------- filter bar ---------- */
+  .filters{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line);margin-top:30px}
+  .filters-in{max-width:940px;margin:0 auto;padding:12px 24px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .filters .cap{font-family:"Archivo",sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-right:4px}
+  .chip{font-family:"Archivo",sans-serif;font-size:13px;font-weight:500;color:var(--ink-soft);
+    background:var(--surface);border:1px solid var(--line);border-radius:100px;padding:6px 14px;cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--accent);color:var(--accent)}
+  .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+  :root[data-theme="dark"] .chip[aria-pressed="true"],
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip[aria-pressed="true"]{color:#15100e}}
+  .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+
+  /* ---------- sections ---------- */
+  main{padding:10px 0 80px}
+  section{margin-top:46px;scroll-margin-top:70px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:6px}
+  :root[data-theme="dark"] .sec-head,
+  .sec-head{border-color:var(--line)}
+  .sec-head h2{font-size:22px;font-weight:700;letter-spacing:-.01em}
+  .sec-head .count{font-family:"Archivo",sans-serif;font-size:13px;font-weight:600;color:var(--ink-faint);margin-left:auto;font-variant-numeric:tabular-nums}
+  .sec-note{font-size:15px;color:var(--ink-soft);margin:14px 0 18px;max-width:70ch}
+
+  /* ---------- finding card ---------- */
+  .card{background:var(--surface);border:1px solid var(--line);border-left-width:4px;border-radius:10px;
+    padding:18px 20px 18px;margin-top:12px;box-shadow:var(--shadow);position:relative}
+  .card[data-sev="critico"]{border-left-color:var(--crit)}
+  .card[data-sev="alto"]{border-left-color:var(--alto)}
+  .card[data-sev="medio"]{border-left-color:var(--medio)}
+  .card.hide{display:none}
+  .c-top{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:9px}
+  .cid{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:600;color:var(--ink-faint);letter-spacing:.02em}
+  .tag{font-family:"Archivo",sans-serif;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+    padding:3px 9px;border-radius:5px;line-height:1.4}
+  .tag.sev-critico{background:var(--crit-bg);color:var(--crit)}
+  .tag.sev-alto{background:var(--alto-bg);color:var(--alto)}
+  .tag.sev-medio{background:var(--medio-bg);color:var(--medio)}
+  .pill{font-family:"Archivo",sans-serif;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
+    padding:3px 10px 3px 8px;border-radius:100px;display:inline-flex;align-items:center;gap:5px;margin-left:auto}
+  .pill.done{background:var(--done-bg);color:var(--done)}
+  .pill.pend{background:transparent;color:var(--ink-faint);border:1px solid var(--line)}
+  .pill.partial{background:var(--alto-bg);color:var(--alto)}
+  .pill svg{width:11px;height:11px}
+  .c-title{font-family:"Archivo",sans-serif;font-size:18px;font-weight:600;line-height:1.3;letter-spacing:-.01em;margin-bottom:6px}
+  .c-body{font-size:15.5px;line-height:1.62;color:var(--ink-soft)}
+  .c-body code{font-family:"JetBrains Mono",monospace;font-size:.85em;background:var(--surface-2);padding:1px 5px;border-radius:4px;color:var(--ink)}
+  .rec{margin-top:12px;padding:11px 14px;background:var(--accent-soft);border-radius:8px;font-size:14.5px;line-height:1.55;color:var(--accent-ink)}
+  .rec b{font-family:"Archivo",sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:3px;color:var(--accent)}
+
+  /* ---------- roadmap ---------- */
+  .road{margin-top:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .phase{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;padding:16px 20px;background:var(--surface);border-top:1px solid var(--line-soft)}
+  .phase:first-child{border-top:none}
+  .phase .ph{font-family:"Archivo",sans-serif;font-weight:800;font-size:13px;letter-spacing:.04em;color:#fff;background:var(--accent);width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+  :root[data-theme="dark"] .phase .ph{color:#15100e}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .phase .ph{color:#15100e}}
+  .phase.ok .ph{background:var(--done)}
+  .phase .pt{font-family:"Archivo",sans-serif;font-weight:600;font-size:15px}
+  .phase .pd{font-size:13.5px;color:var(--ink-soft);margin-top:2px}
+  .phase .ps{font-family:"Archivo",sans-serif;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:4px 10px;border-radius:100px;white-space:nowrap}
+  .phase .ps.ok{background:var(--done-bg);color:var(--done)}
+  .phase .ps.now{background:var(--crit-bg);color:var(--crit)}
+  .phase .ps.next{background:var(--surface-2);color:var(--ink-faint)}
+
+  footer{border-top:1px solid var(--line);margin-top:60px;padding:26px 0 40px}
+  .foot-in{max-width:940px;margin:0 auto;padding:0 24px;font-family:"Archivo",sans-serif;font-size:13px;color:var(--ink-faint);display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:space-between}
+
+  @media (max-width:680px){
+    .summary{grid-template-columns:repeat(2,1fr)}
+    .theme-btn{position:static;margin-bottom:14px}
+    .head-in{padding-top:24px}
+    .pill{margin-left:0}
+    .phase{grid-template-columns:auto 1fr;gap:12px}
+    .phase .ps{grid-column:2;justify-self:start}
+  }
+</style>
+
+<header>
+  <div class="head-in">
+    <button class="theme-btn" id="themeBtn" aria-label="Cambiar tema">Tema</button>
+    <div class="eyebrow">Auditoría técnica · mapa-siracusa</div>
+    <h1>Estado de la app y qué resolver</h1>
+    <p class="sub">Revisión de seguridad, integridad de datos, estructura de base de datos y arquitectura del sistema de gestión de riego de campo (Siracusa 2025 · Field-Data).</p>
+    <div class="meta">
+      <span><b>Proyecto:</b> mapa-siracusa · rama dev</span>
+      <span><b>Base:</b> Supabase · 25 equipos · 124 sectores · 281 cuarteles</span>
+      <span><b>Fecha:</b> 23 ago 2026</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="summary">
+    <div class="stat total"><div class="n">31</div><div class="l">Hallazgos totales</div></div>
+    <div class="stat done"><div class="n">13</div><div class="l">Ya resueltos</div></div>
+    <div class="stat pend"><div class="n">18</div><div class="l">Pendientes</div></div>
+    <div class="stat crit"><div class="n">1</div><div class="l">Crítico abierto</div></div>
+  </div>
+  <p class="lead">Esta sesión cerró los <b>agujeros de seguridad activos</b> y los <b>fallos de guardado silencioso</b>, y corrigió dos huecos de datos que afectaban al 100% de los sectores. Lo que queda es, en su mayoría, <b>deuda estructural y de producto</b>: mejoras que conviene planificar, no urgencias. Usá los filtros para separar lo resuelto de lo pendiente.</p>
+</div>
+
+<div class="filters">
+  <div class="filters-in">
+    <span class="cap">Filtrar</span>
+    <button class="chip" data-filter="all" aria-pressed="true">Todos</button>
+    <button class="chip" data-filter="pend" aria-pressed="false">Pendientes</button>
+    <button class="chip" data-filter="done" aria-pressed="false">Resueltos</button>
+    <button class="chip" data-filter="critico" aria-pressed="false"><span class="dot" style="background:var(--crit)"></span>Crítico</button>
+    <button class="chip" data-filter="alto" aria-pressed="false"><span class="dot" style="background:var(--alto)"></span>Alto</button>
+    <button class="chip" data-filter="medio" aria-pressed="false"><span class="dot" style="background:var(--medio)"></span>Medio</button>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- ============ SEGURIDAD ============ -->
+  <section id="seguridad">
+    <div class="sec-head"><h2>Seguridad</h2><span class="count">6 hallazgos</span></div>
+    <p class="sec-note">Todos los agujeros de seguridad detectados fueron cerrados en esta sesión salvo uno de bajo impacto. Los fixes de base de datos ya se aplicaron y verificaron en vivo; los de código quedan en la rama <code class="mono">dev</code>.</p>
+
+    <article class="card" data-sev="critico" data-status="done">
+      <div class="c-top"><span class="cid">SEC-01</span><span class="tag sev-critico">Crítico</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title">RPC de geometría sin verificación de admin</div>
+      <div class="c-body">La función <code>update_sector_geom</code> (<code>SECURITY DEFINER</code>, salta RLS) no chequeaba <code>is_admin()</code> — documentado como pendiente desde julio y nunca cerrado. Con la anon key pública, cualquiera podía sobrescribir la geometría de cualquier sector sin loguearse.</div>
+      <div class="rec"><b>Aplicado</b>Se agregó <code>IF NOT is_admin() THEN RAISE EXCEPTION</code>, mismo patrón que <code>update_cuartel_geom</code>. Verificado en la base (migración v11).</div>
+    </article>
+
+    <article class="card" data-sev="critico" data-status="done">
+      <div class="c-top"><span class="cid">SEC-02</span><span class="tag sev-critico">Crítico</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title">Guardado de geometría autenticado con la anon key</div>
+      <div class="c-body"><code>GeomanEditor.tsx</code> enviaba la anon key como <code>Authorization</code> en vez del token de sesión del usuario. Esto habría roto el fix de SEC-01 para todos (incluido el admin), porque <code>auth.uid()</code> nunca se habría podido resolver del lado del servidor.</div>
+      <div class="rec"><b>Aplicado</b>Ahora usa <code>supabase.auth.getSession()</code> para enviar el token real del usuario logueado.</div>
+    </article>
+
+    <article class="card" data-sev="alto" data-status="done">
+      <div class="c-top"><span class="cid">SEC-03</span><span class="tag sev-alto">Alto</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title">Claves de Supabase hardcodeadas en el código</div>
+      <div class="c-body">La URL y la anon key aparecían escritas a mano cuatro veces en <code>GeomanEditor.tsx</code>. No es un secreto nuevo (la anon key ya viaja pública), pero el día que se rote la clave, actualizar 4 lugares a mano es una fuente de bugs.</div>
+      <div class="rec"><b>Aplicado</b>Reemplazadas por <code>import.meta.env.VITE_SUPABASE_*</code>, una sola fuente.</div>
+    </article>
+
+    <article class="card" data-sev="alto" data-status="done">
+      <div class="c-top"><span class="cid">SEC-04</span><span class="tag sev-alto">Alto</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title">Rol de admin decidido por un campo editable por el usuario</div>
+      <div class="c-body"><code>AuthContext</code> calculaba <code>isAdmin</code> desde <code>user_metadata.role</code>, que el propio usuario puede editar desde el navegador con <code>supabase.auth.updateUser()</code>. Cualquier usuario podía hacerse pasar por admin ante el frontend (ver menús y botones que no le corresponden).</div>
+      <div class="rec"><b>Aplicado</b>Ahora lee <code>profiles.role</code>, la misma fuente que usa <code>is_admin()</code> en la base (RLS: solo un admin puede modificar esa tabla).</div>
+    </article>
+
+    <article class="card" data-sev="alto" data-status="done">
+      <div class="c-top"><span class="cid">SEC-05</span><span class="tag sev-alto">Alto</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title">Lectura pública de datos del campo sin login</div>
+      <div class="c-body"><code>sectores</code>, <code>cuarteles</code>, <code>equipos</code>, <code>edificaciones</code> y <code>cuartel_sector</code> tenían el <code>SELECT</code> abierto (<code>qual: true</code>). Cualquiera con la anon key podía leer todas las hectáreas, jefes de campo y geometrías sin autenticarse.</div>
+      <div class="rec"><b>Aplicado</b>Las 5 tablas ahora exigen <code>auth.role() = 'authenticated'</code>, igual que tuberías/válvulas. Verificado en la base (migración v12).</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">SEC-06</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">La tabla <code>georreferencias</code> sigue con lectura pública</div>
+      <div class="c-body">Al cerrar SEC-05 se detectó que <code>georreferencias</code> tiene exactamente el mismo <code>SELECT</code> abierto (<code>qual: true</code>) que las otras 5 tablas tenían. Quedó fuera del fix por descubrirse después.</div>
+      <div class="rec"><b>Recomendación</b>Aplicar la misma política de lectura autenticada. Es un cambio de una línea; se puede sumar a la próxima migración.</div>
+    </article>
+  </section>
+
+  <!-- ============ CONFIABILIDAD ============ -->
+  <section id="confiabilidad">
+    <div class="sec-head"><h2>Confiabilidad</h2><span class="count">2 hallazgos</span></div>
+    <p class="sec-note">Fallos que hacían que la app reportara éxito sin haber guardado nada. Ambos resueltos.</p>
+
+    <article class="card" data-sev="alto" data-status="done">
+      <div class="c-top"><span class="cid">REL-01</span><span class="tag sev-alto">Alto</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title">Updates y deletes bloqueados por RLS que fallaban en silencio</div>
+      <div class="c-body">Cuando RLS filtra una fila, Postgres no lo trata como error: el <code>UPDATE</code>/<code>DELETE</code> afecta 0 filas y responde éxito. Ya había causado un incidente ("guardado exitoso pero sin persistencia", jun 2026) parcheado solo en el editor de mapas — pero <code>useSectores</code>, <code>useEquipos</code>, <code>useCuarteles</code> y <code>useUnidadesRiego</code> seguían expuestos.</div>
+      <div class="rec"><b>Aplicado</b>Helper <code>assertRowsAffected()</code> + <code>.select()</code> en cada mutación de los 4 hooks, para confirmar que realmente se modificó algo.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="done">
+      <div class="c-top"><span class="cid">REL-02</span><span class="tag sev-medio">Medio</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title">El set de tests nunca podía ejecutarse</div>
+      <div class="c-body">Existían dos archivos de test, pero faltaba <code>@testing-library/react</code> en <code>package.json</code> — ni siquiera estaba declarada, así que <code>npm test</code> fallaba al arrancar. El suite jamás se había corrido.</div>
+      <div class="rec"><b>Aplicado</b>Agregada la dependencia (+ <code>jsdom</code>). El suite ahora corre: 16 de 18 tests pasan. Ver QA-01 por los 2 restantes.</div>
+    </article>
+  </section>
+
+  <!-- ============ DATOS ============ -->
+  <section id="datos">
+    <div class="sec-head"><h2>Integridad de datos</h2><span class="count">7 hallazgos</span></div>
+    <p class="sec-note">Surgieron al comparar la base contra la planilla real del campo (124/124 sectores). Los dos problemas sistémicos y cuatro correcciones puntuales ya se aplicaron; queda un lote de diferencias por decidir caso por caso.</p>
+
+    <article class="card" data-sev="alto" data-status="done">
+      <div class="c-top"><span class="cid">DAT-01</span><span class="tag sev-alto">Alto</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title"><code>jefe_campo</code> estaba vacío en el 100% de los sectores</div>
+      <div class="c-body">Los 124 sectores tenían el jefe de campo en blanco, aunque la planilla lo tiene casi siempre. El filtro "Jefe de campo" del módulo de Riego nunca iba a mostrar nada.</div>
+      <div class="rec"><b>Aplicado</b>Poblado desde la planilla para los 124 sectores (migración v13).</div>
+    </article>
+
+    <article class="card" data-sev="alto" data-status="done">
+      <div class="c-top"><span class="cid">DAT-02</span><span class="tag sev-alto">Alto</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title"><code>m3_ha</code> nulo en el 100% de los sectores</div>
+      <div class="c-body">El caudal por hectárea, que la planilla trae calculado para casi todos los sectores, nunca se había guardado en la base.</div>
+      <div class="rec"><b>Aplicado</b>Poblado desde la planilla para los 124 sectores (migración v13).</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="done">
+      <div class="c-top"><span class="cid">DAT-03</span><span class="tag sev-medio">Medio</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title">Valores puntuales erróneos corregidos</div>
+      <div class="c-body">Equipo 1 Sector 1 tenía <code>caudal_nominal = 99999</code> (placeholder); Equipo 12 tenía el filtro mal cargado (<code>3"x6</code> en vez de <code>3"x10 Spin Klin</code>); Equipo 15 Sector 4 tenía año 2026 en vez de 2024; Equipo 16 Sector 1 tenía 9,57 ha en vez de 11,49.</div>
+      <div class="rec"><b>Aplicado</b>Los cuatro valores corregidos y confirmados contra una nueva comparación (migración v13).</div>
+    </article>
+
+    <article class="card" data-sev="alto" data-status="pend">
+      <div class="c-top"><span class="cid">DAT-04</span><span class="tag sev-alto">Alto</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">58 sectores con diferencias entre base y planilla</div>
+      <div class="c-body">Tras las correcciones ya bajó de 124 a 58 sectores con al menos una diferencia. Se agrupan en: <b>hectáreas</b> (~24 sectores, equipos 2/3/5/6/15/16/23/24/25), <b>distancias de plantación</b> (~15, equipos 12/13/15/16/17/21/26), <b>bomba</b> (equipos 5 y 10), <b>filtro</b> (equipos 5 y 11), <b>variedad</b> (1·S5, 18·S2) y <b>caseta</b> (6·S3). Las hectáreas afectan directamente el volumen de agua calculado en Riego.</div>
+      <div class="rec"><b>Decisión requerida</b>Definir la fuente de verdad por tipo de campo. Sospecha fuerte: el filtro del Equipo 11 tiene el mismo patrón "incremental" erróneo que ya se corrigió en el Equipo 10 — confirmar para migrar ambos a un valor uniforme por equipo.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">DAT-05</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Falta un campo de identidad del cliente / dato de cuarteles vs sectores</div>
+      <div class="c-body">Hay 281 cuarteles y 124 sectores con datos que en parte se solapan (especie, variedad, jefe, año). Conviene confirmar cuál es la fuente autoritativa de cada atributo para evitar que se editen en dos lugares y diverjan.</div>
+      <div class="rec"><b>Recomendación</b>Documentar qué entidad "manda" para cada campo compartido, o derivar uno del otro para no mantener el dato por duplicado.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="done">
+      <div class="c-top"><span class="cid">DAT-06</span><span class="tag sev-medio">Medio</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title">Columna <code>variedad</code> existía en la base pero no en el código</div>
+      <div class="c-body">La columna se había agregado directo a Supabase (121 registros) pero los tipos TypeScript, el formulario y la tabla de administración nunca se actualizaron para reflejarla.</div>
+      <div class="rec"><b>Aplicado</b>Agregada a <code>types.ts</code>, <code>FormularioSector</code> y <code>AdminSectores</code>.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="done">
+      <div class="c-top"><span class="cid">DAT-07</span><span class="tag sev-medio">Medio</span>
+        <span class="pill done"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9l4.5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Resuelto</span></div>
+      <div class="c-title">La geometría estaba bien tipada (falso positivo aclarado)</div>
+      <div class="c-body">El bug histórico "Geometry has Z dimension" no era un hueco del schema: las columnas PostGIS fuerzan correctamente 2D y SRID 4326. Era la base rechazando bien un dato malo; el problema real (que la UI no mostraba el rechazo) se resolvió en REL-01.</div>
+      <div class="rec"><b>Sin acción</b>Confirmado que el tipado espacial es correcto. Se documenta para cerrar la duda.</div>
+    </article>
+  </section>
+
+  <!-- ============ ESTRUCTURA BD ============ -->
+  <section id="estructura">
+    <div class="sec-head"><h2>Estructura de base de datos</h2><span class="count">4 hallazgos</span></div>
+    <p class="sec-note">Mejoras de modelado y de integridad a nivel de esquema. Ninguna es urgente, pero varias previenen exactamente los bugs de datos que ya vimos.</p>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">SCH-01</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Datos de equipo duplicados en cada sector (denormalización)</div>
+      <div class="c-body"><code>caseta</code>, <code>bomba</code> y <code>filtro</code> son atributos del equipo, pero se guardan repetidos en cada sector. Esto es lo que permitió que el mismo filtro se cargara con valores distintos por sector (equipos 10, 11, 12). El resto de las columnas de <code>sectores</code> sí varía legítimamente — el problema está acotado a esos 3 campos.</div>
+      <div class="rec"><b>Recomendación</b>Mover <code>caseta</code>, <code>bomba</code> y <code>filtro</code> a la tabla <code>equipos</code>. Elimina la fuente de inconsistencias de raíz y simplifica la carga.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">SCH-02</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Faltan validaciones de rango (<code>CHECK</code> constraints)</div>
+      <div class="c-body">Ninguna columna numérica valida su rango en la base; todo el control vive en el código, y a veces ni ahí (el <code>caudal = 99999</code> y el <code>año = 2026</code> entraron sin resistencia). <code>porcentaje_agua</code> en <code>cuartel_sector</code> no tiene ningún límite.</div>
+      <div class="rec"><b>Recomendación</b>Agregar CHECK en <code>eficiencia</code> (0–1), <code>anio</code> (1980–año actual+1), <code>porcentaje_agua</code> (0–100) y <code>numero</code> (&gt;0). El de <code>anio</code> hubiera evitado directamente el bug del Equipo 15.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">SCH-03</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Reglas de borrado inconsistentes (<code>ON DELETE</code>)</div>
+      <div class="c-body">Al borrar un equipo: <code>sectores</code>/<code>tuberias</code>/<code>valvulas</code> lo bloquean (<code>RESTRICT</code>, correcto), pero <code>antenas</code>/<code>sondas</code>/<code>georreferencias</code> se borran en cascada sin aviso. Borrar un equipo por error se lleva puesta la georreferenciación del plano PDF en silencio.</div>
+      <div class="rec"><b>Decisión requerida</b>Confirmar si el CASCADE es intencional. Si no, alinear a RESTRICT (o al menos advertir en la UI antes de borrar).</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">SCH-04</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Índices faltantes en claves foráneas</div>
+      <div class="c-body"><code>tuberias.equipo_id</code>, <code>tuberias.tuberia_padre_id</code> y <code>valvulas.tuberia_id</code> no tienen índice. Con 0 filas hoy no impacta, pero conviene crearlos ahora que la migración es trivial, antes de que haya datos.</div>
+      <div class="rec"><b>Recomendación</b>Crear los tres índices en la misma migración que SCH-02/SCH-03.</div>
+    </article>
+  </section>
+
+  <!-- ============ ARQUITECTURA ============ -->
+  <section id="arquitectura">
+    <div class="sec-head"><h2>Arquitectura y proceso</h2><span class="count">7 hallazgos</span></div>
+    <p class="sec-note">Deuda técnica y de mantenibilidad. No rompen nada hoy, pero encarecen cada cambio futuro y aumentan el riesgo de que se pierda contexto entre sesiones.</p>
+
+    <article class="card" data-sev="alto" data-status="pend">
+      <div class="c-top"><span class="cid">ARC-01</span><span class="tag sev-alto">Alto</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Las ramas <code>master</code> y <code>dev</code> divergieron</div>
+      <div class="c-body"><code>dev</code> tiene 29 commits que <code>master</code> no tiene (filtros avanzados, exportación de mapa, editor de válvulas); <code>master</code> tiene 11 que <code>dev</code> no tiene. No está confirmado cuál rama despliega Vercel como producción.</div>
+      <div class="rec"><b>Decisión requerida</b>Confirmar la rama de producción en Vercel y planificar un merge/reconciliación para que no sigan separándose.</div>
+    </article>
+
+    <article class="card" data-sev="alto" data-status="pend">
+      <div class="c-top"><span class="cid">ARC-02</span><span class="tag sev-alto">Alto</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Funciones y tablas críticas no están versionadas en git</div>
+      <div class="c-body"><code>is_admin()</code>, la tabla <code>profiles</code> y la migración original de <code>variedad</code> solo existen en la base viva — se crearon vía API/consola y nunca se guardaron como script. Si algo se corrompe, no hay forma de reconstruir el estado desde el repositorio.</div>
+      <div class="rec"><b>Recomendación</b>Exportar el esquema completo actual a archivos <code>sql/</code> versionados y adoptar la regla de que todo cambio de base pasa por una migración en git.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">ARC-03</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title"><code>MapaCuarteles.tsx</code> concentra 966 líneas</div>
+      <div class="c-body">Mapa, filtros, popups, exportación y tooltips en un solo archivo. Cualquier cambio ahí es de alto riesgo y difícil de revisar.</div>
+      <div class="rec"><b>Recomendación</b>Extraer, en pasos chicos, la exportación de imagen, los popups y la barra de capas a componentes propios.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">ARC-04</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">No hay integración continua (CI)</div>
+      <div class="c-body">Sin <code>.github/workflows</code>: typecheck, lint y tests solo corren si alguien se acuerda de ejecutarlos. Precisamente por eso el suite roto de REL-02 pasó desapercibido tanto tiempo.</div>
+      <div class="rec"><b>Recomendación</b>Un workflow mínimo que corra <code>tsc</code>, <code>eslint</code> y <code>vitest</code> en cada push a <code>dev</code>.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">ARC-05</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Bundle de 1,7 MB en un solo archivo</div>
+      <div class="c-body">Sin code-splitting, todo el JS se descarga junto. En el campo, con señal débil, la primera carga puede ser lenta.</div>
+      <div class="rec"><b>Recomendación</b>Cargar de forma diferida (<code>import()</code>) las librerías pesadas de mapa/exportación y separar las rutas de administración.</div>
+    </article>
+
+    <article class="card" data-sev="alto" data-status="pend">
+      <div class="c-top"><span class="cid">ARC-06</span><span class="tag sev-alto">Alto</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Sin soporte mobile ni modo offline</div>
+      <div class="c-body">Layout fijo pensado para escritorio (sidebar de 180px) y sin PWA/service worker. Si el equipo usa la app desde el celular en terreno — donde suele no haber señal — hoy no puede.</div>
+      <div class="rec"><b>Recomendación</b>Priorizar según el uso real. Si el campo la usa desde el teléfono, un layout responsive y una capa offline básica pasan a ser lo más valioso del roadmap.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">ARC-07</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Sin registro de auditoría (quién editó qué)</div>
+      <div class="c-body">No queda rastro de quién modificó un sector ni cuándo. Con varios usuarios editando datos de riego, es difícil rastrear un cambio erróneo.</div>
+      <div class="rec"><b>Recomendación</b>Tabla de auditoría poblada por triggers en las tablas clave (<code>sectores</code>, <code>cuarteles</code>, <code>equipos</code>).</div>
+    </article>
+  </section>
+
+  <!-- ============ PRODUCTO / RIEGO ============ -->
+  <section id="producto">
+    <div class="sec-head"><h2>Producto y módulo de Riego</h2><span class="count">3 hallazgos</span></div>
+    <p class="sec-note">No son bugs: es trabajo de producto pendiente. Marcan la diferencia entre "funciona" y "se usa todos los días".</p>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">PRD-01</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Funcionalidades con UI construida pero sin datos</div>
+      <div class="c-body">Tuberías, válvulas, sondas y antenas tienen editores y capas de mapa completos, pero 0 registros cargados. Solo 2 de 25 equipos tienen su plano PDF georreferenciado. La base está lista; falta la carga.</div>
+      <div class="rec"><b>Recomendación</b>Definir si estas capas son prioridad. Si lo son, el cuello de botella es carga de datos, no desarrollo.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="partial">
+      <div class="c-top"><span class="cid">PRD-02</span><span class="tag sev-medio">Medio</span>
+        <span class="pill partial">Parcial</span></div>
+      <div class="c-title">Módulo de Riego en versión 1</div>
+      <div class="c-body">El cálculo de reposición funciona con datos reales de Supabase, pero: no persiste historial (la tabla <code>reposiciones</code> existe pero la UI no escribe en ella), usa clima de Open-Meteo en vez de la estación Davis del predio, y aplica el mismo umbral de urgencia a las 4 especies pese a que kiwi y olivo tienen demandas muy distintas.</div>
+      <div class="rec"><b>Siguiente iteración</b>Persistir cada corrida en <code>reposiciones</code>, conectar la estación Davis real, y separar umbrales por especie.</div>
+    </article>
+
+    <article class="card" data-sev="medio" data-status="pend">
+      <div class="c-top"><span class="cid">QA-01</span><span class="tag sev-medio">Medio</span>
+        <span class="pill pend">Pendiente</span></div>
+      <div class="c-title">Dos tests desactualizados</div>
+      <div class="c-body">De los 18 tests que ahora corren (ver REL-02), 2 fallan porque esperan un <code>delete()</code> directo sobre <code>cuartel_sector</code> que el código ya no hace — ahora usa el RPC <code>set_cuartel_sectores</code>. Quedaron obsoletos y, como el suite nunca corría, nadie lo notó.</div>
+      <div class="rec"><b>Recomendación</b>Actualizar esos 2 tests para reflejar el flujo por RPC actual. Bajo esfuerzo, deja el suite en verde.</div>
+    </article>
+  </section>
+
+  <!-- ============ ROADMAP ============ -->
+  <section id="plan">
+    <div class="sec-head"><h2>Plan recomendado</h2></div>
+    <p class="sec-note">Orden sugerido por impacto y dependencia. Las dos primeras fases ya están hechas en esta sesión.</p>
+    <div class="road">
+      <div class="phase ok">
+        <div class="ph">0</div>
+        <div><div class="pt">Seguridad</div><div class="pd">Cerrar el RPC de geometría, el rol de admin y la lectura pública · SEC-01 a SEC-05</div></div>
+        <div class="ps ok">Hecho</div>
+      </div>
+      <div class="phase ok">
+        <div class="ph">1</div>
+        <div><div class="pt">Confiabilidad de escritura</div><div class="pd">Detección de fallos silenciosos de RLS + suite de tests operativo · REL-01, REL-02</div></div>
+        <div class="ps ok">Hecho</div>
+      </div>
+      <div class="phase">
+        <div class="ph">2</div>
+        <div><div class="pt">Cerrar datos e higiene de esquema</div><div class="pd">SEC-06, lote DAT-04, SCH-01 a SCH-04 · previene la reaparición de los bugs de datos</div></div>
+        <div class="ps now">Sugerido ahora</div>
+      </div>
+      <div class="phase">
+        <div class="ph">3</div>
+        <div><div class="pt">Proceso y mantenibilidad</div><div class="pd">Reconciliar dev/master, versionar el esquema, CI, partir MapaCuarteles, tests al día · ARC-01 a ARC-04, QA-01</div></div>
+        <div class="ps next">Siguiente</div>
+      </div>
+      <div class="phase">
+        <div class="ph">4</div>
+        <div><div class="pt">Producto</div><div class="pd">Riego v2 (historial + Davis + umbrales), responsive/offline, auditoría · PRD-02, ARC-06, ARC-07</div></div>
+        <div class="ps next">Siguiente</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="foot-in">
+    <span>Auditoría técnica · mapa-siracusa (Siracusa 2025 · Field-Data)</span>
+    <span>31 hallazgos · 13 resueltos · 18 pendientes · 23 ago 2026</span>
+  </div>
+</footer>
+
+<script>
+  const btn = document.getElementById('themeBtn');
+  const root = document.documentElement;
+  btn.addEventListener('click', () => {
+    const cur = root.getAttribute('data-theme');
+    const isDark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme:dark)').matches;
+    root.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  });
+
+  const chips = document.querySelectorAll('.chip');
+  const cards = document.querySelectorAll('.card');
+  const sections = document.querySelectorAll('main section');
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chips.forEach(c => c.setAttribute('aria-pressed', 'false'));
+      chip.setAttribute('aria-pressed', 'true');
+      const f = chip.dataset.filter;
+      cards.forEach(card => {
+        let show = true;
+        if (f === 'pend') show = card.dataset.status !== 'done';
+        else if (f === 'done') show = card.dataset.status === 'done';
+        else if (f === 'critico' || f === 'alto' || f === 'medio') show = card.dataset.sev === f;
+        card.classList.toggle('hide', !show);
+      });
+      // ocultar secciones que quedan sin tarjetas visibles (excepto el plan)
+      sections.forEach(sec => {
+        if (sec.id === 'plan') return;
+        const visible = sec.querySelectorAll('.card:not(.hide)').length;
+        sec.style.display = visible === 0 ? 'none' : '';
+      });
+    });
+  });
+</script>
