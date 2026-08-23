@@ -2,6 +2,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
+import { supabase } from "../../lib/supabase";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 interface Props {
   initialGeoJSON?: GeoJSON.Feature | null;
@@ -188,29 +192,34 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
     if (!geometry?.type || !geometry?.coordinates) { alert("Geometria invalida"); return; }
 
     const url = where
-      ? `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?${where}`
-      : `https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/${table}?id=eq.${entityId}`;
+      ? `${SUPABASE_URL}/rest/v1/${table}?${where}`
+      : `${SUPABASE_URL}/rest/v1/${table}?id=eq.${entityId}`;
     setSaving(true);
     try {
+      // Usar el token de sesion del usuario logueado, no la anon key, para
+      // que auth.uid()/is_admin() puedan identificarlo del lado del server.
+      const { data: { session } } = await supabase.auth.getSession();
+      const userToken = session?.access_token || SUPABASE_ANON_KEY;
+
       // For sectores, use RPC that forces 2D geometry via ST_Force2D
       let resp: Response;
       if (table === 'sectores' && entityId) {
-        resp = await fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/rpc/update_sector_geom`, {
+        resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_sector_geom`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${userToken}`,
           },
           body: JSON.stringify({ p_id: entityId, p_geojson: geometry }),
         });
       } else if (table === 'cuarteles' && entityId) {
-        resp = await fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/rpc/update_cuartel_geom`, {
+        resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_cuartel_geom`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${userToken}`,
           },
           body: JSON.stringify({ p_id: entityId, p_geojson: geometry }),
         });
@@ -221,12 +230,12 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
           return [k, rest?.startsWith('eq.') ? rest.slice(3) : rest];
         }));
         console.log("CS PARAMS:", JSON.stringify(params), "| geo:", JSON.stringify(geometry).substring(0, 100));
-        resp = await fetch(`https://nnelrvctqjbwfucccxfh.supabase.co/rest/v1/rpc/update_cuartel_sector_geom`, {
+        resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_cuartel_sector_geom`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${userToken}`,
           },
           body: JSON.stringify({ p_cuartel_id: params.cuartel_id, p_sector_id: params.sector_id, p_geojson: geometry }),
         });
@@ -235,8 +244,8 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZWxydmN0cWpid2Z1Y2NjeGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNTk4MDAsImV4cCI6MjA5MzgzNTgwMH0.1pM_cFSx4kyqwqt503BPsulBmZ__njIN9EnZ4gUfbmk",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${userToken}`,
           },
           body: JSON.stringify({ geometria: geometry }),
         });
