@@ -126,8 +126,8 @@ export default function AdminSectores() {
                   <td><strong>{s.codigo}</strong></td>
                   <td>{getEquipoNombre(s.equipo_id)}</td><td>{s.numero}</td>
                   <td>{s.hectareas ?? ""}</td><td>{s.especie}</td><td>{s.variedad ?? ""}</td>
-                  <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{s.bomba}</td>
-                  <td>{s.filtro}</td><td>{s.anio ?? ""}</td><td>{s.jefe_campo}</td>
+                  <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{s.equipo?.bomba ?? ""}</td>
+                  <td>{s.equipo?.filtro ?? ""}</td><td>{s.anio ?? ""}</td><td>{s.jefe_campo}</td>
                   <td>{s.m3_ha ?? ""}</td>
                   <td>{isAdmin && <>
                     <button onClick={e => { e.stopPropagation(); setEditing(s); setShowForm(true); }} style={btnSm}>Editar</button>{" "}

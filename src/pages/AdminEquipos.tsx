@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useEquipos } from "../hooks/useEquipos";
 import { Equipo } from "../lib/types";
 import FormularioEquipo from "../components/equipos/FormularioEquipo";
+import GestionBombas from "../components/equipos/GestionBombas";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import Georreferenciador from "../components/ui/Georreferenciador";
@@ -13,6 +14,7 @@ export default function AdminEquipos() {
   const [editing, setEditing] = useState<Equipo | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [geoRef, setGeoRef] = useState<{ codigo: string; id: string } | null>(null);
+  const [bombasDe, setBombasDe] = useState<Equipo | null>(null);
 
   if (loading) return <CenterMsg msg="Cargando equipos..." />;
   if (error) return <CenterMsg msg={`Error: ${error}`} />;
@@ -52,7 +54,7 @@ export default function AdminEquipos() {
         </thead>
         <tbody>
           {equipos.map((e) => (
-            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} onPuntos={() => setGeoRef({ codigo: 'Equipo ' + e.codigo, id: e.id })} />
+            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} onPuntos={() => setGeoRef({ codigo: 'Equipo ' + e.codigo, id: e.id })} onBombas={() => setBombasDe(e)} />
           ))}
           {equipos.length === 0 && (
             <tr>
@@ -80,6 +82,14 @@ export default function AdminEquipos() {
             setShowForm(false);
             setEditing(null);
           }}
+        />
+      )}
+
+      {bombasDe && (
+        <GestionBombas
+          equipoId={bombasDe.id}
+          equipoNombre={bombasDe.nombre}
+          onClose={() => setBombasDe(null)}
         />
       )}
 
@@ -184,7 +194,7 @@ export default function AdminEquipos() {
   );
 }
 
-function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onPuntos }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void; onPuntos: () => void }) {
+function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onPuntos, onBombas }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void; onPuntos: () => void; onBombas: () => void }) {
   return (
     <tr key={equipo.id}>
       <td>{equipo.codigo}</td>
@@ -192,6 +202,7 @@ function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onPuntos }: { equipo: E
       <td>{equipo.descripcion}</td>
       <td>
         {isAdmin && <>
+          <button onClick={onBombas} style={{ ...btnSmStyle, fontSize: 11, marginRight: 4, color: "#1565c0", fontWeight: 600 }}>Bombas</button>
           <button onClick={onPuntos} style={{ ...btnSmStyle, fontSize: 11, marginRight: 4, color: "#2e7d32", fontWeight: 600 }}>📍 Puntos</button>
           <button onClick={onEdit} style={btnSmStyle}>Editar</button>{" "}
           <button onClick={onDelete} style={{ ...btnSmStyle, color: "#c62828" }}>Eliminar</button>

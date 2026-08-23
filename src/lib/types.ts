@@ -5,6 +5,9 @@ export interface Equipo {
   codigo: number;
   nombre: string;
   descripcion: string;
+  caseta: string;
+  bomba: string;
+  filtro: string;
   plano_url?: string;
   created_at: string;
 }
@@ -17,13 +20,11 @@ export interface Sector {
   descripcion: string;
   caudal_nominal: number | null;
   hectareas: number | null;
-  caseta: string;
-  bomba: string;
-  filtro: string;
   anio: number | null;
   jefe_campo: string;
   especie: string;
   variedad: string;
+  config_bombas: "serie" | "paralelo" | "mixta" | null;
   precipitacion: number | null;
   eficiencia: number | null;
   dist_entre_hilera: number | null;
@@ -34,6 +35,19 @@ export interface Sector {
   m3_ha: number | null;
   created_at: string;
   equipo?: Equipo;
+}
+
+export interface Bomba {
+  id: string;
+  equipo_id: string;
+  marca: string | null;
+  modelo: string | null;
+  potencia_hp: number | null;
+  caudal_m3h: number | null;
+  funcion: "riego" | "helada";
+  orden: number | null;
+  revisar: boolean;
+  created_at: string;
 }
 
 export interface Cuartel {
