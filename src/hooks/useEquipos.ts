@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, assertRowsAffected } from "../lib/supabase";
 import { Equipo } from "../lib/types";
 
 export function useEquipos() {
@@ -35,17 +35,20 @@ export function useEquipos() {
   };
 
   const updateEquipo = async (id: string, equipo: Partial<Equipo>) => {
-    const { error: err } = await supabase
+    const { data, error: err } = await supabase
       .from("equipos")
       .update(equipo)
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
     if (err) throw err;
+    assertRowsAffected(data, "Actualizar equipo");
     await fetchEquipos();
   };
 
   const deleteEquipo = async (id: string) => {
-    const { error: err } = await supabase.from("equipos").delete().eq("id", id);
+    const { data, error: err } = await supabase.from("equipos").delete().eq("id", id).select("id");
     if (err) throw err;
+    assertRowsAffected(data, "Eliminar equipo");
     await fetchEquipos();
   };
 

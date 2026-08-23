@@ -5,12 +5,16 @@ import { useSectores } from "../useSectores";
 import { useCuarteles } from "../useCuarteles";
 import { supabase } from "../../lib/supabase";
 
-vi.mock("../../lib/supabase", () => ({
-  supabase: {
-    from: vi.fn(),
-    rpc: vi.fn(),
-  },
-}));
+vi.mock("../../lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib/supabase")>();
+  return {
+    ...actual, // conserva assertRowsAffected real, solo mockea el cliente
+    supabase: {
+      from: vi.fn(),
+      rpc: vi.fn(),
+    },
+  };
+});
 
 function resolve(data: any = [], error: any = null) {
   return Promise.resolve({ data, error });
@@ -20,8 +24,14 @@ function mockChain() {
   const chain: Record<string, any> = {};
   const r = (data = [], error = null) => resolve(data, error);
 
-  chain.eqAfterUpdate = vi.fn(() => r());
-  chain.eqAfterDelete = vi.fn(() => r());
+  // update()/delete() ahora piden .select() para poder detectar filas
+  // filtradas por RLS (ver assertRowsAffected en lib/supabase.ts) — por
+  // default devuelven una fila "afectada" para que los tests de éxito
+  // no fallen; los tests que quieran simular 0 filas pisan esto.
+  chain.selectAfterUpdate = vi.fn(() => r([{ id: "mock-id" }]));
+  chain.selectAfterDelete = vi.fn(() => r([{ id: "mock-id" }]));
+  chain.eqAfterUpdate = vi.fn(() => ({ select: chain.selectAfterUpdate, eq: chain.eqAfterUpdate }));
+  chain.eqAfterDelete = vi.fn(() => ({ select: chain.selectAfterDelete, eq: chain.eqAfterDelete }));
   chain.orderAfterSelect = vi.fn(() => r());
   chain.singleOnSelect = vi.fn(() => r());
   chain.inOnSelect = vi.fn(() => r());
