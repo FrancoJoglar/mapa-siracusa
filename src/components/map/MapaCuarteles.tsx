@@ -56,7 +56,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [showCuartelLabels, setShowCuartelLabels] = useState(false);
-  const [filtroPuntosEquipo, setFiltroPuntosEquipo] = useState<string>("todos");
+  const filtroPuntosEquipo = "todos"; // se muestran los puntos de todos los equipos (selector removido)
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<FiltrosAvanzadosState>({ sectoresSeleccionados: [] });
 
@@ -433,10 +433,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           <ToggleSubmatrices visible={mostrarSubmatrices} onToggle={() => setMostrarSubmatrices(!mostrarSubmatrices)} />
           <ToggleMatrices visible={mostrarMatrices} onToggle={() => setMostrarMatrices(!mostrarMatrices)} />
           <ToggleImpulsiones visible={mostrarImpulsiones} onToggle={() => setMostrarImpulsiones(!mostrarImpulsiones)} />
+          <ToggleAntenas visible={mostrarAntenas} onToggle={() => setMostrarAntenas(!mostrarAntenas)} />
+          <ToggleSondas visible={mostrarSondas} onToggle={() => setMostrarSondas(!mostrarSondas)} />
         </>}
-        <ToggleAntenas visible={mostrarAntenas} onToggle={() => setMostrarAntenas(!mostrarAntenas)} />
-        <ToggleSondas visible={mostrarSondas} onToggle={() => setMostrarSondas(!mostrarSondas)} />
-        <FiltroEquipos equipos={equipos} valor={filtroPuntosEquipo} onChange={setFiltroPuntosEquipo} />
         <ToggleMedir visible={medir} onToggle={() => setMedir(!medir)} />
         <ToggleCuartelLabels visible={showCuartelLabels} onToggle={() => setShowCuartelLabels(v => !v)} />
         <ExportMapImage
@@ -668,7 +667,7 @@ function ToggleImpulsiones({ visible, onToggle }: { visible: boolean; onToggle: 
 
 function ToggleAntenas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 460 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 454 }}>
       <div className="leaflet-control">
         <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }} style={{
           padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
@@ -681,7 +680,7 @@ function ToggleAntenas({ visible, onToggle }: { visible: boolean; onToggle: () =
 
 function ToggleSondas({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
-    <div className="leaflet-top leaflet-right" style={{ top: 494 }}>
+    <div className="leaflet-top leaflet-right" style={{ top: 488 }}>
       <div className="leaflet-control">
         <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }} style={{
           padding: "4px 10px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
@@ -700,24 +699,6 @@ function ToggleMedir({ visible, onToggle }: { visible: boolean; onToggle: () => 
           padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 500,
           background: visible ? "#2e7d32" : "white", color: visible ? "white" : "#333", border: "1px solid #ccc",
         }}>Medir</button>
-      </div>
-    </div>
-  );
-}
-
-function FiltroEquipos({ equipos, valor, onChange }: { equipos: any[]; valor: string; onChange: (v: string) => void }) {
-  return (
-    <div className="leaflet-top leaflet-right" style={{ top: 528 }}>
-      <div className="leaflet-control">
-        <select value={valor} onChange={(e) => { e.stopPropagation(); onChange(e.target.value); }} style={{
-          padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 500,
-          background: "white", color: "#333", border: "1px solid #ccc",
-        }}>
-          <option value="todos">🌐 Todos los equipos</option>
-          {equipos.map(eq => (
-            <option key={eq.id} value={eq.id}>Equipo {eq.codigo}</option>
-          ))}
-        </select>
       </div>
     </div>
   );
