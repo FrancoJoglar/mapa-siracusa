@@ -22,6 +22,7 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
   const [anio, setAnio] = useState(sector?.anio ?? 0);
   const [jefeCampo, setJefeCampo] = useState(sector?.jefe_campo || "");
   const [especie, setEspecie] = useState(sector?.especie || "");
+  const [variedad, setVariedad] = useState(sector?.variedad || "");
   const [precipitacion, setPrecipitacion] = useState(sector?.precipitacion ?? 0);
   const [eficiencia, setEficiencia] = useState(sector?.eficiencia ?? 0);
   const [distHilera, setDistHilera] = useState(sector?.dist_entre_hilera ?? 0);
@@ -46,7 +47,7 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
         caseta, bomba, filtro,
         anio: anio || null,
         jefe_campo: jefeCampo,
-        especie, descripcion,
+        especie, variedad, descripcion,
         precipitacion: precipitacion || null,
         eficiencia: eficiencia || null,
         dist_entre_hilera: distHilera || null,
@@ -97,6 +98,28 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
                 <option value="Avellano">Avellano</option>
                 <option value="Cerezo">Cerezo</option>
                 <option value="Kiwi">Kiwi</option>
+              </select>
+            </Campo>
+            <Campo label="Variedad">
+              <select value={variedad} onChange={e => setVariedad(e.target.value)} style={inputStyle}>
+                <option value="">Seleccionar...</option>
+                <optgroup label="Olivo">
+                  <option value="Arbequina">Arbequina</option>
+                  <option value="Arbosana">Arbosana</option>
+                  <option value="Korinenki">Korinenki</option>
+                </optgroup>
+                <optgroup label="Avellano">
+                  <option value="Giffoni">Giffoni</option>
+                </optgroup>
+                <optgroup label="Cerezo">
+                  <option value="Santina">Santina</option>
+                  <option value="Lapins">Lapins</option>
+                  <option value="Sweet Aryana">Sweet Aryana</option>
+                  <option value="Pacific Red">Pacific Red</option>
+                </optgroup>
+                <optgroup label="Kiwi">
+                  <option value="Hayward">Hayward</option>
+                </optgroup>
               </select>
             </Campo>
             <Campo label="Año de Plantacion"><input type="number" value={anio || ""} onChange={e => setAnio(Number(e.target.value))} style={inputStyle} /></Campo>

@@ -23,6 +23,7 @@ export interface Sector {
   anio: number | null;
   jefe_campo: string;
   especie: string;
+  variedad: string;
   precipitacion: number | null;
   eficiencia: number | null;
   dist_entre_hilera: number | null;
@@ -60,6 +61,7 @@ export interface SectorGeo {
   codigo: string;
   numero: number;
   especie: string;
+  variedad: string;
   equipo: string;
   hectareas: number | null;
   jefe_campo: string;

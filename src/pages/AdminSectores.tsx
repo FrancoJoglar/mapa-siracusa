@@ -107,7 +107,7 @@ export default function AdminSectores() {
             <tr>
               <th style={{ width: 30 }}></th>
               <th>Código</th><th>Equipo</th><th>N°</th><th>Has</th>
-              <th>Especie</th><th>Bomba</th><th>Filtro</th>
+              <th>Especie</th><th>Variedad</th><th>Bomba</th><th>Filtro</th>
               <th>Año de Plantacion</th><th>JC</th><th>m³/ha</th>
               <th style={{ width: 100 }}>Acciones</th>
             </tr>
@@ -125,7 +125,7 @@ export default function AdminSectores() {
                   </td>
                   <td><strong>{s.codigo}</strong></td>
                   <td>{getEquipoNombre(s.equipo_id)}</td><td>{s.numero}</td>
-                  <td>{s.hectareas ?? ""}</td><td>{s.especie}</td>
+                  <td>{s.hectareas ?? ""}</td><td>{s.especie}</td><td>{s.variedad ?? ""}</td>
                   <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{s.bomba}</td>
                   <td>{s.filtro}</td><td>{s.anio ?? ""}</td><td>{s.jefe_campo}</td>
                   <td>{s.m3_ha ?? ""}</td>
