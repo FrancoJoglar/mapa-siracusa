@@ -38,6 +38,9 @@ type LayerEntry = { layer: L.Path; baseStyle: L.PathOptions; kind: 'cuartel' | '
 type LayersMap = Map<string, LayerEntry>;
 
 export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unidades, equipos = [], tuberias = [], valvulas = [], antenas = [], sondas = [] }: Props) {
+  // Filtrar equipos inactivos
+  const equiposInactivos = useMemo(() => new Set(equipos.filter(e => e.activo === false).map(e => e.id)), [equipos]);
+
   const [filtros, setFiltros] = useState<FiltrosCuartel>(FILTROS_VACIOS);
   const [vista, setVista] = useState<Vista>("sectores");
   const [mostrarEdif, setMostrarEdif] = useState(true);
@@ -171,6 +174,16 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   }, [vista, filtros.equipo, sectores, cuarteles, uniqueSectores.sectores, uniqueCuarteles.sectores]);
 
   // ====== FILTERING ======
+  // Map sector equipo name to team active status
+  const sectorActivo = useMemo(() => {
+    const map = new Map<string, boolean>();
+    sectores.forEach(s => {
+      const eq = equipos.find(e => e.nombre === s.equipo);
+      map.set(s.id, eq ? (eq.activo ?? true) : true);
+    });
+    return map;
+  }, [sectores, equipos]);
+
   const filteredCuarteles = useMemo(() => {
     return cuarteles.filter(c => {
       if (filtros.especie && c.especie !== filtros.especie) return false;
@@ -180,13 +193,18 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.equipo && (!c.equipo_riego || !parts(c.equipo_riego).includes(filtros.equipo))) return false;
       if (filtros.sector && (!c.sector_raw || !parts(c.sector_raw).includes(filtros.sector))) return false;
       if (filtros.jefeCampo && c.jefe_campo !== filtros.jefeCampo) return false;
+      // Excluir cuarteles cuyos sectores son todos de equipos inactivos
+      if (c.sector_ids && c.sector_ids.length > 0) {
+        const tieneSectorActivo = c.sector_ids.some(sid => sectorActivo.get(sid) !== false);
+        if (!tieneSectorActivo) return false;
+      }
       // Advanced: if sectors selected, only show cuarteles belonging to those sectors
       if (advancedFilters.sectoresSeleccionados.length > 0) {
         if (!c.sector_ids?.some(sid => advancedFilters.sectoresSeleccionados.includes(sid))) return false;
       }
       return true;
     });
-  }, [cuarteles, filtros, advancedFilters]);
+  }, [cuarteles, filtros, advancedFilters, sectorActivo]);
 
   const filteredSectores = useMemo(() => {
     return sectores.filter(s => {
@@ -197,6 +215,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.equipo && s.equipo !== filtros.equipo) return false;
       if (filtros.sector && s.codigo !== filtros.sector) return false;
       if (filtros.jefeCampo && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jefeCampo))) return false;
+      // Excluir sectores de equipos inactivos
+      if (sectorActivo.get(s.id) === false) return false;
       // Advanced: if sectors selected, only show those sectors
       if (advancedFilters.sectoresSeleccionados.length > 0) {
         if (!advancedFilters.sectoresSeleccionados.includes(s.id)) return false;
@@ -257,8 +277,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
             : exportarCuartelesGeoJSON(filteredSectores as any, "siracusa_sectores")
         }
         {...(vista === "cuarteles"
-          ? { ...uniqueCuarteles, sectores: sectoresFiltradosPorEquipo }
-          : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo })}
+          ? { ...uniqueCuarteles, sectores: sectoresFiltradosPorEquipo, equipos: uniqueCuarteles.equipos.filter(eq => !equiposInactivos.has(equipos.find(e => String(e.codigo) === eq)?.id || "")) }
+          : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo, equipos: uniqueSectores.equipos.filter(eq => !equiposInactivos.has(equipos.find(e => String(e.codigo) === eq)?.id || "")) })}
         vista={vista}
         onOpenAdvanced={() => setShowAdvanced(true)}
         advancedActive={advancedFilters.sectoresSeleccionados.length > 0}
@@ -270,6 +290,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
         initialState={advancedFilters}
         sectores={sectores}
         cuarteles={cuarteles}
+        equipos={equipos}
       />
       <div style={{ flex: 1, position: "relative" }}>
         <MapContainer center={CENTRO_MAPA} zoom={ZOOM_INICIAL} zoomAnimation={false} style={{ height: "100%", width: "100%" }}>
@@ -545,7 +566,7 @@ function popupCuartelHtml(c: Cuartel, unidades: any[]): string {
     sectoresRow = `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500;vertical-align:top">Riego:</td><td style="padding:3px 0"><div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div></td></tr>`;
   }
 
-  return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${c.nombre}</h3><table style="width:100%">${r("Especie",c.especie)}${r("Variedad",c.variedad)}${r("Anio plantacion",c.anio_plantacion)}${supRow}${r("Jefe de campo",c.jefe_campo)}${r("Centro costo",c.centro_costo)}${r("Equipo riego",c.equipo_riego)}${sectoresRow}</table></div>`;
+  return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${c.nombre}</h3><table style="width:100%">${r("Especie",c.especie)}${r("Variedad",c.variedad)}${r("Anio plantacion",c.anio_plantacion)}${supRow}${r("Jefe de campo",c.jefe_campo)}${r("Centro costo",c.centro_costo)}${sectoresRow}</table></div>`;
 }
 
 function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equipos?: Equipo[], unidades?: any[]): string {

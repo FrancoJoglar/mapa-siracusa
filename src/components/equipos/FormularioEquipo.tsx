@@ -13,13 +13,14 @@ export default function FormularioEquipo({ equipo, onSave, onCancel }: Props) {
   const [descripcion, setDescripcion] = useState(equipo?.descripcion || "");
   const [caseta, setCaseta] = useState(equipo?.caseta || "");
   const [filtro, setFiltro] = useState(equipo?.filtro || "");
+  const [activo, setActivo] = useState(equipo?.activo ?? true);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave({ codigo, nombre, descripcion, caseta, filtro });
+      await onSave({ codigo, nombre, descripcion, caseta, filtro, activo });
     } finally {
       setSaving(false);
     }
@@ -69,6 +70,17 @@ export default function FormularioEquipo({ equipo, onSave, onCancel }: Props) {
           <div style={fieldStyle}>
             <label>Caseta</label>
             <input type="text" value={caseta} onChange={(e) => setCaseta(e.target.value)} style={inputStyle} />
+          </div>
+          <div style={{ ...fieldStyle, display: "flex", alignItems: "center", gap: 8 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={activo}
+                onChange={(e) => setActivo(e.target.checked)}
+                style={{ width: 16, height: 16 }}
+              />
+              Activo (se muestra en el mapa y filtros)
+            </label>
           </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button type="button" onClick={onCancel} style={btnCancelStyle}>

@@ -46,6 +46,7 @@ export default function AdminEquipos() {
       <table style={tableStyle}>
         <thead>
           <tr>
+            <th>Estado</th>
             <th>Código</th>
             <th>Nombre</th>
             <th>Descripción</th>
@@ -54,7 +55,7 @@ export default function AdminEquipos() {
         </thead>
         <tbody>
           {equipos.map((e) => (
-            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} onPuntos={() => setGeoRef({ codigo: 'Equipo ' + e.codigo, id: e.id })} onBombas={() => setBombasDe(e)} />
+            <FilaEquipo key={e.id} equipo={e} isAdmin={isAdmin} onEdit={() => { setEditing(e); setShowForm(true); }} onDelete={() => { if (confirm(`¿Eliminar ${e.nombre}?`)) deleteEquipo(e.id); }} onPuntos={() => setGeoRef({ codigo: 'Equipo ' + e.codigo, id: e.id })} onBombas={() => setBombasDe(e)} onToggleActivo={async () => { await updateEquipo(e.id, { activo: !e.activo }); }} />
           ))}
           {equipos.length === 0 && (
             <tr>
@@ -194,11 +195,24 @@ export default function AdminEquipos() {
   );
 }
 
-function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onPuntos, onBombas }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void; onPuntos: () => void; onBombas: () => void }) {
+function FilaEquipo({ equipo, isAdmin, onEdit, onDelete, onPuntos, onBombas, onToggleActivo }: { equipo: Equipo; isAdmin: boolean; onEdit: () => void; onDelete: () => void; onPuntos: () => void; onBombas: () => void; onToggleActivo: () => void }) {
+  const activo = equipo.activo ?? true;
   return (
-    <tr key={equipo.id}>
+    <tr key={equipo.id} style={{ opacity: activo ? 1 : 0.5 }}>
+      <td>
+        <button
+          onClick={onToggleActivo}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontSize: 18, padding: 0, lineHeight: 1,
+          }}
+          title={activo ? "Desactivar equipo" : "Activar equipo"}
+        >
+          {activo ? "🟢" : "🔴"}
+        </button>
+      </td>
       <td>{equipo.codigo}</td>
-      <td>{equipo.nombre}</td>
+      <td>{equipo.nombre}{!activo && <span style={{ color: "#c62828", fontSize: 11, marginLeft: 6, fontWeight: 600 }}>INACTIVO</span>}</td>
       <td>{equipo.descripcion}</td>
       <td>
         {isAdmin && <>

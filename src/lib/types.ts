@@ -9,6 +9,7 @@ export interface Equipo {
   bomba: string;
   filtro: string;
   plano_url?: string;
+  activo: boolean;
   created_at: string;
 }
 

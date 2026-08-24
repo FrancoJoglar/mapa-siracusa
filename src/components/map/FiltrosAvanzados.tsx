@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Cuartel, SectorGeo } from "../../lib/types";
+import { Cuartel, SectorGeo, Equipo } from "../../lib/types";
 
 export interface FiltrosAvanzadosState {
   sectoresSeleccionados: string[]; // IDs de sectores
@@ -12,24 +12,30 @@ interface Props {
   initialState: FiltrosAvanzadosState;
   sectores: SectorGeo[];
   cuarteles: Cuartel[];
+  equipos?: Equipo[];
 }
 
-export default function FiltrosAvanzados({ open, onClose, onApply, initialState, sectores, cuarteles }: Props) {
+export default function FiltrosAvanzados({ open, onClose, onApply, initialState, sectores, cuarteles, equipos: equiposData = [] }: Props) {
   const [local, setLocal] = useState<FiltrosAvanzadosState>(initialState);
   const [expandedEquipos, setExpandedEquipos] = useState<Set<string>>(new Set());
 
-  // Group sectors by equipo
+  // Filter sectors to only include those from active teams
+  const sectoresActivos = useMemo(() => {
+    const inactiveNames = new Set(equiposData.filter(e => e.activo === false).map(e => e.nombre));
+    return sectores.filter(s => !inactiveNames.has(s.equipo || ""));
+  }, [sectores, equiposData]);
+
+  // Group sectors by equipo (only active)
   const sectoresPorEquipo = useMemo(() => {
     const map = new Map<string, SectorGeo[]>();
-    sectores.forEach(s => {
+    sectoresActivos.forEach(s => {
       const eq = s.equipo || "Sin equipo";
       if (!map.has(eq)) map.set(eq, []);
       map.get(eq)!.push(s);
     });
-    // Sort sectors within each equipo by codigo
     map.forEach(arr => arr.sort((a, b) => a.codigo.localeCompare(b.codigo)));
     return map;
-  }, [sectores]);
+  }, [sectoresActivos]);
 
   // Get cuarteles for each sector
   const cuartelesPorSector = useMemo(() => {
@@ -43,7 +49,7 @@ export default function FiltrosAvanzados({ open, onClose, onApply, initialState,
     return map;
   }, [cuarteles]);
 
-  const equipos = useMemo(() => {
+  const nombresEquipos = useMemo(() => {
     return Array.from(sectoresPorEquipo.keys()).sort((a, b) => {
       const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
       const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
@@ -122,7 +128,7 @@ export default function FiltrosAvanzados({ open, onClose, onApply, initialState,
 
         {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 16px" }}>
-          {equipos.map(eq => {
+          {nombresEquipos.map(eq => {
             const sectors = sectoresPorEquipo.get(eq) || [];
             const selectedCount = sectors.filter(s => local.sectoresSeleccionados.includes(s.id)).length;
             const allSelected = selectedCount === sectors.length;
