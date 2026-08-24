@@ -106,7 +106,7 @@ export default function AdminSectores() {
           <thead>
             <tr>
               <th style={{ width: 30 }}></th>
-              <th>Código</th><th>Equipo</th><th>N°</th><th>Has</th>
+              <th>Código</th><th>Equipo</th><th>N°</th><th>Has</th><th>Caudal (m³/h)</th>
               <th>Especie</th><th>Variedad</th><th>Bomba</th><th>Filtro</th>
               <th>Año de Plantacion</th><th>JC</th><th>m³/ha</th>
               <th style={{ width: 100 }}>Acciones</th>
@@ -125,7 +125,8 @@ export default function AdminSectores() {
                   </td>
                   <td><strong>{s.codigo}</strong></td>
                   <td>{getEquipoNombre(s.equipo_id)}</td><td>{s.numero}</td>
-                  <td>{s.hectareas ?? ""}</td><td>{s.especie}</td><td>{s.variedad ?? ""}</td>
+                  <td>{s.hectareas ?? ""}</td><td>{s.caudal_nominal ?? ""}</td>
+                  <td>{s.especie}</td><td>{s.variedad ?? ""}</td>
                   <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{s.equipo?.bomba ?? ""}</td>
                   <td>{s.equipo?.filtro ?? ""}</td><td>{s.anio ?? ""}</td><td>{s.jefe_campo}</td>
                   <td>{s.m3_ha ?? ""}</td>
@@ -137,7 +138,7 @@ export default function AdminSectores() {
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td colSpan={13} style={{ padding: "8px 16px 12px 40px", background: "#fafafa", borderBottom: "1px solid #eee" }}>
+                    <td colSpan={14} style={{ padding: "8px 16px 12px 40px", background: "#fafafa", borderBottom: "1px solid #eee" }}>
                       <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "#555" }}>
                         Cuarteles que riega ({s.codigo})
                       </div>
@@ -175,7 +176,7 @@ export default function AdminSectores() {
               );
             })}
             {filtered.length === 0 && (
-              <tr><td colSpan={13} style={{ textAlign: "center", color: "#999" }}>Sin resultados.</td></tr>
+              <tr><td colSpan={14} style={{ textAlign: "center", color: "#999" }}>Sin resultados.</td></tr>
             )}
           </tbody>
         </table>
