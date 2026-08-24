@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Cuartel, Sector } from "../../lib/types";
+import { supabase } from "../../lib/supabase";
 import EditorGeometria from "../ui/EditorGeometria";
 
 interface Props {
@@ -26,9 +27,27 @@ export default function FormularioCuartel({
   const [jefeCampo, setJefeCampo] = useState(cuartel.jefe_campo || "");
   const [centroCosto, setCentroCosto] = useState(cuartel.centro_costo || "");
   const [sectorIds, setSectorIds] = useState<string[]>(cuartel.sector_ids || []);
+  const [sectorPcts, setSectorPcts] = useState<Record<string, number>>({});
   const [searchText, setSearchText] = useState("");
   const [saving, setSaving] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+
+  // Load existing percentages
+  useEffect(() => {
+    if (!cuartel.id) return;
+    supabase
+      .from("cuartel_sector")
+      .select("sector_id, porcentaje_agua")
+      .eq("cuartel_id", cuartel.id)
+      .then(({ data }) => {
+        if (!data) return;
+        const pcts: Record<string, number> = {};
+        data.forEach((r: any) => {
+          if (r.porcentaje_agua != null) pcts[r.sector_id] = r.porcentaje_agua;
+        });
+        setSectorPcts(pcts);
+      });
+  }, [cuartel.id]);
 
   const sectoresDisponibles = useMemo(() => {
     return sectores.filter(s => !sectorIds.includes(s.id));
@@ -49,11 +68,17 @@ export default function FormularioCuartel({
 
   const agregarSector = (id: string) => {
     setSectorIds(prev => [...prev, id]);
+    setSectorPcts(prev => ({ ...prev, [id]: prev[id] ?? 100 }));
     setSearchText("");
   };
 
   const removerSector = (id: string) => {
     setSectorIds(prev => prev.filter(x => x !== id));
+    setSectorPcts(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,6 +95,7 @@ export default function FormularioCuartel({
         jefe_campo: jefeCampo,
         centro_costo: centroCosto,
         sector_ids: sectorIds,
+        sector_pcts: sectorPcts,
       };
       console.log("FormularioCuartel saveData:", saveData);
       await onSave(saveData);
@@ -77,6 +103,8 @@ export default function FormularioCuartel({
       setSaving(false);
     }
   };
+
+  const totalPct = sectorIds.reduce((sum, id) => sum + (sectorPcts[id] ?? 0), 0);
 
   return (
     <div style={overlayStyle}>
@@ -164,7 +192,7 @@ export default function FormularioCuartel({
             />
           </Campo>
 
-          <Campo label="Sectores de Riego">
+          <Campo label="Sectores de Riego y Porcentaje de Agua">
             <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
               <input
                 type="text"
@@ -209,10 +237,30 @@ export default function FormularioCuartel({
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {sectoresAsignados.map(s => (
                   <div key={s.id} style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    display: "flex", alignItems: "center", gap: 8,
                     padding: "5px 10px", background: "#e8f5e9", borderRadius: 4, fontSize: 13,
                   }}>
-                    <span><strong>{s.codigo}</strong>{s.descripcion ? ` — ${s.descripcion}` : ""}</span>
+                    <strong style={{ minWidth: 60 }}>{s.codigo}</strong>
+                    <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+                      <span style={{ color: "#666" }}>% Riego:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={sectorPcts[s.id] ?? ""}
+                        onChange={(e) => setSectorPcts(prev => ({
+                          ...prev,
+                          [s.id]: e.target.value === "" ? 0 : Number(e.target.value),
+                        }))}
+                        style={{
+                          width: 60, padding: "3px 6px", border: "1px solid #ccc",
+                          borderRadius: 4, fontSize: 12, textAlign: "center",
+                        }}
+                      />
+                      <span style={{ color: "#999" }}>%</span>
+                    </label>
+                    <div style={{ flex: 1 }} />
                     <button type="button" onClick={() => removerSector(s.id)}
                       style={{
                         background: "none", border: "none", color: "#c62828",
@@ -222,6 +270,9 @@ export default function FormularioCuartel({
                     >×</button>
                   </div>
                 ))}
+                <div style={{ fontSize: 11, color: totalPct === 100 ? "#2e7d32" : totalPct > 100 ? "#c62828" : "#e65100", fontWeight: 500, marginTop: 4 }}>
+                  Total: {totalPct}%
+                </div>
               </div>
             )}
             {sectorIds.length === 0 && (

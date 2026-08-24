@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Equipo, Sector } from "../../lib/types";
+import { supabase } from "../../lib/supabase";
 import EditorGeometria from "../ui/EditorGeometria";
 import { useBombas, useSectorBombas } from "../../hooks/useBombas";
 import type { Feature } from "geojson";
@@ -45,6 +46,34 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
     setSeleccion(base.includes(id) ? base.filter((x) => x !== id) : [...base, id]);
   };
 
+  // Cuarteles que riega este sector con porcentajes
+  const [cuartelesSector, setCuartelesSector] = useState<Array<{ id: string; nombre: string; porcentaje_agua: number | null }>>([]);
+  const [cuartelPcts, setCuartelPcts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!sector?.id) return;
+    supabase
+      .from("cuartel_sector")
+      .select("cuartel_id, porcentaje_agua, cuarteles(nombre)")
+      .eq("sector_id", sector.id)
+      .then(({ data }) => {
+        if (!data) return;
+        const items = data.map((r: any) => ({
+          id: r.cuartel_id,
+          nombre: r.cuarteles?.nombre || "Desconocido",
+          porcentaje_agua: r.porcentaje_agua,
+        }));
+        setCuartelesSector(items);
+        const pcts: Record<string, number> = {};
+        items.forEach((item) => {
+          if (item.porcentaje_agua != null) pcts[item.id] = item.porcentaje_agua;
+        });
+        setCuartelPcts(pcts);
+      });
+  }, [sector?.id]);
+
+  const totalCuartelPct = cuartelesSector.reduce((sum, c) => sum + (cuartelPcts[c.id] ?? 0), 0);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -69,6 +98,19 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
       // La relacion N:N solo se puede guardar sobre un sector existente
       if (sector?.id && seleccion !== null) {
         await guardarSectorBombas(sector.id, seleccion);
+      }
+      // Guardar porcentajes de riego por cuartel
+      if (sector?.id) {
+        for (const c of cuartelesSector) {
+          const pct = cuartelPcts[c.id];
+          if (pct != null) {
+            await supabase
+              .from("cuartel_sector")
+              .update({ porcentaje_agua: pct })
+              .eq("sector_id", sector.id)
+              .eq("cuartel_id", c.id);
+          }
+        }
       }
     } catch (err) {
       alert("Error: " + (err instanceof Error ? err.message : String(err)));
@@ -175,6 +217,43 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
                 </Campo>
                 <Campo label=""><span style={{ fontSize: 11, color: "#888" }}>{bombasSel.length} bomba(s) seleccionada(s)</span></Campo>
               </Row>
+            </>
+          )}
+          {sector?.id && cuartelesSector.length > 0 && (
+            <>
+              <h4 style={{ margin: "16px 0 8px", fontSize: 13, color: "#555" }}>Porcentaje de Agua por Cuartel</h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
+                {cuartelesSector.map(c => (
+                  <div key={c.id} style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "5px 10px", background: "#f5f5f5", borderRadius: 4, fontSize: 13,
+                  }}>
+                    <strong style={{ minWidth: 60 }}>{c.nombre}</strong>
+                    <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+                      <span style={{ color: "#666" }}>% Riego:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={cuartelPcts[c.id] ?? ""}
+                        onChange={(e) => setCuartelPcts(prev => ({
+                          ...prev,
+                          [c.id]: e.target.value === "" ? 0 : Number(e.target.value),
+                        }))}
+                        style={{
+                          width: 60, padding: "3px 6px", border: "1px solid #ccc",
+                          borderRadius: 4, fontSize: 12, textAlign: "center",
+                        }}
+                      />
+                      <span style={{ color: "#999" }}>%</span>
+                    </label>
+                  </div>
+                ))}
+                <div style={{ fontSize: 11, color: totalCuartelPct === 100 ? "#2e7d32" : totalCuartelPct > 100 ? "#c62828" : "#e65100", fontWeight: 500, marginTop: 4 }}>
+                  Total: {totalCuartelPct}%
+                </div>
+              </div>
             </>
           )}
           <Row>
