@@ -532,14 +532,15 @@ function popupCuartelHtml(c: Cuartel, unidades: any[]): string {
 
   // Sectores que lo riegan con porcentajes
   const sectoresRiego = unidades
-    .filter(u => u.cuartel_id === c.id && u.porcentaje_agua)
+    .filter(u => u.cuartel_id === c.id && u.porcentaje_agua != null)
     .sort((a: any, b: any) => b.porcentaje_agua - a.porcentaje_agua);
   let sectoresRow = "";
   if (sectoresRiego.length > 0) {
     const chips = sectoresRiego.map((u: any) => {
-      const bg = u.porcentaje_agua >= 80 ? "#e8f5e9" : u.porcentaje_agua >= 40 ? "#fff3e0" : "#fce4ec";
-      const border = u.porcentaje_agua >= 80 ? "#a5d6a7" : u.porcentaje_agua >= 40 ? "#ffcc80" : "#f48fb1";
-      return `<span style="background:${bg};border:1px solid ${border};border-radius:6px;padding:2px 6px;font-size:11px;white-space:nowrap">${u.sector_codigo} (${u.porcentaje_agua}%)</span>`;
+      const pct = u.porcentaje_agua;
+      const bg = pct >= 80 ? "#e8f5e9" : pct >= 40 ? "#fff3e0" : "#fce4ec";
+      const border = pct >= 80 ? "#a5d6a7" : pct >= 40 ? "#ffcc80" : "#f48fb1";
+      return `<span style="background:${bg};border:1px solid ${border};border-radius:6px;padding:2px 6px;font-size:11px;white-space:nowrap">${u.sector_codigo} (${pct}%)</span>`;
     }).join(" ");
     sectoresRow = `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500;vertical-align:top">Riego:</td><td style="padding:3px 0"><div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div></td></tr>`;
   }
@@ -567,7 +568,7 @@ function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equipos?: Equipo[]
   let cuartelesRow = "";
   if (unidades && unidades.length > 0) {
     const csDelSector = unidades
-      .filter((u: any) => u.sector_id === s.id && u.porcentaje_agua)
+      .filter((u: any) => u.sector_id === s.id && u.porcentaje_agua != null)
       .sort((a: any, b: any) => b.porcentaje_agua - a.porcentaje_agua);
     if (csDelSector.length > 0) {
       const chips = csDelSector.map((u: any) => {
