@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, withJwtRetry } from "../lib/supabase";
 import { Cuartel, Edificacion, SectorGeo, UnidadRiego, Equipo, Tuberia, Valvula, Antena, Sonda } from "../lib/types";
 import MapaCuarteles from "../components/map/MapaCuarteles";
 import VisorPDF from "../components/ui/VisorPDF";
@@ -29,22 +29,28 @@ export default function MapaPage() {
       setLoading(true);
       setError(null);
       try {
-        const [cuartelesRes, edificacionesRes, sectoresRes, unidadesRes, equiposRes, tuberiasRes, valvulasRes, antenasRes, sondasRes] = await Promise.all([
-          supabase.rpc("get_cuarteles_con_sectores"),
-          supabase.rpc("get_edificaciones_geojson"),
-          supabase.rpc("get_sectores_geojson"),
-          supabase.rpc("get_unidades_riego_geojson"),
-          supabase.from("equipos").select("*").order("codigo"),
-          supabase.from("tuberias").select("*"),
-          supabase.from("valvulas").select("*"),
-          supabase.from("antenas").select("*"),
-          supabase.from("sondas").select("*"),
-        ]);
+        const data = await withJwtRetry(async () => {
+          const [cuartelesRes, edificacionesRes, sectoresRes, unidadesRes, equiposRes, tuberiasRes, valvulasRes, antenasRes, sondasRes] = await Promise.all([
+            supabase.rpc("get_cuarteles_con_sectores"),
+            supabase.rpc("get_edificaciones_geojson"),
+            supabase.rpc("get_sectores_geojson"),
+            supabase.rpc("get_unidades_riego_geojson"),
+            supabase.from("equipos").select("*").order("codigo"),
+            supabase.from("tuberias").select("*"),
+            supabase.from("valvulas").select("*"),
+            supabase.from("antenas").select("*"),
+            supabase.from("sondas").select("*"),
+          ]);
 
-        if (cuartelesRes.error) throw cuartelesRes.error;
-        if (edificacionesRes.error) throw edificacionesRes.error;
-        if (sectoresRes.error) throw sectoresRes.error;
-        if (unidadesRes.error) throw unidadesRes.error;
+          if (cuartelesRes.error) throw cuartelesRes.error;
+          if (edificacionesRes.error) throw edificacionesRes.error;
+          if (sectoresRes.error) throw sectoresRes.error;
+          if (unidadesRes.error) throw unidadesRes.error;
+
+          return { cuartelesRes, edificacionesRes, sectoresRes, unidadesRes, equiposRes, tuberiasRes, valvulasRes, antenasRes, sondasRes };
+        });
+
+        const { cuartelesRes, edificacionesRes, sectoresRes, unidadesRes, equiposRes, tuberiasRes, valvulasRes, antenasRes, sondasRes } = data;
 
         const parsedCuarteles: Cuartel[] = (cuartelesRes.data || []).map(
           (r: any) => ({

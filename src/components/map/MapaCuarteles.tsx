@@ -934,9 +934,33 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
 
       await new Promise(r => setTimeout(r, 500)); // asentar etiquetas y overlays
 
+      // Fix CSS transform before capture (known html2canvas + Leaflet issue)
+      const mapPane = container.querySelector(".leaflet-map-pane") as HTMLElement | null;
+      let originalTransform = "";
+      let originalLeft = "";
+      let originalTop = "";
+      if (mapPane) {
+        originalTransform = mapPane.style.transform;
+        originalLeft = mapPane.style.left;
+        originalTop = mapPane.style.top;
+        const match = originalTransform.match(/translate3d\(([^,]+),\s*([^,]+)/);
+        if (match) {
+          mapPane.style.transform = "none";
+          mapPane.style.left = match[1];
+          mapPane.style.top = match[2];
+        }
+      }
+
       // Captura (sin allowTaint: el canvas queda limpio y toDataURL no falla)
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(container, { useCORS: true, width: imgW, height: imgH, scale: 1, backgroundColor: "#000" });
+
+      // Restore transform
+      if (mapPane) {
+        mapPane.style.transform = originalTransform;
+        mapPane.style.left = originalLeft;
+        mapPane.style.top = originalTop;
+      }
 
       const link = document.createElement("a");
       link.download = "mapa_siracusa_" + vista + "_" + new Date().toISOString().slice(0, 10) + ".png";

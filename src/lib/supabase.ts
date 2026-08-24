@@ -9,8 +9,42 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(
   supabaseUrl || "",
-  supabaseAnonKey || ""
+  supabaseAnonKey || "",
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  }
 );
+
+/**
+ * Retry helper para errores JWT transitorios ("JWT issued at future").
+ * Ocurre cuando hay desfase de reloj entre el cliente y Supabase durante
+ * el refresh del token. Al recargar la sesión, se genera un token válido.
+ */
+export async function withJwtRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 2
+): Promise<T> {
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (e: any) {
+      const msg = e?.message || e?.error_description || "";
+      const isJwtError = msg.includes("JWT") || msg.includes("jwt") || msg.includes("issued at future");
+      if (isJwtError && i < maxRetries) {
+        console.warn(`JWT error (attempt ${i + 1}/${maxRetries + 1}), refreshing session...`);
+        await supabase.auth.getSession();
+        await new Promise(r => setTimeout(r, 500 * (i + 1)));
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
 
 /**
  * Cuando RLS filtra una fila (ej. un usuario sin permiso de admin intenta
