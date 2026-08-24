@@ -88,6 +88,19 @@ export function useCuarteles() {
     console.log("updateCuartel OK, sector_ids:", cuartel.sector_ids);
 
     if (cuartel.sector_ids !== undefined) {
+      // 1. Save existing percentages before RPC replaces them
+      const { data: existingCs } = await supabase
+        .from("cuartel_sector")
+        .select("sector_id, porcentaje_agua")
+        .eq("cuartel_id", id)
+        .not("porcentaje_agua", "is", null);
+      
+      const prevPercentages = new Map<string, number>();
+      (existingCs || []).forEach((r: any) => {
+        if (r.porcentaje_agua != null) prevPercentages.set(r.sector_id, r.porcentaje_agua);
+      });
+
+      // 2. Call RPC to replace sector associations
       const { data: rpcResult, error: rpcErr } = await supabase
         .rpc("set_cuartel_sectores", {
           p_cuartel_id: id,
@@ -95,6 +108,20 @@ export function useCuarteles() {
         });
       if (rpcErr) throw rpcErr;
       console.log("set_cuartel_sectores result:", rpcResult);
+
+      // 3. Restore percentages for sectors that still exist
+      if (prevPercentages.size > 0) {
+        for (const sectorId of cuartel.sector_ids) {
+          const pct = prevPercentages.get(sectorId);
+          if (pct != null) {
+            await supabase
+              .from("cuartel_sector")
+              .update({ porcentaje_agua: pct })
+              .eq("cuartel_id", id)
+              .eq("sector_id", sectorId);
+          }
+        }
+      }
     }
     await fetchCuarteles();
   };
