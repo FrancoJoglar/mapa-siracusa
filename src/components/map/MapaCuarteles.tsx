@@ -303,7 +303,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                 layer.setStyle(baseStyle);
                 if (c) {
                   registerLayer(fId, layer, baseStyle, 'cuartel');
-                  layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
+                  layer.bindPopup(popupCuartelHtml(c, unidades), { maxWidth: 300 });
                   layer.bindTooltip(c.nombre, showCuartelLabels
                     ? { direction: "center", permanent: true, className: "cuartel-label", opacity: 0.9 }
                     : { sticky: true, className: "cuartel-label" });
@@ -334,7 +334,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                   });
                   if (c) {
                     registerLayer(fId, layer, { color: "#999", weight: 0.8, fillOpacity: 0.05, opacity: 0.5, fillColor: "#fff" }, 'cuartel');
-                    layer.bindPopup(popupCuartelHtml(c), { maxWidth: 300 });
+                    layer.bindPopup(popupCuartelHtml(c, unidades), { maxWidth: 300 });
                     layer.bindTooltip(c.nombre, showCuartelLabels
                       ? { direction: "center", permanent: true, className: "cuartel-label", opacity: 0.7 }
                       : { sticky: true, className: "cuartel-label", opacity: 0.7 });
@@ -349,6 +349,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                 sectores={sectores}
                 cuarteles={cuarteles}
                 equipos={equipos}
+                unidades={unidades}
                 onFitBounds={setFitBounds}
                 registerLayer={registerLayer}
                 selectedRef={selectedRef}
@@ -450,11 +451,12 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
 }
 
 // ====== SECTORES LAYER ======
-function SectoresLayer({ data, sectores, cuarteles, equipos, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
+function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
   data: GeoJSON.FeatureCollection;
   sectores: SectorGeo[];
   cuarteles?: Cuartel[];
   equipos?: Equipo[];
+  unidades?: any[];
   onFitBounds: (b: L.LatLngBounds | null) => void;
   registerLayer: (id: string, layer: L.Path, baseStyle: L.PathOptions, kind?: 'cuartel' | 'sector') => void;
   selectedRef: React.MutableRefObject<string | null>;
@@ -492,7 +494,7 @@ function SectoresLayer({ data, sectores, cuarteles, equipos, onFitBounds, regist
         registerLayer(fId, layer, baseStyle, 'sector');
         if (s) {
           layer.bindTooltip(s.codigo, { sticky: true, className: "cuartel-tooltip", opacity: 0.9 });
-          layer.bindPopup(popupSectorHtml(s, cuarteles || [], equipos), { maxWidth: 300 });
+          layer.bindPopup(popupSectorHtml(s, cuarteles || [], equipos, unidades), { maxWidth: 300 });
         }
         layer.on("mouseover", () => setHighlighted(fId));
         layer.on("mouseout", () => setHighlighted(null));
@@ -514,7 +516,7 @@ function FlyToBounds({ bounds }: { bounds: L.LatLngBounds }) {
 }
 
 // ====== POPUP HTML ======
-function popupCuartelHtml(c: Cuartel): string {
+function popupCuartelHtml(c: Cuartel, unidades: any[]): string {
   const r = (l: string, v: any) => v ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">${l}:</td><td style="padding:3px 0">${v}</td></tr>` : "";
 
   // Calculate area from polygon geometry
@@ -528,10 +530,24 @@ function popupCuartelHtml(c: Cuartel): string {
   }
   const supRow = supText ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Superficie:</td><td style="padding:3px 0">${supText}</td></tr>` : "";
 
-  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${c.nombre}</h3><table style="width:100%">${r("Especie",c.especie)}${r("Variedad",c.variedad)}${r("Anio plantacion",c.anio_plantacion)}${supRow}${r("Jefe de campo",c.jefe_campo)}${r("Centro costo",c.centro_costo)}${r("Equipo riego",c.equipo_riego)}${r("Sectores",c.sector_raw)}</table></div>`;
+  // Sectores que lo riegan con porcentajes
+  const sectoresRiego = unidades
+    .filter(u => u.cuartel_id === c.id && u.porcentaje_agua)
+    .sort((a: any, b: any) => b.porcentaje_agua - a.porcentaje_agua);
+  let sectoresRow = "";
+  if (sectoresRiego.length > 0) {
+    const chips = sectoresRiego.map((u: any) => {
+      const bg = u.porcentaje_agua >= 80 ? "#e8f5e9" : u.porcentaje_agua >= 40 ? "#fff3e0" : "#fce4ec";
+      const border = u.porcentaje_agua >= 80 ? "#a5d6a7" : u.porcentaje_agua >= 40 ? "#ffcc80" : "#f48fb1";
+      return `<span style="background:${bg};border:1px solid ${border};border-radius:6px;padding:2px 6px;font-size:11px;white-space:nowrap">${u.sector_codigo} (${u.porcentaje_agua}%)</span>`;
+    }).join(" ");
+    sectoresRow = `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500;vertical-align:top">Riego:</td><td style="padding:3px 0"><div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div></td></tr>`;
+  }
+
+  return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${c.nombre}</h3><table style="width:100%">${r("Especie",c.especie)}${r("Variedad",c.variedad)}${r("Anio plantacion",c.anio_plantacion)}${supRow}${r("Jefe de campo",c.jefe_campo)}${r("Centro costo",c.centro_costo)}${r("Equipo riego",c.equipo_riego)}${sectoresRow}</table></div>`;
 }
 
-function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equipos?: Equipo[]): string {
+function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equipos?: Equipo[], unidades?: any[]): string {
   const r = (l: string, v: any) => v ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">${l}:</td><td style="padding:3px 0">${v}</td></tr>` : "";
 
   let haText = "";
@@ -547,7 +563,24 @@ function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equipos?: Equipo[]
   const eq = (equipos || []).find(e => e.nombre === s.equipo);
   const planoLink = eq?.plano_url ? `<tr><td colspan="2" style="padding:6px 0 0"><a href="#" onclick="window.__openPlano('${eq.plano_url}','${s.codigo}');return false" style="color:#1565c0;font-weight:600;text-decoration:none">📋 Ver Plano</a></td></tr>` : "";
 
-  return `<div style="min-width:200px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Año de Plantacion",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}${planoLink}</table></div>`;
+  // Cuarteles que riega este sector con porcentajes
+  let cuartelesRow = "";
+  if (unidades && unidades.length > 0) {
+    const csDelSector = unidades
+      .filter((u: any) => u.sector_id === s.id && u.porcentaje_agua)
+      .sort((a: any, b: any) => b.porcentaje_agua - a.porcentaje_agua);
+    if (csDelSector.length > 0) {
+      const chips = csDelSector.map((u: any) => {
+        const pct = u.porcentaje_agua;
+        const bg = pct >= 80 ? "#e8f5e9" : pct >= 40 ? "#fff3e0" : "#fce4ec";
+        const border = pct >= 80 ? "#a5d6a7" : pct >= 40 ? "#ffcc80" : "#f48fb1";
+        return `<span style="background:${bg};border:1px solid ${border};border-radius:6px;padding:3px 8px;font-size:12px;white-space:nowrap">${u.cuartel_nombre} (${pct}%)</span>`;
+      }).join(" ");
+      cuartelesRow = `<tr><td colspan="2" style="padding:8px 0 0"><div style="font-size:12px;color:#666;font-weight:500;margin-bottom:4px">Cuarteles que riega:</div><div style="display:flex;flex-wrap:wrap;gap:5px">${chips}</div></td></tr>`;
+    }
+  }
+
+  return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Año de Plantacion",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${r("Bomba",s.bomba)}${r("Filtro",s.filtro)}${cuartelesRow}${planoLink}</table></div>`;
 }
 
 // ====== CONTROLS ======
