@@ -64,19 +64,19 @@ export default function MapControls({
 
       {/* Panel */}
       {open && (
-        <div style={panelStyle}>
+        <div style={{ ...panelStyle, pointerEvents: "auto" }}>
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", borderBottom: "1px solid #eee" }}>
             <span style={{ fontWeight: 600, fontSize: 12 }}>Controles</span>
-            <button onClick={() => setOpen(false)} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 14, color: "#999" }}>✕</button>
+            <button onClick={(e) => { e.stopPropagation(); setOpen(false); }} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 14, color: "#999" }}>✕</button>
           </div>
 
           {/* Vista */}
           <div style={sectionStyle}>
             <div style={sectionTitle}>Vista</div>
             <div style={{ display: "flex", gap: 0, borderRadius: 4, overflow: "hidden", border: "1px solid #ccc" }}>
-              <button onClick={() => onVistaChange("cuarteles")} style={{ ...tabBtn, background: vista === "cuarteles" ? "#1565c0" : "#fff", color: vista === "cuarteles" ? "#fff" : "#333" }}>Cuarteles</button>
-              <button onClick={() => onVistaChange("sectores")} style={{ ...tabBtn, background: vista === "sectores" ? "#1565c0" : "#fff", color: vista === "sectores" ? "#fff" : "#333" }}>Sectores</button>
+            <button onClick={(e) => { e.stopPropagation(); onVistaChange("cuarteles"); }} style={{ ...tabBtn, background: vista === "cuarteles" ? "#1565c0" : "#fff", color: vista === "cuarteles" ? "#fff" : "#333" }}>Cuarteles</button>
+            <button onClick={(e) => { e.stopPropagation(); onVistaChange("sectores"); }} style={{ ...tabBtn, background: vista === "sectores" ? "#1565c0" : "#fff", color: vista === "sectores" ? "#fff" : "#333" }}>Sectores</button>
             </div>
           </div>
 
@@ -100,7 +100,7 @@ export default function MapControls({
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
               <Checkbox label="Equipos de Riego" checked={equiposActivo} onChange={onToggleEquipos} color="#37474f" />
               {equiposActivo && (
-                <button onClick={onToggleExpandido} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 10, color: "#666" }}>
+                <button onClick={(e) => { e.stopPropagation(); onToggleExpandido(); }} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 10, color: "#666" }}>
                   {equiposExpandido ? "▾" : "▸"}
                 </button>
               )}
@@ -124,8 +124,8 @@ export default function MapControls({
 
 function Checkbox({ label, checked, onChange, color, small }: { label: string; checked: boolean; onChange: () => void; color?: string; small?: boolean }) {
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: small ? "1px 0" : "2px 0", fontSize: small ? 11 : 12 }}>
-      <input type="checkbox" checked={checked} onChange={onChange} style={{ width: small ? 13 : 14, height: small ? 13 : 14, cursor: "pointer" }} />
+    <label onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: small ? "1px 0" : "2px 0", fontSize: small ? 11 : 12 }}>
+      <input type="checkbox" checked={checked} onChange={onChange} onClick={(e) => e.stopPropagation()} style={{ width: small ? 13 : 14, height: small ? 13 : 14, cursor: "pointer" }} />
       {color && <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />}
       {label}
     </label>
