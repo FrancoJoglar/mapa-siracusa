@@ -61,7 +61,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [showCuartelLabels, setShowCuartelLabels] = useState(false);
   const filtroPuntosEquipo = "todos"; // se muestran los puntos de todos los equipos (selector removido)
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [advancedFilters, setAdvancedFilters] = useState<FiltrosAvanzadosState>({ sectoresSeleccionados: [] });
+  const [advancedFilters, setAdvancedFilters] = useState<FiltrosAvanzadosState>({ modo: "sectores", sectoresSeleccionados: [], cuartelesSeleccionados: [] });
 
   const layersRef = useRef<LayersMap>(new Map());
   const selectedRef = useRef<string | null>(null);
@@ -198,9 +198,12 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
         const tieneSectorActivo = c.sector_ids.some(sid => sectorActivo.get(sid) !== false);
         if (!tieneSectorActivo) return false;
       }
-      // Advanced: if sectors selected, only show cuarteles belonging to those sectors
-      if (advancedFilters.sectoresSeleccionados.length > 0) {
+      // Advanced filters
+      if (advancedFilters.modo === "sectores" && advancedFilters.sectoresSeleccionados.length > 0) {
         if (!c.sector_ids?.some(sid => advancedFilters.sectoresSeleccionados.includes(sid))) return false;
+      }
+      if (advancedFilters.modo === "cuarteles" && advancedFilters.cuartelesSeleccionados.length > 0) {
+        if (!advancedFilters.cuartelesSeleccionados.includes(c.id)) return false;
       }
       return true;
     });
@@ -217,9 +220,14 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.jefeCampo && (!s.jefe_campo || !s.jefe_campo.includes(filtros.jefeCampo))) return false;
       // Excluir sectores de equipos inactivos
       if (sectorActivo.get(s.id) === false) return false;
-      // Advanced: if sectors selected, only show those sectors
-      if (advancedFilters.sectoresSeleccionados.length > 0) {
+      // Advanced: filter by selected sectors or cuarteles
+      if (advancedFilters.modo === "sectores" && advancedFilters.sectoresSeleccionados.length > 0) {
         if (!advancedFilters.sectoresSeleccionados.includes(s.id)) return false;
+      }
+      if (advancedFilters.modo === "cuarteles" && advancedFilters.cuartelesSeleccionados.length > 0) {
+        // In cuartel mode, only show sectors that irrigate at least one selected cuartel
+        const sectorHasSelectedCuartel = cuarteles.some(c => advancedFilters.cuartelesSeleccionados.includes(c.id) && c.sector_ids?.includes(s.id));
+        if (!sectorHasSelectedCuartel) return false;
       }
       return true;
     });
@@ -281,7 +289,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           : { ...uniqueSectores, sectores: sectoresFiltradosPorEquipo, equipos: uniqueSectores.equipos.filter(eq => !equiposInactivos.has(equipos.find(e => String(e.codigo) === eq)?.id || "")) })}
         vista={vista}
         onOpenAdvanced={() => setShowAdvanced(true)}
-        advancedActive={advancedFilters.sectoresSeleccionados.length > 0}
+        advancedActive={advancedFilters.modo === "sectores" ? advancedFilters.sectoresSeleccionados.length > 0 : advancedFilters.cuartelesSeleccionados.length > 0}
       />
       <FiltrosAvanzados
         open={showAdvanced}
@@ -290,6 +298,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
         initialState={advancedFilters}
         sectores={sectores}
         cuarteles={cuarteles}
+        unidades={unidades}
         equipos={equipos}
       />
       <div style={{ flex: 1, position: "relative" }}>
