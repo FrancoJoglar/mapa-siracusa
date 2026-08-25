@@ -57,7 +57,7 @@ export default function MapControls({
     <div className="leaflet-top leaflet-right" style={{ top: 10, zIndex: 1000 }}>
       {/* Toggle button */}
       {!open && (
-        <button onClick={() => setOpen(true)} style={toggleBtn} title="Mostrar controles">
+        <button onClick={(e) => { e.stopPropagation(); setOpen(true); }} style={{ ...toggleBtn, pointerEvents: "auto" }} title="Mostrar controles">
           ☰
         </button>
       )}
