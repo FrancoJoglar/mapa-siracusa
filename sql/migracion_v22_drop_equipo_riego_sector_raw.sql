@@ -3,7 +3,9 @@
 -- Estos campos se reemplazan por la relacion cuartel_sector
 -- ============================================================
 
--- 1. Actualizar get_cuarteles_con_sectores para quitar los campos eliminados
+-- 1. Drop y recrear get_cuarteles_con_sectores (cambia la firma de retorno)
+DROP FUNCTION IF EXISTS get_cuarteles_con_sectores();
+
 CREATE OR REPLACE FUNCTION get_cuarteles_con_sectores()
 RETURNS TABLE(
   id UUID,
@@ -35,7 +37,9 @@ BEGIN
 END;
 $$;
 
--- 2. Actualizar set_cuartel_sectores para quitar la computacion de equipo_riego/sector_raw
+-- 2. Drop y recrear set_cuartel_sectores (cambia la firma de retorno)
+DROP FUNCTION IF EXISTS set_cuartel_sectores(UUID, UUID[]);
+
 CREATE OR REPLACE FUNCTION set_cuartel_sectores(
   p_cuartel_id UUID,
   p_sector_ids UUID[]
