@@ -45,7 +45,7 @@ export interface Bomba {
   modelo: string | null;
   potencia_hp: number | null;
   caudal_m3h: number | null;
-  funcion: "riego" | "helada";
+  funcion: "riego" | "helada" | "impulsion";
   orden: number | null;
   revisar: boolean;
   rodamientos: string | null;

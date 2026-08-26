@@ -99,8 +99,9 @@ export default function GestionBombas({ equipoId, equipoNombre, onClose }: Props
               <label style={lbl}>Potencia (HP)<input style={inp} type="number" step="0.1" value={draft.potencia_hp ?? ""} onChange={(e) => setDraft({ ...draft, potencia_hp: e.target.value ? Number(e.target.value) : null })} /></label>
               <label style={lbl}>Caudal (m³/h)<input style={inp} type="number" step="0.1" value={draft.caudal_m3h ?? ""} onChange={(e) => setDraft({ ...draft, caudal_m3h: e.target.value ? Number(e.target.value) : null })} /></label>
               <label style={lbl}>Función
-                <select style={inp} value={draft.funcion ?? "riego"} onChange={(e) => setDraft({ ...draft, funcion: e.target.value as "riego" | "helada" })}>
+                <select style={inp} value={draft.funcion ?? "riego"} onChange={(e) => setDraft({ ...draft, funcion: e.target.value as "riego" | "helada" | "impulsion" })}>
                   <option value="riego">Riego</option>
+                  <option value="impulsion">Impulsión</option>
                   <option value="helada">Control de heladas</option>
                 </select>
               </label>
