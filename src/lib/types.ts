@@ -48,6 +48,25 @@ export interface Bomba {
   funcion: "riego" | "helada";
   orden: number | null;
   revisar: boolean;
+  rodamientos: string | null;
+  sello_mecanico: string | null;
+  modelo_motor: string | null;
+  rodete: string | null;
+  tension: string | null;
+  presion: number | null;
+  created_at: string;
+}
+
+export interface Filtro {
+  id: string;
+  equipo_id: string;
+  tipo: string | null;
+  marca: string | null;
+  modelo: string | null;
+  valvulas_retrolavado: string | null;
+  cantidad_cuerpos: number | null;
+  controlador_retrolavado: string | null;
+  alimentacion_controlador: string | null;
   created_at: string;
 }
 

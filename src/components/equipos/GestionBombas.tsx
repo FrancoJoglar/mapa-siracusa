@@ -15,7 +15,7 @@ export default function GestionBombas({ equipoId, equipoNombre, onClose }: Props
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const nueva = () => setDraft({ funcion: "riego", marca: "", modelo: "", potencia_hp: null, caudal_m3h: null, orden: (bombas.length + 1) });
+  const nueva = () => setDraft({ funcion: "riego", marca: "", modelo: "", potencia_hp: null, caudal_m3h: null, orden: (bombas.length + 1), rodamientos: null, sello_mecanico: null, modelo_motor: null, rodete: null, tension: null, presion: null });
   const editar = (b: Bomba) => setDraft({ ...b });
 
   const guardar = async () => {
@@ -30,7 +30,13 @@ export default function GestionBombas({ equipoId, equipoNombre, onClose }: Props
         caudal_m3h: draft.caudal_m3h ?? null,
         funcion: (draft.funcion as "riego" | "helada") || "riego",
         orden: draft.orden ?? null,
-        revisar: false, // al guardar manualmente se considera verificada
+        revisar: false,
+        rodamientos: draft.rodamientos || null,
+        sello_mecanico: draft.sello_mecanico || null,
+        modelo_motor: draft.modelo_motor || null,
+        rodete: draft.rodete || null,
+        tension: draft.tension || null,
+        presion: draft.presion ?? null,
       };
       if (draft.id) await updateBomba(draft.id, payload);
       else await createBomba(payload as Omit<Bomba, "id" | "created_at">);
@@ -59,24 +65,25 @@ export default function GestionBombas({ equipoId, equipoNombre, onClose }: Props
             <thead>
               <tr>
                 <th style={th}>#</th><th style={th}>Marca</th><th style={th}>Modelo</th>
-                <th style={th}>HP</th><th style={th}>Caudal m³/h</th><th style={th}>Función</th>
-                <th style={th}></th><th style={th}></th>
+                <th style={th}>HP</th><th style={th}>Motor</th><th style={th}>Rodete</th>
+                <th style={th}>Función</th><th style={th}></th><th style={th}></th>
               </tr>
             </thead>
             <tbody>
               {bombas.map((b) => (
                 <tr key={b.id} style={{ background: b.revisar ? "#fbf3e2" : undefined }}>
                   <td style={td}>{b.orden ?? ""}</td>
-                  <td style={td}>{b.marca ?? "—"}</td>
+                  <td style={td}>{b.marca ?? "—"} {b.modelo ?? ""}</td>
                   <td style={td}>{b.modelo ?? "—"}</td>
                   <td style={td}>{b.potencia_hp ?? "—"}</td>
-                  <td style={td}>{b.caudal_m3h ?? "—"}</td>
+                  <td style={td}>{b.modelo_motor ?? "—"}</td>
+                  <td style={td}>{b.rodete ?? "—"}</td>
                   <td style={td}>{b.funcion === "helada" ? "❄ Helada" : "Riego"}</td>
                   <td style={td}><button onClick={() => editar(b)} style={btnSm}>Editar</button></td>
                   <td style={td}><button onClick={() => { if (confirm("¿Eliminar esta bomba?")) deleteBomba(b.id); }} style={{ ...btnSm, color: "#c62828" }}>✕</button></td>
                 </tr>
               ))}
-              {bombas.length === 0 && <tr><td colSpan={8} style={{ ...td, textAlign: "center", color: "#999" }}>Sin bombas cargadas.</td></tr>}
+              {bombas.length === 0 && <tr><td colSpan={9} style={{ ...td, textAlign: "center", color: "#999" }}>Sin bombas cargadas.</td></tr>}
             </tbody>
           </table>
         )}
@@ -98,6 +105,12 @@ export default function GestionBombas({ equipoId, equipoNombre, onClose }: Props
                 </select>
               </label>
               <label style={lbl}>Orden<input style={inp} type="number" value={draft.orden ?? ""} onChange={(e) => setDraft({ ...draft, orden: e.target.value ? Number(e.target.value) : null })} /></label>
+              <label style={lbl}>Modelo Motor<input style={inp} value={draft.modelo_motor ?? ""} onChange={(e) => setDraft({ ...draft, modelo_motor: e.target.value })} /></label>
+              <label style={lbl}>Rodete<input style={inp} value={draft.rodete ?? ""} onChange={(e) => setDraft({ ...draft, rodete: e.target.value })} /></label>
+              <label style={lbl}>Tensión<input style={inp} value={draft.tension ?? ""} onChange={(e) => setDraft({ ...draft, tension: e.target.value })} placeholder="380V, 220V…" /></label>
+              <label style={lbl}>Presión (bar)<input style={inp} type="number" step="0.1" value={draft.presion ?? ""} onChange={(e) => setDraft({ ...draft, presion: e.target.value ? Number(e.target.value) : null })} /></label>
+              <label style={lbl}>Rodamientos<input style={inp} value={draft.rodamientos ?? ""} onChange={(e) => setDraft({ ...draft, rodamientos: e.target.value })} /></label>
+              <label style={lbl}>Sello Mecánico<input style={inp} value={draft.sello_mecanico ?? ""} onChange={(e) => setDraft({ ...draft, sello_mecanico: e.target.value })} /></label>
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
               <button onClick={() => setDraft(null)} style={btnCancel}>Cancelar</button>
