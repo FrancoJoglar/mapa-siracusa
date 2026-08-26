@@ -455,7 +455,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                 }}
               />
               <SectoresLayer
-                key={filteredSectores.map(s => s.id).join('-') || 'empty'}
+                key={filteredSectores.map(s => s.id).join('-') + '-' + bombasMap.size + '-' + filtrosMap.size || 'empty'}
                 data={geoJsonSectores}
                 sectores={sectores}
                 cuarteles={cuarteles}
