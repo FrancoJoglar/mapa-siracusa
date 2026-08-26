@@ -3,6 +3,8 @@ import { Equipo, Sector } from "../../lib/types";
 import { supabase } from "../../lib/supabase";
 import EditorGeometria from "../ui/EditorGeometria";
 import { useBombas, useSectorBombas } from "../../hooks/useBombas";
+import { useFiltros } from "../../hooks/useFiltros";
+import { useSectorFiltros } from "../../hooks/useSectorFiltros";
 import type { Feature } from "geojson";
 
 interface Props {
@@ -44,6 +46,16 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
   const toggleBomba = (id: string) => {
     const base = seleccion ?? bombaIds;
     setSeleccion(base.includes(id) ? base.filter((x) => x !== id) : [...base, id]);
+  };
+
+  // Filtros del equipo seleccionado + los asignados al sector
+  const { filtros } = useFiltros(equipoId || undefined);
+  const { filtroIds, guardar: guardarSectorFiltros } = useSectorFiltros(sector?.id);
+  const [seleccionFiltros, setSeleccionFiltros] = useState<string[] | null>(null);
+  const filtrosSel = seleccionFiltros ?? filtroIds;
+  const toggleFiltro = (id: string) => {
+    const base = seleccionFiltros ?? filtroIds;
+    setSeleccionFiltros(base.includes(id) ? base.filter((x: string) => x !== id) : [...base, id]);
   };
 
   // Cuarteles que riega este sector con porcentajes
@@ -98,6 +110,10 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
       // La relacion N:N solo se puede guardar sobre un sector existente
       if (sector?.id && seleccion !== null) {
         await guardarSectorBombas(sector.id, seleccion);
+      }
+      // Guardar filtros asignados al sector
+      if (sector?.id && seleccionFiltros !== null) {
+        await guardarSectorFiltros(sector.id, seleccionFiltros);
       }
       // Guardar porcentajes de riego por cuartel
       if (sector?.id) {
@@ -219,6 +235,29 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
               </Row>
             </>
           )}
+
+          <h4 style={{ margin: "16px 0 8px", fontSize: 13, color: "#555" }}>Filtros de este sector</h4>
+          {!sector?.id ? (
+            <p style={{ fontSize: 12, color: "#888", margin: "0 0 8px" }}>Guardá el sector primero para poder asignarle filtros.</p>
+          ) : !equipoId ? (
+            <p style={{ fontSize: 12, color: "#888", margin: "0 0 8px" }}>Seleccioná un equipo para ver sus filtros.</p>
+          ) : filtros.length === 0 ? (
+            <p style={{ fontSize: 12, color: "#888", margin: "0 0 8px" }}>El equipo no tiene filtros cargados.</p>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+              {filtros.map((f) => {
+                const on = filtrosSel.includes(f.id);
+                const etiqueta = [f.marca, f.modelo].filter(Boolean).join(" ") + (f.tipo ? ` (${f.tipo})` : "");
+                return (
+                  <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, padding: "5px 10px", border: `1px solid ${on ? "#1565c0" : "#ccc"}`, borderRadius: 6, cursor: "pointer", background: on ? "#e8f0fe" : "#fff" }}>
+                    <input type="checkbox" checked={on} onChange={() => toggleFiltro(f.id)} />
+                    {etiqueta || "(sin datos)"}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
           {sector?.id && cuartelesSector.length > 0 && (
             <>
               <h4 style={{ margin: "16px 0 8px", fontSize: 13, color: "#555" }}>Porcentaje de Agua por Cuartel</h4>
