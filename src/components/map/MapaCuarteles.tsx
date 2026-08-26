@@ -12,6 +12,7 @@ import BuscadorCuartel from "./BuscadorCuartel";
 import { exportarCuarteles, exportarCuartelesGeoJSON } from "../../lib/export";
 import L from "leaflet";
 import * as turf from "@turf/turf";
+import { supabase } from "../../lib/supabase";
 
 const CENTRO_MAPA: [number, number] = [-35.14, -71.625];
 const ZOOM_INICIAL = 14;
@@ -62,6 +63,55 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [showCuartelLabels, setShowCuartelLabels] = useState(false);
   const filtroPuntosEquipo = "todos"; // se muestran los puntos de todos los equipos (selector removido)
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Pre-load bombas and filtros for popups
+  const [bombasMap, setBombasMap] = useState<Map<string, any[]>>(new Map());
+  const [filtrosMap, setFiltrosMap] = useState<Map<string, any[]>>(new Map());
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load sector_bombas + bombas
+        const sbRes = await supabase.from("sector_bombas").select("sector_id, bomba_id");
+        const bRes = await supabase.from("bombas").select("id, marca, modelo, potencia_hp, funcion");
+        if (sbRes.data && bRes.data) {
+          const bLookup = new Map<string, any>();
+          bRes.data.forEach((b: any) => bLookup.set(b.id, b));
+          const newMap = new Map<string, any[]>();
+          sbRes.data.forEach((sb: any) => {
+            const bomba = bLookup.get(sb.bomba_id);
+            if (bomba) {
+              const arr = newMap.get(sb.sector_id) || [];
+              arr.push(bomba);
+              newMap.set(sb.sector_id, arr);
+            }
+          });
+          setBombasMap(newMap);
+        }
+
+        // Load sector_filtros + filtros
+        const sfRes = await supabase.from("sector_filtros").select("sector_id, filtro_id");
+        const fRes = await supabase.from("filtros").select("id, tipo, marca, modelo");
+        if (sfRes.data && fRes.data) {
+          const fLookup = new Map<string, any>();
+          fRes.data.forEach((f: any) => fLookup.set(f.id, f));
+          const newFMap = new Map<string, any[]>();
+          sfRes.data.forEach((sf: any) => {
+            const filtro = fLookup.get(sf.filtro_id);
+            if (filtro) {
+              const arr = newFMap.get(sf.sector_id) || [];
+              arr.push(filtro);
+              newFMap.set(sf.sector_id, arr);
+            }
+          });
+          setFiltrosMap(newFMap);
+        }
+      } catch (e) {
+        console.error("Error loading bombas/filtros for popups:", e);
+      }
+    };
+    loadData();
+  }, []);
   const [advancedFilters, setAdvancedFilters] = useState<FiltrosAvanzadosState>({ modo: "sectores", sectoresSeleccionados: [], cuartelesSeleccionados: [] });
 
   const layersRef = useRef<LayersMap>(new Map());
@@ -411,6 +461,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                 cuarteles={cuarteles}
                 equipos={equipos}
                 unidades={unidades}
+                bombasMap={bombasMap}
+                filtrosMap={filtrosMap}
                 onFitBounds={setFitBounds}
                 registerLayer={registerLayer}
                 selectedRef={selectedRef}
@@ -526,13 +578,78 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   );
 }
 
-// ====== SECTORES LAYER ======
-function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
+// ====== POPUP FUNCTIONS (outside component for SectoresLayer access) ======
+function popupCuartelHtml(c: Cuartel, unidadesArr: any[]): string {
+  const r = (l: string, v: any) => v ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">${l}:</td><td style="padding:3px 0">${v}</td></tr>` : "";
+  let supText = "";
+  if (c.superficie_ha) supText = c.superficie_ha + " ha";
+  if (c.geojson?.geometry) {
+    try { const areaCalc = turf.area(c.geojson.geometry as any) / 10000; supText += (supText ? " (" : "") + areaCalc.toFixed(2) + " Ha Poligono" + (supText ? ")" : ""); } catch {}
+  }
+  const supRow = supText ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Superficie:</td><td style="padding:3px 0">${supText}</td></tr>` : "";
+  const sectoresRiego = unidadesArr.filter((u: any) => u.cuartel_id === c.id && u.porcentaje_agua != null).sort((a: any, b: any) => b.porcentaje_agua - a.porcentaje_agua);
+  let sectoresRow = "";
+  if (sectoresRiego.length > 0) {
+    const chips = sectoresRiego.map((u: any) => {
+      const pct = u.porcentaje_agua;
+      const bg = pct >= 80 ? "#e8f5e9" : pct >= 40 ? "#fff3e0" : "#fce4ec";
+      const border = pct >= 80 ? "#a5d6a7" : pct >= 40 ? "#ffcc80" : "#f48fb1";
+      return `<span style="background:${bg};border:1px solid ${border};border-radius:6px;padding:2px 6px;font-size:11px;white-space:nowrap">${u.sector_codigo} (${pct}%)</span>`;
+    }).join(" ");
+    sectoresRow = `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500;vertical-align:top">Riego:</td><td style="padding:3px 0"><div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div></td></tr>`;
+  }
+  return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${c.nombre}</h3><table style="width:100%">${r("Especie",c.especie)}${r("Variedad",c.variedad)}${r("Anio plantacion",c.anio_plantacion)}${supRow}${r("Jefe de campo",c.jefe_campo)}${r("Centro costo",c.centro_costo)}${sectoresRow}</table></div>`;
+}
+
+function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equiposArr?: Equipo[], unidadesArr?: any[], bombasSector?: any[], filtrosSector?: any[]): string {
+  const r = (l: string, v: any) => v ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">${l}:</td><td style="padding:3px 0">${v}</td></tr>` : "";
+  let haText = "";
+  if (s.hectareas) haText = s.hectareas + " ha";
+  if ((s as any).geojson?.geometry) {
+    try { const areaCalc = turf.area((s as any).geojson.geometry as any) / 10000; haText += (haText ? " (" : "") + areaCalc.toFixed(2) + " Ha Poligono" + (haText ? ")" : ""); } catch {}
+  }
+  const haRow = haText ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Hectareas:</td><td style="padding:3px 0">${haText}</td></tr>` : "";
+  const eq = (equiposArr || []).find(e => e.nombre === s.equipo);
+  const planoLink = eq?.plano_url ? `<tr><td colspan="2" style="padding:6px 0 0"><a href="#" onclick="window.__openPlano('${eq.plano_url}','${s.codigo}');return false" style="color:#1565c0;font-weight:600;text-decoration:none">📋 Ver Plano</a></td></tr>` : "";
+  let cuartelesRow = "";
+  if (unidadesArr && unidadesArr.length > 0) {
+    const csDelSector = unidadesArr.filter((u: any) => u.sector_id === s.id && u.porcentaje_agua != null).sort((a: any, b: any) => b.porcentaje_agua - a.porcentaje_agua);
+    if (csDelSector.length > 0) {
+      const chips = csDelSector.map((u: any) => {
+        const pct = u.porcentaje_agua;
+        const bg = pct >= 80 ? "#e8f5e9" : pct >= 40 ? "#fff3e0" : "#fce4ec";
+        const border = pct >= 80 ? "#a5d6a7" : pct >= 40 ? "#ffcc80" : "#f48fb1";
+        return `<span style="background:${bg};border:1px solid ${border};border-radius:6px;padding:3px 8px;font-size:12px;white-space:nowrap">${u.cuartel_nombre} (${pct}%)</span>`;
+      }).join(" ");
+      cuartelesRow = `<tr><td colspan="2" style="padding:8px 0 0"><div style="font-size:12px;color:#666;font-weight:500;margin-bottom:4px">Cuarteles que riega:</div><div style="display:flex;flex-wrap:wrap;gap:5px">${chips}</div></td></tr>`;
+    }
+  }
+  let bombasRow = "";
+  if (bombasSector && bombasSector.length > 0) {
+    const bombasList = bombasSector.map((b: any) => {
+      const desc = [b.marca, b.modelo].filter(Boolean).join(" ");
+      const hp = b.potencia_hp ? ` ${b.potencia_hp}HP` : "";
+      const func = b.funcion === "helada" ? " ❄" : "";
+      return `${desc}${hp}${func}`;
+    }).join(", ");
+    bombasRow = `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Bombas:</td><td style="padding:3px 0;font-size:12px">${bombasList}</td></tr>`;
+  }
+  let filtrosRow = "";
+  if (filtrosSector && filtrosSector.length > 0) {
+    const filtrosList = filtrosSector.map((f: any) => [f.marca, f.modelo].filter(Boolean).join(" ") + (f.tipo ? ` (${f.tipo})` : "")).join(", ");
+    filtrosRow = `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Filtros:</td><td style="padding:3px 0;font-size:12px">${filtrosList}</td></tr>`;
+  }
+  return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Año de Plantacion",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${bombasRow}${filtrosRow}${cuartelesRow}${planoLink}</table></div>`;
+}
+
+function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, bombasMap, filtrosMap, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
   data: GeoJSON.FeatureCollection;
   sectores: SectorGeo[];
   cuarteles?: Cuartel[];
   equipos?: Equipo[];
   unidades?: any[];
+  bombasMap: Map<string, any[]>;
+  filtrosMap: Map<string, any[]>;
   onFitBounds: (b: L.LatLngBounds | null) => void;
   registerLayer: (id: string, layer: L.Path, baseStyle: L.PathOptions, kind?: 'cuartel' | 'sector') => void;
   selectedRef: React.MutableRefObject<string | null>;
@@ -570,7 +687,7 @@ function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, onFitBoun
         registerLayer(fId, layer, baseStyle, 'sector');
         if (s) {
           layer.bindTooltip(s.codigo, { sticky: true, className: "cuartel-tooltip", opacity: 0.9 });
-          layer.bindPopup(popupSectorHtml(s, cuarteles || [], equipos, unidades), { maxWidth: 300 });
+          layer.bindPopup(popupSectorHtml(s, cuarteles || [], equipos, unidades, bombasMap.has(s.id) ? bombasMap.get(s.id) : undefined, filtrosMap.has(s.id) ? filtrosMap.get(s.id) : undefined), { maxWidth: 300 });
         }
         layer.on("mouseover", () => setHighlighted(fId));
         layer.on("mouseout", () => setHighlighted(null));
@@ -589,75 +706,6 @@ function FlyToBounds({ bounds }: { bounds: L.LatLngBounds }) {
     if (bounds?.isValid()) map.fitBounds(bounds, { padding: [80, 80], maxZoom: 16 });
   }, [bounds, map]);
   return null;
-}
-
-// ====== POPUP HTML ======
-function popupCuartelHtml(c: Cuartel, unidades: any[]): string {
-  const r = (l: string, v: any) => v ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">${l}:</td><td style="padding:3px 0">${v}</td></tr>` : "";
-
-  // Calculate area from polygon geometry
-  let supText = "";
-  if (c.superficie_ha) supText = c.superficie_ha + " ha";
-  if (c.geojson?.geometry) {
-    try {
-      const areaCalc = turf.area(c.geojson.geometry as any) / 10000;
-      supText += (supText ? " (" : "") + areaCalc.toFixed(2) + " Ha Poligono" + (supText ? ")" : "");
-    } catch {}
-  }
-  const supRow = supText ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Superficie:</td><td style="padding:3px 0">${supText}</td></tr>` : "";
-
-  // Sectores que lo riegan con porcentajes
-  const sectoresRiego = unidades
-    .filter(u => u.cuartel_id === c.id && u.porcentaje_agua != null)
-    .sort((a: any, b: any) => b.porcentaje_agua - a.porcentaje_agua);
-  let sectoresRow = "";
-  if (sectoresRiego.length > 0) {
-    const chips = sectoresRiego.map((u: any) => {
-      const pct = u.porcentaje_agua;
-      const bg = pct >= 80 ? "#e8f5e9" : pct >= 40 ? "#fff3e0" : "#fce4ec";
-      const border = pct >= 80 ? "#a5d6a7" : pct >= 40 ? "#ffcc80" : "#f48fb1";
-      return `<span style="background:${bg};border:1px solid ${border};border-radius:6px;padding:2px 6px;font-size:11px;white-space:nowrap">${u.sector_codigo} (${pct}%)</span>`;
-    }).join(" ");
-    sectoresRow = `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500;vertical-align:top">Riego:</td><td style="padding:3px 0"><div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div></td></tr>`;
-  }
-
-  return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${c.nombre}</h3><table style="width:100%">${r("Especie",c.especie)}${r("Variedad",c.variedad)}${r("Anio plantacion",c.anio_plantacion)}${supRow}${r("Jefe de campo",c.jefe_campo)}${r("Centro costo",c.centro_costo)}${sectoresRow}</table></div>`;
-}
-
-function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equipos?: Equipo[], unidades?: any[]): string {
-  const r = (l: string, v: any) => v ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">${l}:</td><td style="padding:3px 0">${v}</td></tr>` : "";
-
-  let haText = "";
-  if (s.hectareas) haText = s.hectareas + " ha";
-  if ((s as any).geojson?.geometry) {
-    try {
-      const areaCalc = turf.area((s as any).geojson.geometry as any) / 10000;
-      haText += (haText ? " (" : "") + areaCalc.toFixed(2) + " Ha Poligono" + (haText ? ")" : "");
-    } catch {}
-  }
-  const haRow = haText ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Hectareas:</td><td style="padding:3px 0">${haText}</td></tr>` : "";
-
-  const eq = (equipos || []).find(e => e.nombre === s.equipo);
-  const planoLink = eq?.plano_url ? `<tr><td colspan="2" style="padding:6px 0 0"><a href="#" onclick="window.__openPlano('${eq.plano_url}','${s.codigo}');return false" style="color:#1565c0;font-weight:600;text-decoration:none">📋 Ver Plano</a></td></tr>` : "";
-
-  // Cuarteles que riega este sector con porcentajes
-  let cuartelesRow = "";
-  if (unidades && unidades.length > 0) {
-    const csDelSector = unidades
-      .filter((u: any) => u.sector_id === s.id && u.porcentaje_agua != null)
-      .sort((a: any, b: any) => b.porcentaje_agua - a.porcentaje_agua);
-    if (csDelSector.length > 0) {
-      const chips = csDelSector.map((u: any) => {
-        const pct = u.porcentaje_agua;
-        const bg = pct >= 80 ? "#e8f5e9" : pct >= 40 ? "#fff3e0" : "#fce4ec";
-        const border = pct >= 80 ? "#a5d6a7" : pct >= 40 ? "#ffcc80" : "#f48fb1";
-        return `<span style="background:${bg};border:1px solid ${border};border-radius:6px;padding:3px 8px;font-size:12px;white-space:nowrap">${u.cuartel_nombre} (${pct}%)</span>`;
-      }).join(" ");
-      cuartelesRow = `<tr><td colspan="2" style="padding:8px 0 0"><div style="font-size:12px;color:#666;font-weight:500;margin-bottom:4px">Cuarteles que riega:</div><div style="display:flex;flex-wrap:wrap;gap:5px">${chips}</div></td></tr>`;
-    }
-  }
-
-  return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Año de Plantacion",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${cuartelesRow}${planoLink}</table></div>`;
 }
 
 // ====== CONTROLS (now in MapControls.tsx) ======
