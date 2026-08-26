@@ -19,14 +19,22 @@ export default function AdminCuarteles() {
     sectores.forEach(s => map.set(s.id, s.codigo));
     return map;
   }, [sectores]);
+
+  // Map sector_id → team number
+  const sectorIdToEquipo = useMemo(() => {
+    const map = new Map<string, string>();
+    sectores.forEach(s => {
+      const num = s.equipo?.codigo != null ? String(s.equipo.codigo) : "";
+      if (num) map.set(s.id, num);
+    });
+    return map;
+  }, [sectores]);
   const [editing, setEditing] = useState<Cuartel | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filtros, setFiltros] = useState({ equipo: "", especie: "", jc: "", variedad: "" });
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editUnidad, setEditUnidad] = useState<UnidadRiego | null>(null);
-
-  const parts = (raw: string) => raw.split('-').map(x => x.trim()).filter(Boolean);
 
   const handleNuevoCuartel = async () => {
     try {
@@ -39,7 +47,7 @@ export default function AdminCuarteles() {
           especie: "", variedad: "", anio_plantacion: null,
           superficie_ha: null, plantas: null, polinizante: "",
           jefe_campo: "", centro_costo: "",
-          equipo_riego: "", sector_raw: "", sector_ids: [],
+          sector_ids: [],
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -61,7 +69,10 @@ export default function AdminCuarteles() {
       if (c.especie) esp.add(c.especie);
       if (c.variedad) varSet.add(c.variedad);
       if (c.jefe_campo) jc.add(c.jefe_campo);
-      if (c.equipo_riego) parts(c.equipo_riego).forEach(n => eq.add(n));
+      c.sector_ids?.forEach(sid => {
+        const num = sectorIdToEquipo.get(sid);
+        if (num) eq.add(num);
+      });
     });
     return {
       equipos: Array.from(eq).sort((a: string, b: string) => Number(a) - Number(b)),
@@ -69,7 +80,7 @@ export default function AdminCuarteles() {
       jefes: Array.from(jc).sort(),
       variedades: Array.from(varSet).sort(),
     };
-  }, [cuarteles]);
+  }, [cuarteles, sectorIdToEquipo]);
 
   const filtered = useMemo(() => {
     return cuarteles.filter(c => {
@@ -77,10 +88,13 @@ export default function AdminCuarteles() {
     if (filtros.especie && c.especie !== filtros.especie) return false;
     if (filtros.variedad && c.variedad !== filtros.variedad) return false;
     if (filtros.jc && c.jefe_campo !== filtros.jc) return false;
-    if (filtros.equipo && (!c.equipo_riego || !parts(c.equipo_riego).includes(filtros.equipo))) return false;
+    if (filtros.equipo) {
+      const tieneEquipo = c.sector_ids?.some(sid => sectorIdToEquipo.get(sid) === filtros.equipo);
+      if (!tieneEquipo) return false;
+    }
     return true;
     });
-  }, [cuarteles, filtros, search]);
+  }, [cuarteles, filtros, search, sectorIdToEquipo]);
 
   const unidadesPorCuartel = useMemo(() => {
     const map = new Map<string, UnidadRiego[]>();

@@ -1,7 +1,30 @@
 import * as XLSX from "xlsx";
-import { Cuartel } from "./types";
+import { Cuartel, SectorGeo } from "./types";
 
-export function exportarCuarteles(cuarteles: Cuartel[], filename: string = "cuarteles_export") {
+function resolveEquipoRiego(c: Cuartel, sectores: SectorGeo[]): string {
+  if (!c.sector_ids?.length) return "";
+  const eqNums = new Set<string>();
+  c.sector_ids.forEach(sid => {
+    const sec = sectores.find(s => s.id === sid);
+    if (sec?.equipo) {
+      const num = sec.equipo.replace(/\D/g, "");
+      if (num) eqNums.add(num);
+    }
+  });
+  return Array.from(eqNums).sort((a, b) => Number(a) - Number(b)).join(" - ");
+}
+
+function resolveSectorRaw(c: Cuartel, sectores: SectorGeo[]): string {
+  if (!c.sector_ids?.length) return "";
+  const secNums = new Set<number>();
+  c.sector_ids.forEach(sid => {
+    const sec = sectores.find(s => s.id === sid);
+    if (sec?.numero != null) secNums.add(sec.numero);
+  });
+  return Array.from(secNums).sort((a, b) => a - b).join(" - ");
+}
+
+export function exportarCuarteles(cuarteles: Cuartel[], filename: string = "cuarteles_export", sectores?: SectorGeo[]) {
   const data = cuarteles.map((c) => ({
     Cuartel: c.nombre,
     Especie: c.especie,
@@ -12,8 +35,8 @@ export function exportarCuarteles(cuarteles: Cuartel[], filename: string = "cuar
     Polinizante: c.polinizante,
     "Jefe de Campo": c.jefe_campo,
     "Centro Costo": c.centro_costo,
-    "Equipo Riego": c.equipo_riego,
-    "Sector Riego": c.sector_raw,
+    "Equipo Riego": sectores ? resolveEquipoRiego(c, sectores) : "",
+    "Sector Riego": sectores ? resolveSectorRaw(c, sectores) : "",
   }));
 
   const ws = XLSX.utils.json_to_sheet(data);
@@ -35,7 +58,7 @@ export function exportarCuarteles(cuarteles: Cuartel[], filename: string = "cuar
   XLSX.writeFile(wb, `${filename}.xlsx`);
 }
 
-export function exportarCuartelesGeoJSON(cuarteles: Cuartel[], filename: string = "cuarteles_export") {
+export function exportarCuartelesGeoJSON(cuarteles: Cuartel[], filename: string = "cuarteles_export", sectores?: SectorGeo[]) {
   const features = cuarteles
     .filter((c) => c.geojson)
     .map((c) => ({
@@ -51,8 +74,8 @@ export function exportarCuartelesGeoJSON(cuarteles: Cuartel[], filename: string 
         polinizante: c.polinizante,
         jefe_campo: c.jefe_campo,
         centro_costo: c.centro_costo,
-        equipo_riego: c.equipo_riego,
-        sector_raw: c.sector_raw,
+        equipo_riego: sectores ? resolveEquipoRiego(c, sectores) : "",
+        sector_raw: sectores ? resolveSectorRaw(c, sectores) : "",
       },
     }));
 

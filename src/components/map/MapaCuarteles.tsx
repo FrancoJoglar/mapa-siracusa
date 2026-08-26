@@ -107,7 +107,6 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   };
 
   // ====== HELPERS ======
-  const parts = (raw: string) => raw.split('-').map(x => x.trim()).filter(Boolean);
   const numSort = (a: string, b: string) => {
     const na = parseInt(a.replace(/\D/g, ''), 10) || 0;
     const nb = parseInt(b.replace(/\D/g, ''), 10) || 0;
@@ -115,24 +114,42 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   };
 
   // ====== UNIQUE VALUES ======
+  // Helper: map sector_id → team number
+  const sectorIdToEquipo = useMemo(() => {
+    const map = new Map<string, string>();
+    sectores.forEach(s => {
+      const num = s.equipo?.replace(/\D/g, "") || "";
+      if (num) map.set(s.id, num);
+    });
+    return map;
+  }, [sectores]);
+
   const uniqueCuarteles = useMemo(() => {
     const e = new Set<string>(); const v = new Set<string>();
-    const eq = new Set<number>(); const s = new Set<number>();
+    const eq = new Set<string>(); const s = new Set<string>();
     const j = new Set<string>();
     cuarteles.forEach(c => {
       if (c.especie) e.add(c.especie);
       if (c.variedad) v.add(c.variedad);
-      if (c.equipo_riego) parts(c.equipo_riego).forEach(n => eq.add(Number(n)));
-      if (c.sector_raw) parts(c.sector_raw).forEach(n => s.add(Number(n)));
+      // Extract team numbers from sector_ids
+      c.sector_ids?.forEach(sid => {
+        const num = sectorIdToEquipo.get(sid);
+        if (num) eq.add(num);
+      });
+      // Extract sector numbers from sector_ids
+      c.sector_ids?.forEach(sid => {
+        const sector = sectores.find(s => s.id === sid);
+        if (sector?.numero != null) s.add(String(sector.numero));
+      });
       if (c.jefe_campo) j.add(c.jefe_campo);
     });
     return {
       especies: Array.from(e).sort(), variedades: Array.from(v).sort(),
-      equipos: Array.from(eq).sort((a, b) => a - b).map(String),
-      sectores: Array.from(s).sort((a, b) => a - b).map(String),
+      equipos: Array.from(eq).sort((a, b) => Number(a) - Number(b)),
+      sectores: Array.from(s).sort((a, b) => Number(a) - Number(b)),
       jefes: Array.from(j).sort(),
     };
-  }, [cuarteles]);
+  }, [cuarteles, sectorIdToEquipo, sectores]);
 
   const uniqueSectores = useMemo(() => {
     const e = new Set<string>(); const v = new Set<string>();
@@ -162,17 +179,21 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const sectoresFiltradosPorEquipo = useMemo(() => {
     if (vista === "sectores") {
       if (!filtros.equipo) return uniqueSectores.sectores;
-      return sectores.filter(s => s.equipo === filtros.equipo).map(s => s.codigo).sort(numSort);
+      return sectores.filter(s => s.equipo?.replace(/\D/g, "") === filtros.equipo).map(s => s.codigo).sort(numSort);
     }
     if (!filtros.equipo) return uniqueCuarteles.sectores;
     const nums = new Set<number>();
     cuarteles.forEach(c => {
-      if (c.equipo_riego && parts(c.equipo_riego).includes(filtros.equipo) && c.sector_raw) {
-        parts(c.sector_raw).forEach(n => nums.add(Number(n)));
+      const tieneEquipo = c.sector_ids?.some(sid => sectorIdToEquipo.get(sid) === filtros.equipo);
+      if (tieneEquipo) {
+        c.sector_ids?.forEach(sid => {
+          const sector = sectores.find(s => s.id === sid);
+          if (sector?.numero != null) nums.add(sector.numero);
+        });
       }
     });
     return Array.from(nums).sort((a, b) => a - b).map(String);
-  }, [vista, filtros.equipo, sectores, cuarteles, uniqueSectores.sectores, uniqueCuarteles.sectores]);
+  }, [vista, filtros.equipo, sectores, cuarteles, uniqueSectores.sectores, uniqueCuarteles.sectores, sectorIdToEquipo]);
 
   // ====== FILTERING ======
   // Map sector equipo name to team active status
@@ -191,8 +212,17 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       if (filtros.variedad && c.variedad !== filtros.variedad) return false;
       if (filtros.anioDesde && (!c.anio_plantacion || c.anio_plantacion < filtros.anioDesde)) return false;
       if (filtros.anioHasta && (!c.anio_plantacion || c.anio_plantacion > filtros.anioHasta)) return false;
-      if (filtros.equipo && (!c.equipo_riego || !parts(c.equipo_riego).includes(filtros.equipo))) return false;
-      if (filtros.sector && (!c.sector_raw || !parts(c.sector_raw).includes(filtros.sector))) return false;
+      if (filtros.equipo) {
+        const tieneEquipo = c.sector_ids?.some(sid => sectorIdToEquipo.get(sid) === filtros.equipo);
+        if (!tieneEquipo) return false;
+      }
+      if (filtros.sector) {
+        const sectorNums = c.sector_ids?.map(sid => {
+          const sec = sectores.find(s => s.id === sid);
+          return sec?.numero != null ? String(sec.numero) : null;
+        }).filter(Boolean) || [];
+        if (!sectorNums.includes(filtros.sector)) return false;
+      }
       if (filtros.jefeCampo && c.jefe_campo !== filtros.jefeCampo) return false;
       // Excluir cuarteles cuyos sectores son todos de equipos inactivos
       if (c.sector_ids && c.sector_ids.length > 0) {
@@ -277,13 +307,13 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
         totalSuperficie={superficieFiltrada}
         onExportExcel={() =>
           vista === "cuarteles"
-            ? exportarCuarteles(filteredCuarteles, "siracusa_cuarteles")
-            : exportarCuarteles(filteredSectores as any, "siracusa_sectores")
+            ? exportarCuarteles(filteredCuarteles, "siracusa_cuarteles", sectores)
+            : exportarCuarteles(filteredSectores as any, "siracusa_sectores", sectores)
         }
         onExportGeoJSON={() =>
           vista === "cuarteles"
-            ? exportarCuartelesGeoJSON(filteredCuarteles, "siracusa_cuarteles")
-            : exportarCuartelesGeoJSON(filteredSectores as any, "siracusa_sectores")
+            ? exportarCuartelesGeoJSON(filteredCuarteles, "siracusa_cuarteles", sectores)
+            : exportarCuartelesGeoJSON(filteredSectores as any, "siracusa_sectores", sectores)
         }
         {...(vista === "cuarteles"
           ? { ...uniqueCuarteles, sectores: sectoresFiltradosPorEquipo, equipos: uniqueCuarteles.equipos.filter(eq => !equiposInactivos.has(equipos.find(e => String(e.codigo) === eq)?.id || "")) }
