@@ -615,6 +615,8 @@ function popupCuartelHtml(c: Cuartel, unidadesArr: any[]): string {
 }
 
 function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equiposArr?: Equipo[], unidadesArr?: any[], bombasSector?: any[], filtrosSector?: any[]): string {
+  const sectorColors = ["#c62828", "#1565c0", "#2e7d32", "#f9a825", "#6a1b9a", "#795548", "#757575", "#b71c1c"];
+  const sectorColor = sectorColors[s.numero - 1] || "#333";
   const r = (l: string, v: any) => v ? `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">${l}:</td><td style="padding:3px 0">${v}</td></tr>` : "";
   let haText = "";
   if (s.hectareas) haText = s.hectareas + " ha";
@@ -652,7 +654,7 @@ function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equiposArr?: Equip
     const filtrosList = filtrosSector.map((f: any) => [f.marca, f.modelo].filter(Boolean).join(" ") + (f.tipo ? ` (${f.tipo})` : "")).join(", ");
     filtrosRow = `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500">Filtros:</td><td style="padding:3px 0;font-size:12px">${filtrosList}</td></tr>`;
   }
-  return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Año de Plantacion",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${bombasRow}${filtrosRow}${cuartelesRow}${planoLink}</table></div>`;
+  return `<div style="min-width:220px;font-size:13px"><div style="background:${sectorColor};color:#fff;padding:6px 10px;border-radius:6px 6px 0 0;margin:-1px -1px 0 -1px"><h3 style="margin:0;font-size:15px;font-weight:600">${s.codigo}</h3></div><div style="padding:6px 0"><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Año de Plantacion",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${bombasRow}${filtrosRow}${cuartelesRow}${planoLink}</table></div></div>`;
 }
 
 function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, bombasMap, filtrosMap, showLabels, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
