@@ -711,7 +711,18 @@ function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, bombasMap
         registerLayer(fId, layer, baseStyle, 'sector');
         if (s) {
           const sectorColor = ["#c62828", "#1565c0", "#2e7d32", "#f9a825", "#6a1b9a", "#795548", "#757575", "#b71c1c"][s.numero - 1] || "#333";
-          layer.bindTooltip(s.codigo, {
+          // Build tooltip: sector code + cuartel names
+          let tooltipText = s.codigo;
+          if (unidades && unidades.length > 0) {
+            const cuartsDelSector = unidades
+              .filter((u: any) => u.sector_id === s.id && u.porcentaje_agua != null)
+              .map((u: any) => u.cuartel_nombre);
+            const uniqueCuaris = [...new Set(cuartsDelSector)];
+            if (uniqueCuaris.length > 0) {
+              tooltipText += ` (${uniqueCuaris.join(", ")})`;
+            }
+          }
+          layer.bindTooltip(tooltipText, {
             permanent: showLabels,
             direction: "center",
             className: "cuartel-tooltip",
