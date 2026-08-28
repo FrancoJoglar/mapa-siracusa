@@ -150,11 +150,11 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           layer.setStyle({ ...baseStyle, fillOpacity: 0.08, opacity: 0.2, weight: 0.5, color: "#ccc" });
         }
       } else if (showCuartelLabels && kind === 'sector') {
-        // Apply sector number color when labels are active
+        // Apply sector border color when labels are active (keep fill color)
         const s = sectores.find(sec => sec.id === id);
         if (s) {
           const sectorColor = sectorColors[s.numero - 1] || "#333";
-          layer.setStyle({ ...baseStyle, fillColor: sectorColor, color: sectorColor, fillOpacity: 0.6 });
+          layer.setStyle({ ...baseStyle, color: sectorColor });
         } else {
           layer.setStyle(baseStyle);
         }
@@ -711,25 +711,27 @@ function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, bombasMap
         registerLayer(fId, layer, baseStyle, 'sector');
         if (s) {
           const sectorColor = ["#c62828", "#1565c0", "#2e7d32", "#f9a825", "#6a1b9a", "#795548", "#757575", "#b71c1c"][s.numero - 1] || "#333";
-          // Build tooltip: sector code + cuartel names
-          let tooltipText = s.codigo;
+          // Build tooltip: sector code (large) + cuartel names (small)
+          let cuartsHtml = "";
           if (unidades && unidades.length > 0) {
             const cuartsDelSector = unidades
               .filter((u: any) => u.sector_id === s.id && u.porcentaje_agua != null)
               .map((u: any) => u.cuartel_nombre);
             const uniqueCuaris = [...new Set(cuartsDelSector)];
             if (uniqueCuaris.length > 0) {
-              tooltipText += ` (${uniqueCuaris.join(", ")})`;
+              cuartsHtml = `<div style="font-size:11px;margin-top:2px;opacity:0.85">${uniqueCuaris.join(", ")}</div>`;
             }
           }
-          layer.bindTooltip(tooltipText, {
+          const tooltipHtml = `<div style="text-align:center;border:2px solid ${sectorColor};border-radius:6px;padding:4px 8px;background:rgba(255,255,255,0.95)"><div style="font-size:14px;font-weight:700;color:${sectorColor}">${s.codigo}</div>${cuartsHtml}</div>`;
+          
+          layer.bindTooltip(tooltipHtml, {
             permanent: showLabels,
             direction: "center",
-            className: "cuartel-tooltip",
+            className: "",
             opacity: showLabels ? 1 : 0.9,
           });
           if (showLabels) {
-            layer.setStyle({ ...layer.options, fillColor: sectorColor, color: sectorColor, fillOpacity: 0.6 });
+            layer.setStyle({ ...layer.options, color: sectorColor });
           }
           layer.bindPopup(popupSectorHtml(s, cuarteles || [], equipos, unidades, bombasMap.has(s.id) ? bombasMap.get(s.id) : undefined, filtrosMap.has(s.id) ? filtrosMap.get(s.id) : undefined), { maxWidth: 300 });
         }
