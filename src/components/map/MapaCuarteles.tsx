@@ -134,6 +134,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   // Unified painting: iterates all registered layers and applies correct style
   const pintarCapas = useCallback(() => {
     const isSectorSelected = selectedId && sectores.some(s => s.id === selectedId);
+    const sectorColors = ["#c62828", "#1565c0", "#2e7d32", "#f9a825", "#6a1b9a", "#795548", "#757575", "#b71c1c"];
 
     layersRef.current.forEach(({ layer, baseStyle, kind }, id) => {
       if (id === selectedId) {
@@ -148,11 +149,20 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
         } else {
           layer.setStyle({ ...baseStyle, fillOpacity: 0.08, opacity: 0.2, weight: 0.5, color: "#ccc" });
         }
+      } else if (showCuartelLabels && kind === 'sector') {
+        // Apply sector number color when labels are active
+        const s = sectores.find(sec => sec.id === id);
+        if (s) {
+          const sectorColor = sectorColors[s.numero - 1] || "#333";
+          layer.setStyle({ ...baseStyle, fillColor: sectorColor, color: sectorColor, fillOpacity: 0.6 });
+        } else {
+          layer.setStyle(baseStyle);
+        }
       } else {
         layer.setStyle(baseStyle);
       }
     });
-  }, [selectedId, highlightedId, sectores, cuarteles]);
+  }, [selectedId, highlightedId, sectores, cuarteles, showCuartelLabels]);
 
   useEffect(() => { pintarCapas(); }, [pintarCapas]);
 
