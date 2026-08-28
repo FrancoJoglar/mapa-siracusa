@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="32" fill="#1a237e"/>
+  <g transform="translate(30,30)">
+    <!-- Map pin -->
+    <circle cx="66" cy="50" r="24" fill="#4caf50" stroke="#fff" stroke-width="3"/>
+    <circle cx="66" cy="50" r="10" fill="#fff"/>
+    <!-- Grid lines -->
+    <line x1="20" y1="20" x2="100" y2="20" stroke="#4caf50" stroke-width="2" opacity="0.4"/>
+    <line x1="20" y1="50" x2="100" y2="50" stroke="#4caf50" stroke-width="2" opacity="0.4"/>
+    <line x1="20" y1="80" x2="100" y2="80" stroke="#4caf50" stroke-width="2" opacity="0.4"/>
+    <line x1="20" y1="20" x2="20" y2="80" stroke="#4caf50" stroke-width="2" opacity="0.4"/>
+    <line x1="50" y1="20" x2="50" y2="80" stroke="#4caf50" stroke-width="2" opacity="0.4"/>
+    <line x1="80" y1="20" x2="80" y2="80" stroke="#4caf50" stroke-width="2" opacity="0.4"/>
+    <line x1="112" y1="20" x2="112" y2="80" stroke="#4caf50" stroke-width="2" opacity="0.4"/>
+    <!-- Water drop -->
+    <path d="M100 95 Q100 115 85 115 Q70 115 70 95 Q70 80 85 70 Q100 80 100 95Z" fill="#2196f3" opacity="0.8"/>
+  </g>
+</svg>

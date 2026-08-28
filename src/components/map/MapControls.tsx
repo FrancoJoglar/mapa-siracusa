@@ -16,6 +16,10 @@ interface Props {
   onToggleMedir: () => void;
   showCuartelLabels: boolean;
   onToggleLabels: () => void;
+  // GPS
+  gpsPosition: { lat: number; lng: number } | null;
+  onGpsToggle: () => void;
+  gpsWatching: boolean;
   // Equipos
   equiposActivo: boolean;
   onToggleEquipos: () => void;
@@ -51,6 +55,7 @@ export default function MapControls({
   mostrarImpulsiones, onToggleImpulsiones,
   mostrarAntenas, onToggleAntenas,
   mostrarSondas, onToggleSondas,
+  onGpsToggle, gpsWatching,
   onExportImage,
 }: Props) {
   const [open, setOpen] = useState(true);
@@ -93,6 +98,11 @@ export default function MapControls({
           <div style={sectionStyle}>
             <div style={sectionTitle}>Herramientas</div>
             <Checkbox label="Satélite" checked={satelite} onChange={onToggleSatelite} color="#1565c0" />
+            <label onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "2px 0", fontSize: 12 }}>
+              <input type="checkbox" checked={gpsWatching} onChange={onGpsToggle} style={{ width: 14, height: 14, cursor: "pointer" }} />
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: gpsWatching ? "#4caf50" : "#ef5350", flexShrink: 0 }} />
+              Mi ubicación
+            </label>
             <Checkbox label="Medir" checked={medir} onChange={onToggleMedir} color="#2e7d32" />
             <Checkbox label="Nombres" checked={showCuartelLabels} onChange={onToggleLabels} color="#1565c0" />
           </div>

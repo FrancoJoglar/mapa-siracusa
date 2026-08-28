@@ -6,6 +6,7 @@ import AdminSectores from "./pages/AdminSectores";
 import AdminCuarteles from "./pages/AdminCuarteles";
 import RiegoPage from "./pages/RiegoPage";
 import LoginPage from "./pages/LoginPage";
+import { useState, useEffect } from "react";
 
 export default function App() {
   return (
@@ -17,6 +18,19 @@ export default function App() {
 
 function AppInner() {
   const { user, loading, signOut, isAdmin } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Close sidebar on route change in mobile
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
 
   if (loading) {
     return (
@@ -30,27 +44,51 @@ function AppInner() {
 
   return (
     <BrowserRouter>
-      <div style={{ display: "flex", height: "100vh" }}>
-        <nav style={navStyle}>
+      <div style={{ display: "flex", height: "100vh", position: "relative" }}>
+        {/* Mobile hamburger */}
+        {isMobile && (
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            style={{
+              position: "fixed", top: 10, left: 10, zIndex: 1100,
+              background: "#1a237e", color: "#fff", border: "none",
+              borderRadius: 8, padding: "8px 12px", fontSize: 18, cursor: "pointer",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+            }}
+          >
+            {sidebarOpen ? "✕" : "☰"}
+          </button>
+        )}
+
+        {/* Sidebar */}
+        <nav style={{
+          ...navStyle,
+          ...(isMobile ? {
+            position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 1050,
+            transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+            transition: "transform 0.3s ease",
+            width: 240,
+          } : {}),
+        }}>
           <h2 style={{ color: "#fff", fontSize: 15, margin: "0 0 16px", padding: "0 8px" }}>
             Siracusa 2025
           </h2>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 12, padding: "0 8px" }}>
             {user.email}
           </div>
-          <NavLink to="/" end style={linkStyle}>
+          <NavLink to="/" end style={linkStyle} onClick={() => isMobile && setSidebarOpen(false)}>
             Mapa
           </NavLink>
-          <NavLink to="/riego" style={linkStyle}>
+          <NavLink to="/riego" style={linkStyle} onClick={() => isMobile && setSidebarOpen(false)}>
             Riego
           </NavLink>
-          {isAdmin && <><NavLink to="/admin/equipos" style={linkStyle}>
+          {isAdmin && <><NavLink to="/admin/equipos" style={linkStyle} onClick={() => isMobile && setSidebarOpen(false)}>
             Equipos
           </NavLink>
-          <NavLink to="/admin/sectores" style={linkStyle}>
+          <NavLink to="/admin/sectores" style={linkStyle} onClick={() => isMobile && setSidebarOpen(false)}>
             Sectores
           </NavLink>
-          <NavLink to="/admin/cuarteles" style={linkStyle}>
+          <NavLink to="/admin/cuarteles" style={linkStyle} onClick={() => isMobile && setSidebarOpen(false)}>
             Cuarteles
           </NavLink></>}
           <div style={{ flex: 1 }} />
@@ -62,6 +100,18 @@ function AppInner() {
             Cerrar sesión
           </button>
         </nav>
+
+        {/* Backdrop for mobile sidebar */}
+        {isMobile && sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+              zIndex: 1040,
+            }}
+          />
+        )}
+
         <main style={{ flex: 1, overflow: "auto" }}>
           <Routes>
             <Route path="/" element={<MapaPage />} />

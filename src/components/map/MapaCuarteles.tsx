@@ -13,6 +13,7 @@ import { exportarCuarteles, exportarCuartelesGeoJSON } from "../../lib/export";
 import L from "leaflet";
 import * as turf from "@turf/turf";
 import { supabase } from "../../lib/supabase";
+import { useGeolocation } from "../../hooks/useGeolocation";
 
 const CENTRO_MAPA: [number, number] = [-35.14, -71.625];
 const ZOOM_INICIAL = 14;
@@ -113,6 +114,13 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
     loadData();
   }, []);
   const [advancedFilters, setAdvancedFilters] = useState<FiltrosAvanzadosState>({ modo: "sectores", sectoresSeleccionados: [], cuartelesSeleccionados: [] });
+
+  // GPS
+  const { position: gpsPosition, watching: gpsWatching, startWatching, stopWatching } = useGeolocation();
+  const handleGpsToggle = () => {
+    if (gpsWatching) { stopWatching(); }
+    else { startWatching(); }
+  };
 
   const layersRef = useRef<LayersMap>(new Map());
   const selectedRef = useRef<string | null>(null);
@@ -394,6 +402,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
             }
           />
           <MapClickHandler onDeselect={() => setSelectedId(null)} />
+          {gpsPosition && <GpsMarker position={gpsPosition} />}
           {medir && <MedirControls />}
 
           {vista === "cuarteles" && (
@@ -566,6 +575,9 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           onToggleAntenas={() => setMostrarAntenas(!mostrarAntenas)}
           mostrarSondas={mostrarSondas}
           onToggleSondas={() => setMostrarSondas(!mostrarSondas)}
+          gpsPosition={gpsPosition}
+          onGpsToggle={handleGpsToggle}
+          gpsWatching={gpsWatching}
         />
         <ExportMapImage
           filteredCuarteles={filteredCuarteles}
@@ -972,6 +984,29 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
 
 
 
+
+function GpsMarker({ position }: { position: { lat: number; lng: number } }) {
+  const map = useMap();
+  useEffect(() => {
+    const marker = L.circleMarker([position.lat, position.lng], {
+      radius: 10,
+      color: "#1565c0",
+      fillColor: "#42a5f5",
+      fillOpacity: 0.8,
+      weight: 3,
+    }).addTo(map);
+    const accuracy = L.circle([position.lat, position.lng], {
+      radius: 50,
+      color: "#1565c0",
+      fillColor: "#42a5f5",
+      fillOpacity: 0.1,
+      weight: 1,
+    }).addTo(map);
+    map.flyTo([position.lat, position.lng], 16);
+    return () => { map.removeLayer(marker); map.removeLayer(accuracy); };
+  }, [position.lat, position.lng]);
+  return null;
+}
 
 function ValvulasPane() {
   const map = useMap();
