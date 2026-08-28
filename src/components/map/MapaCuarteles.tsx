@@ -472,6 +472,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                 unidades={unidades}
                 bombasMap={bombasMap}
                 filtrosMap={filtrosMap}
+                showLabels={showCuartelLabels}
                 onFitBounds={setFitBounds}
                 registerLayer={registerLayer}
                 selectedRef={selectedRef}
@@ -654,7 +655,7 @@ function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equiposArr?: Equip
   return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${s.codigo}</h3><table style="width:100%">${r("Equipo",s.equipo)}${r("Especie",s.especie)}${haRow}${r("Año de Plantacion",s.anio)}${r("Jefe de campo",s.jefe_campo)}${r("Caudal",s.caudal_nominal?s.caudal_nominal+" m3/h":"")}${bombasRow}${filtrosRow}${cuartelesRow}${planoLink}</table></div>`;
 }
 
-function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, bombasMap, filtrosMap, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
+function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, bombasMap, filtrosMap, showLabels, onFitBounds, registerLayer, selectedRef, setSelected, setHighlighted, clearLayers }: {
   data: GeoJSON.FeatureCollection;
   sectores: SectorGeo[];
   cuarteles?: Cuartel[];
@@ -662,6 +663,7 @@ function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, bombasMap
   unidades?: any[];
   bombasMap: Map<string, any[]>;
   filtrosMap: Map<string, any[]>;
+  showLabels: boolean;
   onFitBounds: (b: L.LatLngBounds | null) => void;
   registerLayer: (id: string, layer: L.Path, baseStyle: L.PathOptions, kind?: 'cuartel' | 'sector') => void;
   selectedRef: React.MutableRefObject<string | null>;
@@ -698,7 +700,16 @@ function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, bombasMap
         layer.setStyle(baseStyle);
         registerLayer(fId, layer, baseStyle, 'sector');
         if (s) {
-          layer.bindTooltip(s.codigo, { sticky: true, className: "cuartel-tooltip", opacity: 0.9 });
+          const sectorColor = ["#c62828", "#1565c0", "#2e7d32", "#f9a825", "#6a1b9a", "#795548", "#757575", "#b71c1c"][s.numero - 1] || "#333";
+          layer.bindTooltip(s.codigo, {
+            permanent: showLabels,
+            direction: "center",
+            className: "cuartel-tooltip",
+            opacity: showLabels ? 1 : 0.9,
+          });
+          if (showLabels) {
+            layer.setStyle({ ...layer.options, fillColor: sectorColor, color: sectorColor, fillOpacity: 0.6 });
+          }
           layer.bindPopup(popupSectorHtml(s, cuarteles || [], equipos, unidades, bombasMap.has(s.id) ? bombasMap.get(s.id) : undefined, filtrosMap.has(s.id) ? filtrosMap.get(s.id) : undefined), { maxWidth: 300 });
         }
         layer.on("mouseover", () => setHighlighted(fId));
