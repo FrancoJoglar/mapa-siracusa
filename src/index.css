@@ -15,7 +15,7 @@ body {
   min-height: 100vh;
 }
 
-.cuartel-tooltip {
+.cuatel-tooltip {
   background: rgba(0, 0, 0, 0.75);
   border: none;
   border-radius: 4px;
@@ -25,7 +25,7 @@ body {
   box-shadow: none;
 }
 
-.cuartel-tooltip::before {
+.cuatel-tooltip::before {
   border-top-color: rgba(0, 0, 0, 0.75);
 }
 
@@ -65,7 +65,6 @@ path.leaflet-interactive:focus-visible {
   outline: none;
 }
 
-/* Measurement mode: pass clicks through existing polygons */
 .medir-active path.leaflet-interactive {
   pointer-events: none !important;
 }
@@ -84,6 +83,19 @@ path.leaflet-interactive:focus-visible {
   display: none !important;
 }
 
+/* Override Leaflet default tooltip */
+.leaflet-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.leaflet-tooltip::before {
+  border-top-color: transparent !important;
+}
+
+/* Tooltip de cuarteles y sectores - DEBE IR DESPUES de .leaflet-tooltip */
+.cuatel-label,
 .cuartel-label {
   background: rgba(15, 23, 42, 0.88) !important;
   border: none !important;
@@ -95,24 +107,10 @@ path.leaflet-interactive:focus-visible {
   white-space: nowrap !important;
   backdrop-filter: blur(4px) !important;
 }
-.cuatel-label::before {
+.cuatel-label::before,
+.cuartel-label::before {
   border-top-color: rgba(15, 23, 42, 0.88) !important;
 }
-.cuartel-label::before {
-  border-top-color: rgba(0, 0, 0, 0.7);
-}
 
-/* Override Leaflet default tooltip - eliminar fondo blanco y borde */
-.leaflet-tooltip {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-.leaflet-tooltip::before {
-  border-top-color: transparent !important;
-}
-
-/* Fix zoom expanding only to NE instead of center */
 .leaflet-map-pane, .leaflet-pane { transform-origin: 0 0 !important; }
 .leaflet-zoom-animated { transform-origin: 0 0 !important; }
