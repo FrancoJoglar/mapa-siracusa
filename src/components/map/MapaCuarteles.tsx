@@ -712,56 +712,15 @@ function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, bombasMap
         registerLayer(fId, layer, baseStyle, 'sector');
         if (s) {
           const sectorColor = ["#c62828", "#1565c0", "#2e7d32", "#f9a825", "#6a1b9a", "#795548", "#757575", "#b71c1c"][s.numero - 1] || "#333";
-          // Build tooltip: sector code + cuartel names (dynamic by zoom)
           const zoom = map?.getZoom() || 15;
-          let cuartsHtml = "";
-          if (unidades && unidades.length > 0) {
-            const cuartsDelSector = unidades
-              .filter((u: any) => u.sector_id === s.id && u.porcentaje_agua != null)
-              .map((u: any) => ({ nombre: u.cuartel_nombre, pct: u.porcentaje_agua }));
-            if (cuartsDelSector.length > 0 && zoom >= 14) {
-              const names = cuartsDelSector.map((c: any) => c.nombre);
-              cuartsHtml = `<div style="font-size:${zoom >= 16 ? 11 : 10}px;margin-top:3px;opacity:0.8;line-height:1.3">${names.join(", ")}</div>`;
-            }
-          }
-
-          // Dynamic tooltip size based on zoom
           const codeSize = zoom >= 16 ? 16 : zoom >= 14 ? 14 : 12;
-          const tooltipHtml = `<div style="background:rgba(15,23,42,0.88);color:#fff;padding:5px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.35);white-space:nowrap;backdrop-filter:blur(4px)"><div style="font-size:${codeSize}px;font-weight:700;color:${sectorColor}">${s.codigo}</div>${cuartsHtml}</div>`;
-
-          // Store expanded state for this sector
-          const sectorId = s.id;
-          let isExpanded = false;
+          const tooltipHtml = `<div style="background:rgba(15,23,42,0.88);color:#fff;padding:5px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.35);white-space:nowrap;backdrop-filter:blur(4px)"><div style="font-size:${codeSize}px;font-weight:700;color:${sectorColor}">${s.codigo}</div></div>`;
 
           layer.bindTooltip(tooltipHtml, {
             permanent: showLabels,
             direction: "center",
             className: "",
             opacity: showLabels ? 1 : 0.92,
-          });
-
-          // Click handler to toggle expanded state
-          layer.on("click", () => {
-            isExpanded = !isExpanded;
-            let expandedHtml = tooltipHtml;
-            if (isExpanded && cuartsHtml === "") {
-              // Build full cuartel list
-              const allCuaris = unidades
-                ? unidades.filter((u: any) => u.sector_id === sectorId && u.porcentaje_agua != null).map((u: any) => u.cuartel_nombre)
-                : [];
-              if (allCuaris.length > 0) {
-                const listHtml = allCuaris.map((c: string) => `<div style="font-size:11px;padding:1px 0">• ${c}</div>`).join("");
-                expandedHtml = `<div style="background:rgba(15,23,42,0.88);color:#fff;padding:6px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.35);white-space:nowrap;backdrop-filter:blur(4px)"><div style="font-size:${codeSize}px;font-weight:700;color:${sectorColor};margin-bottom:4px">${s.codigo}</div><div style="border-top:1px solid rgba(255,255,255,0.2);padding-top:4px">${listHtml}</div></div>`;
-              }
-            }
-            layer.unbindTooltip();
-            layer.bindTooltip(expandedHtml, {
-              permanent: true,
-              direction: "center",
-              className: "",
-              opacity: 1,
-            });
-            layer.openTooltip();
           });
           if (showLabels) {
             layer.setStyle({ ...layer.options, color: sectorColor });
