@@ -85,14 +85,18 @@ path.leaflet-interactive:focus-visible {
 }
 
 .cuartel-label {
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid #e65100 !important;
-  border-radius: 3px;
-  color: #fff;
-  font-size: 10px;
-  padding: 2px 5px;
-  box-shadow: none;
-  white-space: nowrap;
+  background: rgba(15, 23, 42, 0.88) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: #fff !important;
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35) !important;
+  white-space: nowrap !important;
+  backdrop-filter: blur(4px) !important;
+}
+.cuatel-label::before {
+  border-top-color: rgba(15, 23, 42, 0.88) !important;
 }
 .cuartel-label::before {
   border-top-color: rgba(0, 0, 0, 0.7);
