@@ -98,6 +98,17 @@ path.leaflet-interactive:focus-visible {
   border-top-color: rgba(0, 0, 0, 0.7);
 }
 
+/* Override Leaflet default tooltip - eliminar fondo blanco y borde */
+.leaflet-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.leaflet-tooltip::before {
+  border-top-color: transparent !important;
+}
+
 /* Fix zoom expanding only to NE instead of center */
 .leaflet-map-pane, .leaflet-pane { transform-origin: 0 0 !important; }
 .leaflet-zoom-animated { transform-origin: 0 0 !important; }
