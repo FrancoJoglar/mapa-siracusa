@@ -8,6 +8,7 @@ import {
 import BarraFiltros from "./BarraFiltros";
 import FiltrosAvanzados, { FiltrosAvanzadosState } from "./FiltrosAvanzados";
 import MapControls from "./MapControls";
+import GpsButton from "./GpsButton";
 import BuscadorCuartel from "./BuscadorCuartel";
 import { exportarCuarteles, exportarCuartelesGeoJSON } from "../../lib/export";
 import L from "leaflet";
@@ -413,6 +414,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           />
           <MapClickHandler onDeselect={() => setSelectedId(null)} />
           {gpsPosition && <GpsMarker position={gpsPosition} />}
+          <GpsButton onWatchStart={startWatching} onWatchStop={stopWatching} watching={gpsWatching} />
           {medir && <MedirControls />}
 
           {vista === "cuarteles" && (
