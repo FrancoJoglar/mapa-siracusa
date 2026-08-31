@@ -248,7 +248,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const sectoresFiltradosPorEquipo = useMemo(() => {
     if (vista === "sectores") {
       if (!filtros.equipo) return uniqueSectores.sectores;
-      return sectores.filter(s => s.equipo?.replace(/\D/g, "") === filtros.equipo).map(s => s.codigo).sort(numSort);
+      return sectores.filter(s => s.equipo === filtros.equipo).map(s => s.codigo).sort(numSort);
     }
     if (!filtros.equipo) return uniqueCuarteles.sectores;
     const nums = new Set<number>();
