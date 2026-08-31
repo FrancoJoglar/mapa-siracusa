@@ -818,24 +818,6 @@ function MapClickHandler({ onDeselect }: { onDeselect: () => void }) {
   return null;
 }
 
-function Leyenda() {
-  return (
-    <div style={{
-      position: "absolute", bottom: 30, right: 10, zIndex: 1000,
-      background: "white", padding: "8px 12px", borderRadius: 6,
-      boxShadow: "0 1px 5px rgba(0,0,0,0.2)", fontSize: 12,
-    }}>
-      <strong style={{ display: "block", marginBottom: 4 }}>Especies</strong>
-      {COLOR_POR_ESPECIE.map(c => (
-        <div key={c.especie} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-          <span style={{ width: 14, height: 14, backgroundColor: c.color, borderRadius: 2, flexShrink: 0 }} />
-          {c.especie}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ====== EXPORT MAP IMAGE ======
 function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
   filteredCuarteles: Cuartel[];
