@@ -595,7 +595,6 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           filteredSectores={filteredSectores}
           vista={vista}
         />
-        <Leyenda />
       </div>
     </div>
   );
