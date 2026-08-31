@@ -34,6 +34,7 @@ export interface Sector {
   num_lineas: number | null;
   caudal_emisor: number | null;
   m3_ha: number | null;
+  fc_manual: number | null;
   created_at: string;
   equipo?: Equipo;
 }

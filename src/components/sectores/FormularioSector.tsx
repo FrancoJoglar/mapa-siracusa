@@ -33,6 +33,7 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
   const [caudalEmisor, setCaudalEmisor] = useState(sector?.caudal_emisor ?? 0);
   const [descripcion, setDescripcion] = useState(sector?.descripcion || "");
   const [m3ha, setM3ha] = useState(sector?.m3_ha ?? 0);
+  const [fcManual, setFcManual] = useState<number | null>(sector?.fc_manual ?? null);
   const [configBombas, setConfigBombas] = useState<Sector["config_bombas"]>(sector?.config_bombas ?? null);
   const [saving, setSaving] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
@@ -106,6 +107,7 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
         num_lineas: numLineas || null,
         caudal_emisor: caudalEmisor || null,
         m3_ha: m3ha || null,
+        fc_manual: fcManual,
       });
       // La relacion N:N solo se puede guardar sobre un sector existente
       if (sector?.id && seleccion !== null) {
@@ -196,9 +198,21 @@ export default function FormularioSector({ sector, equipos, onSave, onCancel, fe
               </select>
             </Campo>
             <Campo label="Año de Plantacion"><input type="number" value={anio || ""} onChange={e => setAnio(Number(e.target.value))} style={inputStyle} /></Campo>
+            <Campo label="Fc (0-1)">
+              <input
+                type="number"
+                min="0"
+                max="1"
+                step="0.05"
+                value={fcManual ?? ""}
+                onChange={e => setFcManual(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Auto"
+                style={inputStyle}
+              />
+            </Campo>
           </Row>
           <p style={{ margin: "4px 0 12px", fontSize: 12, color: "#888" }}>
-            Filtro y caseta se editan a nivel de equipo (Admin → Equipos), no por sector.
+            Fc = Fracción de Cobertura. Dejar vacío para cálculo automático por edad.
           </p>
 
           <h4 style={{ margin: "16px 0 8px", fontSize: 13, color: "#555" }}>Bombas de este sector</h4>

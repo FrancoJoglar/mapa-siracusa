@@ -1,84 +1,172 @@
-// Lógica de reposición de riego — portada de calculadora_riego.py (proyecto Agrotech IA)
-// Misma fórmula, mismas tablas de Kc/etapa. Fuente de sectores: tabla `sectores` de Supabase
-// (ya no un CSV aparte), fuente de clima: Open-Meteo (ver openMeteo.ts).
+// Lógica de reposición de riego — Nivel 2 Híbrido
+// Kc dinámico basado en Fracción de Cobertura (fc)
+// Fórmula: Kc = Kc_min + (Kc_max - Kc_min) × fc
+// Fuente de Kc_max: datos reales de campo Siracusa (CSV)
+// Fuente de clima: Open-Meteo (ver openMeteo.ts)
 
 export type Especie = "Olivo" | "Cerezo" | "Avellano" | "Kiwi";
 
-export const KC_TABLA: Record<Especie, Record<number, number>> = {
-  Olivo: { 1: 0.80, 2: 0.70, 3: 0.60, 4: 0.50, 5: 0.45, 6: 0.45, 7: 0.45, 8: 0.50, 9: 0.55, 10: 0.65, 11: 0.80, 12: 0.80 },
-  Cerezo: { 1: 0.65, 2: 0.55, 3: 0.45, 4: 0.45, 5: 0.45, 6: 0.45, 7: 0.45, 8: 0.60, 9: 0.70, 10: 0.85, 11: 0.80, 12: 0.75 },
-  Avellano: { 1: 0.65, 2: 0.55, 3: 0.45, 4: 0.45, 5: 0.45, 6: 0.45, 7: 0.45, 8: 0.50, 9: 0.60, 10: 0.80, 11: 0.75, 12: 0.65 },
-  Kiwi: { 1: 0.95, 2: 0.80, 3: 0.65, 4: 0.50, 5: 0.45, 6: 0.45, 7: 0.45, 8: 0.70, 9: 0.70, 10: 0.90, 11: 1.00, 12: 0.95 },
-};
+// ====== PARÁMETROS KC POR ESPECIE ======
+// kcMin: evaporación del suelo descubierto (riego por goteo)
+// kcMaxMes: Kc del CSV para cultivo adulto a plena cobertura (Kc_max)
+// esPerenne: true = siempre adulto (ej: olivos en Siracusa)
 
-export const ETAPA_TABLA: Record<Especie, Record<number, string>> = {
+export interface KcParametros {
+  kcMin: number;
+  kcMaxMes: Record<number, number>;
+  esPerenne: boolean;
+}
+
+export const KC_PARAMETROS: Record<Especie, KcParametros> = {
   Olivo: {
-    1: "Envero", 2: "Maduración", 3: "Cosecha", 4: "Post-cosecha",
-    5: "Reposo invernal", 6: "Reposo invernal", 7: "Reposo invernal",
-    8: "Hinchamiento yemas", 9: "Floración", 10: "Cuajado",
-    11: "Crecimiento fruto", 12: "Crecimiento fruto",
+    kcMin: 0.15,
+    kcMaxMes: {
+      1: 0.50, 2: 0.45, 3: 0.31, 4: 0.23, 5: 0.45, 6: 0.45,
+      7: 0.45, 8: 0.50, 9: 0.55, 10: 0.20, 11: 0.30, 12: 0.45,
+    },
+    esPerenne: true, // En Siracusa: solo olivos adultos
   },
   Cerezo: {
-    1: "Post-cosecha", 2: "Recuperación", 3: "Reposo", 4: "Reposo",
-    5: "Reposo", 6: "Reposo", 7: "Reposo", 8: "Floración",
-    9: "Cuajado", 10: "Crecimiento fruto", 11: "Envero", 12: "Maduración",
+    kcMin: 0.20,
+    kcMaxMes: {
+      1: 0.70, 2: 0.60, 3: 0.40, 4: 0.20, 5: 0.45, 6: 0.45,
+      7: 0.45, 8: 0.60, 9: 0.70, 10: 0.35, 11: 0.80, 12: 1.00,
+    },
+    esPerenne: false,
   },
   Avellano: {
-    1: "Maduración", 2: "Cosecha", 3: "Post-cosecha", 4: "Reposo",
-    5: "Reposo", 6: "Reposo", 7: "Reposo", 8: "Floración",
-    9: "Cuajado", 10: "Crecimiento fruto", 11: "Engrosamiento", 12: "Maduración",
+    kcMin: 0.20,
+    kcMaxMes: {
+      1: 0.60, 2: 0.55, 3: 0.40, 4: 0.30, 5: 0.45, 6: 0.45,
+      7: 0.45, 8: 0.50, 9: 0.60, 10: 0.35, 11: 0.50, 12: 0.55,
+    },
+    esPerenne: false,
   },
   Kiwi: {
-    1: "Crecimiento fruto", 2: "Maduración", 3: "Cosecha", 4: "Post-cosecha",
-    5: "Reposo", 6: "Reposo", 7: "Reposo", 8: "Brotación",
-    9: "Brotación", 10: "Crecimiento vegetativo", 11: "Floración", 12: "Crecimiento fruto",
+    kcMin: 0.25,
+    kcMaxMes: {
+      1: 1.15, 2: 1.10, 3: 0.80, 4: 0.50, 5: 0.40, 6: 0.40,
+      7: 0.40, 8: 0.70, 9: 0.70, 10: 0.70, 11: 1.00, 12: 1.15,
+    },
+    esPerenne: false, // Todos nuevos en Siracusa
   },
 };
 
-export function kcBase(especie: string, mes: number): number {
-  return KC_TABLA[especie as Especie]?.[mes] ?? 0.5;
-}
+// ====== CÁLCULO DE FRACCIÓN DE COBERTURA (fc) ======
 
-export function etapaFenologica(especie: string, mes: number): string {
-  return ETAPA_TABLA[especie as Especie]?.[mes] ?? "";
-}
-
-/** Ajusta el Kc base según la edad del plantel y la especie (misma curva que calculadora_riego.py) */
-export function ajustarKcPorEdad(kcBaseVal: number, anioPlantacion: number | null, especie: string): number {
-  if (!anioPlantacion) return kcBaseVal;
-  const edad = new Date().getFullYear() - anioPlantacion;
-  let factor: number;
-
+/**
+ * Calcula fc basado en la edad del cultivo.
+ * fc va de ~0.15 (plantón) a 1.0 (adulto a plena cobertura).
+ */
+function calcularFcAutomatico(especie: string, edad: number): number {
   switch (especie as Especie) {
     case "Olivo":
-      if (edad <= 3) factor = 0.40 + edad * 0.067;
-      else if (edad <= 8) factor = 0.60 + (edad - 3) * 0.04;
-      else if (edad <= 15) factor = 0.80 + (edad - 8) * 0.029;
-      else factor = Math.max(0.60, 1.00 - (edad - 15) * 0.01);
-      break;
+      // Olivos en Siracusa: siempre adultos (fc = 1.0)
+      return 1.0;
+
     case "Cerezo":
-      if (edad <= 3) factor = 0.35;
-      else if (edad <= 6) factor = 0.50 + (edad - 3) * 0.10;
-      else if (edad <= 10) factor = 0.80 + (edad - 6) * 0.05;
-      else factor = Math.max(0.40, 1.00 - (edad - 10) * 0.03);
-      break;
-    case "Kiwi":
-      if (edad <= 2) factor = 0.30;
-      else if (edad <= 5) factor = 0.50 + (edad - 2) * 0.10;
-      else if (edad <= 10) factor = 0.80 + (edad - 5) * 0.04;
-      else factor = Math.max(0.60, 1.00 - (edad - 10) * 0.02);
-      break;
+      if (edad <= 1) return 0.15;
+      if (edad <= 2) return 0.30;
+      if (edad <= 3) return 0.50;
+      if (edad <= 5) return 0.70;
+      if (edad <= 8) return 0.90;
+      return 1.0;
+
     case "Avellano":
-      if (edad <= 3) factor = 0.35;
-      else if (edad <= 8) factor = 0.55 + (edad - 3) * 0.05;
-      else if (edad <= 15) factor = 0.80 + (edad - 8) * 0.029;
-      else factor = Math.max(0.50, 1.00 - (edad - 15) * 0.015);
-      break;
+      if (edad <= 1) return 0.15;
+      if (edad <= 2) return 0.30;
+      if (edad <= 3) return 0.50;
+      if (edad <= 5) return 0.70;
+      if (edad <= 10) return 0.90;
+      return 1.0;
+
+    case "Kiwi":
+      // Kiwi: crecimiento muy rápido (step function)
+      if (edad <= 1) return 0.15;
+      if (edad <= 2) return 0.40;
+      if (edad <= 3) return 0.70;
+      if (edad <= 4) return 0.95;
+      return 1.0;
+
     default:
-      factor = 1.0;
+      return 0.50;
   }
-  return kcBaseVal * factor;
 }
+
+/**
+ * Calcula la fracción de cobertura (fc).
+ * Prioridad: manual > automático > default (1.0)
+ */
+export function calcularFc(
+  especie: string,
+  anioPlantacion: number | null,
+  fcManual: number | null
+): number {
+  // 1. Si el usuario ingresa fc manual, usarlo
+  if (fcManual !== null && fcManual !== undefined) {
+    return Math.max(0, Math.min(1, fcManual));
+  }
+
+  // 2. Si es perenne (olivo), siempre adulto
+  const params = KC_PARAMETROS[especie as Especie];
+  if (params?.esPerenne) return 1.0;
+
+  // 3. Calcular automáticamente por edad
+  if (anioPlantacion !== null && anioPlantacion !== undefined) {
+    const edad = new Date().getFullYear() - anioPlantacion;
+    if (edad >= 0) {
+      return calcularFcAutomatico(especie, edad);
+    }
+  }
+
+  // 4. Default: asumir adulto
+  return 1.0;
+}
+
+// ====== CÁLCULO KC DINÁMICO ======
+
+export interface KcResultado {
+  kc: number;       // Kc final calculado
+  fc: number;       // Fracción de cobertura usada
+  kcMin: number;    // Evaporación del suelo
+  kcMax: number;    // Kc del CSV (adulto)
+}
+
+/**
+ * Calcula el Kc dinámico usando la fórmula:
+ * Kc = Kc_min + (Kc_max - Kc_min) × fc
+ *
+ * @param especie - Olivo, Cerezo, Avellano, Kiwi
+ * @param mes - Mes del año (1-12)
+ * @param anioPlantacion - Año de plantación del sector
+ * @param fcManual - Fracción de cobertura ingresada por admin (opcional)
+ */
+export function calcularKcDinamico(
+  especie: string,
+  mes: number,
+  anioPlantacion: number | null,
+  fcManual: number | null = null
+): KcResultado {
+  const params = KC_PARAMETROS[especie as Especie];
+
+  if (!params) {
+    return { kc: 0.5, fc: 1.0, kcMin: 0.2, kcMax: 0.5 };
+  }
+
+  // Obtener Kc_max del mes (o valor de invierno si no hay dato)
+  const kcMax = params.kcMaxMes[mes] ?? 0.45;
+  const kcMin = params.kcMin;
+
+  // Calcular fc
+  const fc = calcularFc(especie, anioPlantacion, fcManual);
+
+  // Fórmula principal
+  const kc = kcMin + (kcMax - kcMin) * fc;
+
+  return { kc, fc, kcMin, kcMax };
+}
+
+// ====== CÁLCULO DE REPOSICIÓN SEMANAL ======
 
 export interface ReposicionCalculo {
   etcDiaria: number;
@@ -89,7 +177,7 @@ export interface ReposicionCalculo {
   volumenM3Ha: number;
 }
 
-/** Reponer en esta semana la ETc de la semana pasada, descontando la lluvia real de esos mismos 7 días */
+/** Reponer en esta semana la ETc de la semana pasada, descontando la lluvia real */
 export function calcularReposicionSemanal(
   et0Diario: number,
   kc: number,
@@ -110,6 +198,8 @@ export function calcularReposicionSemanal(
     volumenM3Ha: round2(reposicionBruta * 10),
   };
 }
+
+// ====== CLASIFICACIÓN DE ACCIÓN ======
 
 export type Accion = "REGAR" | "MONITOREAR" | "SIN_REGAR";
 export type Urgencia = "ALTA" | "MEDIA" | "BAJA";

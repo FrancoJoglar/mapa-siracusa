@@ -3,7 +3,7 @@ import { useRiego, SectorRiego } from "../hooks/useRiego";
 
 type SortKey = keyof Pick<
   SectorRiego,
-  "equipoCodigo" | "numero" | "especie" | "hectareas" | "kcAjustado" | "etcSemanal" | "reposicionMm" | "volumenM3"
+  "equipoCodigo" | "numero" | "especie" | "hectareas" | "fc" | "kcBase" | "kcAjustado" | "etcSemanal" | "reposicionMm" | "volumenM3"
 >;
 
 export default function RiegoPage() {
@@ -14,6 +14,7 @@ export default function RiegoPage() {
   const [busqueda, setBusqueda] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("reposicionMm");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const especies = useMemo(() => Array.from(new Set(resultados.map((r) => r.especie))).sort(), [resultados]);
   const jefes = useMemo(
@@ -62,8 +63,16 @@ export default function RiegoPage() {
             </p>
           )}
         </div>
-        <button onClick={refetch} style={btnClear}>↻ Actualizar</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setShowTutorial(!showTutorial)} style={btnTutorial}>
+            {showTutorial ? "✕ Cerrar" : "📖 Cómo se calcula"}
+          </button>
+          <button onClick={refetch} style={btnClear}>↻ Actualizar</button>
+        </div>
       </div>
+
+      {/* Tutorial */}
+      {showTutorial && <TutorialRiego />}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
         <SummaryCard label="Sectores totales" value={resumen.total} color="#333" />
@@ -116,7 +125,9 @@ export default function RiegoPage() {
               <th style={thStyle}>Variedad</th>
               <th style={thStyle}>Etapa</th>
               <Th label="Has" active={sortKey === "hectareas"} dir={sortDir} onClick={() => toggleSort("hectareas")} />
-              <Th label="Kc" active={sortKey === "kcAjustado"} dir={sortDir} onClick={() => toggleSort("kcAjustado")} />
+              <Th label="Fc" active={sortKey === "fc"} dir={sortDir} onClick={() => toggleSort("fc")} />
+              <Th label="Kc base" active={sortKey === "kcBase"} dir={sortDir} onClick={() => toggleSort("kcBase")} />
+              <Th label="Kc ajust." active={sortKey === "kcAjustado"} dir={sortDir} onClick={() => toggleSort("kcAjustado")} />
               <Th label="ETc sem." active={sortKey === "etcSemanal"} dir={sortDir} onClick={() => toggleSort("etcSemanal")} />
               <Th label="Reposición" active={sortKey === "reposicionMm"} dir={sortDir} onClick={() => toggleSort("reposicionMm")} />
               <Th label="Volumen" active={sortKey === "volumenM3"} dir={sortDir} onClick={() => toggleSort("volumenM3")} />
@@ -133,6 +144,8 @@ export default function RiegoPage() {
                 <td style={tdStyle}>{r.variedad}</td>
                 <td style={tdStyle}>{r.etapa}</td>
                 <td style={tdStyle}>{r.hectareas.toFixed(1)}</td>
+                <td style={tdStyle}>{r.fc.toFixed(2)}</td>
+                <td style={tdStyle}>{r.kcBase.toFixed(2)}</td>
                 <td style={tdStyle}>{r.kcAjustado.toFixed(2)}</td>
                 <td style={tdStyle}>{r.etcSemanal} mm</td>
                 <td style={tdStyle}>{r.reposicionMm} mm</td>
@@ -142,7 +155,7 @@ export default function RiegoPage() {
               </tr>
             ))}
             {filtrados.length === 0 && (
-              <tr><td colSpan={12} style={{ textAlign: "center", color: "#999", padding: 16 }}>Sin resultados.</td></tr>
+              <tr><td colSpan={14} style={{ textAlign: "center", color: "#999", padding: 16 }}>Sin resultados.</td></tr>
             )}
           </tbody>
         </table>
@@ -154,6 +167,116 @@ export default function RiegoPage() {
     </div>
   );
 }
+
+// ====== TUTORIAL ======
+
+function TutorialRiego() {
+  return (
+    <div style={{
+      background: "#f8f9fa", border: "1px solid #e0e0e0", borderRadius: 8,
+      padding: "16px 20px", marginBottom: 16, fontSize: 13, lineHeight: 1.6,
+    }}>
+      <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>📖 Cómo se calcula la Reposición de Riego</h3>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+        {/* Fórmula principal */}
+        <div>
+          <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#1565c0" }}>1. Fórmula del Kc Dinámico</h4>
+          <div style={{
+            background: "#fff", border: "1px solid #e0e0e0", borderRadius: 6,
+            padding: "10px 14px", fontFamily: "monospace", fontSize: 14, marginBottom: 8,
+          }}>
+            <strong>Kc = Kc_min + (Kc_max - Kc_min) × fc</strong>
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            <li><strong>Kc_max</strong>: Coeficiente de cultivo para árbol adulto a plena cobertura (datos de campo Siracusa)</li>
+            <li><strong>Kc_min</strong>: Evaporación del suelo descubierto entre hileras (riego por goteo)</li>
+            <li><strong>fc</strong>: Fracción de Cobertura de Copa (0 a 1). Calculada automáticamente por edad del cultivo, o ingresada manualmente por el administrador.</li>
+          </ul>
+        </div>
+
+        {/* Origen de datos */}
+        <div>
+          <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#2e7d32" }}>2. Origen de los Datos</h4>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            <li><strong>Kc_max por mes</strong>: Tabla de valores reales de campo en Siracusa (Oct-Abr). Para meses sin datos (May-Sep), se usan valores de reposo fenológico.</li>
+            <li><strong>ET0 (Evapotranspiración de Referencia)</strong>: API de Open-Meteo, promedio de los últimos 3 días.</li>
+            <li><strong>Precipitación</strong>: API de Open-Meteo, acumulado semanal.</li>
+            <li><strong>Año de plantación</strong>: Campo de la base de datos de sectores.</li>
+          </ul>
+        </div>
+
+        {/* Cálculo de fc */}
+        <div>
+          <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#e65100" }}>3. Cálculo de la Fracción de Cobertura (fc)</h4>
+          <p style={{ margin: "0 0 8px" }}>El fc se calcula automáticamente según la edad del cultivo:</p>
+          <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#f0f0f0" }}>
+                <th style={{ padding: "4px 8px", textAlign: "left" }}>Cultivo</th>
+                <th style={{ padding: "4px 8px", textAlign: "left" }}>1 año</th>
+                <th style={{ padding: "4px 8px", textAlign: "left" }}>3 años</th>
+                <th style={{ padding: "4px 8px", textAlign: "left" }}>5+ años</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style={tdTutorial}>Cerezo</td><td style={tdTutorial}>0.15</td><td style={tdTutorial}>0.50</td><td style={tdTutorial}>0.70-1.0</td></tr>
+              <tr><td style={tdTutorial}>Avellano</td><td style={tdTutorial}>0.15</td><td style={tdTutorial}>0.50</td><td style={tdTutorial}>0.70-1.0</td></tr>
+              <tr><td style={tdTutorial}>Kiwi</td><td style={tdTutorial}>0.15</td><td style={tdTutorial}>0.70</td><td style={tdTutorial}>0.95-1.0</td></tr>
+              <tr><td style={tdTutorial}>Olivo</td><td colSpan={3} style={tdTutorial}>Siempre 1.0 (solo adultos en Siracusa)</td></tr>
+            </tbody>
+          </table>
+          <p style={{ margin: "8px 0 0", fontSize: 11, color: "#666" }}>
+            El administrador puede ingresar un valor manual de fc en el mantenedor de sectores.
+          </p>
+        </div>
+
+        {/* Reposición semanal */}
+        <div>
+          <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#6a1b9a" }}>4. Cálculo de Reposición Semanal</h4>
+          <div style={{
+            background: "#fff", border: "1px solid #e0e0e0", borderRadius: 6,
+            padding: "10px 14px", fontFamily: "monospace", fontSize: 12, marginBottom: 8,
+          }}>
+            <div>ETc_diaria = ET0 × Kc</div>
+            <div>ETc_semanal = ETc_diaria × 7</div>
+            <div>precip_efectiva = min(lluvia × 0.75, ETc × 0.80)</div>
+            <div>reposición_neta = ETc_semanal - precip_efectiva</div>
+            <div><strong>reposición_bruta = reposición_neta / eficiencia</strong></div>
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            <li><strong>Eficiencia</strong>: Factor del sistema de riego (default 0.9 = 90%).</li>
+            <li><strong>Precipitación efectiva</strong>: Máximo 75% de la lluvia o 80% de la ETc.</li>
+          </ul>
+        </div>
+
+        {/* Clasificación */}
+        <div>
+          <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#c62828" }}>5. Clasificación de Acción</h4>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            <li><strong>💧 Regar</strong>: Reposición bruta {'>'} 25 mm</li>
+            <li><strong>👀 Monitorear</strong>: Reposición bruta 15-25 mm</li>
+            <li><strong>✅ Sin riego</strong>: Reposición bruta {'≤'} 15 mm</li>
+          </ul>
+        </div>
+
+        {/* Conversión */}
+        <div>
+          <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#37474f" }}>6. Conversión a Volumen</h4>
+          <div style={{
+            background: "#fff", border: "1px solid #e0e0e0", borderRadius: 6,
+            padding: "10px 14px", fontFamily: "monospace", fontSize: 12,
+          }}>
+            <div>volumen (m³/ha) = reposición_bruta (mm) × 10</div>
+            <div><strong>volumen_total = m³/ha × hectáreas</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====== COMPONENTES AUXILIARES ======
 
 function SummaryCard({ label, value, color }: { label: string; value: number | string; color: string }) {
   return (
@@ -190,8 +313,12 @@ function CenterMsg({ msg }: { msg: string }) {
   return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}><p>{msg}</p></div>;
 }
 
+// ====== ESTILOS ======
+
 const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
 const thStyle: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #ddd", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#555", background: "#f5f5f5", whiteSpace: "nowrap" };
 const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid #eee" };
+const tdTutorial: React.CSSProperties = { padding: "4px 8px", borderBottom: "1px solid #f0f0f0", fontSize: 12 };
 const selectStyle: React.CSSProperties = { padding: "5px 8px", border: "1px solid #ccc", borderRadius: 4, fontSize: 12, minWidth: 100 };
 const btnClear: React.CSSProperties = { padding: "5px 10px", border: "1px solid #ccc", borderRadius: 4, background: "#f5f5f5", cursor: "pointer", fontSize: 12 };
+const btnTutorial: React.CSSProperties = { padding: "5px 10px", border: "1px solid #1565c0", borderRadius: 4, background: "#e8f0fe", cursor: "pointer", fontSize: 12, color: "#1565c0" };
