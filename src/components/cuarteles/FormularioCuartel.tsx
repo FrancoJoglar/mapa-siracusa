@@ -21,7 +21,7 @@ export default function FormularioCuartel({
   const [nombre, setNombre] = useState(cuartel.nombre);
   const [especie, setEspecie] = useState(cuartel.especie || "");
   const [variedad, setVariedad] = useState(cuartel.variedad || "");
-  const [anio, setAnio] = useState(cuartel["año_plantacion"] || 0);
+  const [anio, setAnio] = useState(cuartel.anio_plantacion || 0);
   const [superficie, setSuperficie] = useState(cuartel.superficie_ha || 0);
   const [polinizante, setPolinizante] = useState(cuartel.polinizante || "");
   const [jefeCampo, setJefeCampo] = useState(cuartel.jefe_campo || "");
@@ -89,7 +89,7 @@ export default function FormularioCuartel({
         nombre,
         especie,
         variedad,
-        "año_plantacion": anio || null,
+        anio_plantacion: anio || null,
         superficie_ha: superficie || null,
         polinizante,
         jefe_campo: jefeCampo,

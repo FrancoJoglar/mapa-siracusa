@@ -48,7 +48,7 @@ export function useCuarteles() {
       c_nombre: cuartel.nombre,
       c_especie: cuartel.especie,
       c_variedad: cuartel.variedad,
-      c_anio: cuartel["año_plantacion"],
+      c_anio: cuartel.anio_plantacion,
       c_superficie: cuartel.superficie_ha,
       c_plantas: cuartel.plantas,
       c_polinizante: cuartel.polinizante,
@@ -68,7 +68,7 @@ export function useCuarteles() {
     if (cuartel.nombre !== undefined) updates.nombre = cuartel.nombre;
     if (cuartel.especie !== undefined) updates.especie = cuartel.especie;
     if (cuartel.variedad !== undefined) updates.variedad = cuartel.variedad;
-    if (cuartel["año_plantacion"] !== undefined) updates["año_plantacion"] = cuartel["año_plantacion"];
+    if (cuartel.anio_plantacion !== undefined) updates.anio_plantacion = cuartel.anio_plantacion;
     if (cuartel.superficie_ha !== undefined) updates.superficie_ha = cuartel.superficie_ha;
     if (cuartel.plantas !== undefined) updates.plantas = cuartel.plantas;
     if (cuartel.polinizante !== undefined) updates.polinizante = cuartel.polinizante;

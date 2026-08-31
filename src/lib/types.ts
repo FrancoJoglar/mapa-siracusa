@@ -75,7 +75,7 @@ export interface Cuartel {
   nombre: string;
   especie: string;
   variedad: string;
-  "año_plantacion": number | null;
+  anio_plantacion: number | null;
   superficie_ha: number | null;
   plantas: number | null;
   polinizante: string;

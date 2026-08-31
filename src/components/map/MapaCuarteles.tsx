@@ -278,8 +278,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
     return cuarteles.filter(c => {
       if (filtros.especie && c.especie !== filtros.especie) return false;
       if (filtros.variedad && c.variedad !== filtros.variedad) return false;
-      if (filtros.anioDesde && (!c["año_plantacion"] || c["año_plantacion"] < filtros.anioDesde)) return false;
-      if (filtros.anioHasta && (!c["año_plantacion"] || c["año_plantacion"] > filtros.anioHasta)) return false;
+      if (filtros.anioDesde && (!c.anio_plantacion || c.anio_plantacion < filtros.anioDesde)) return false;
+      if (filtros.anioHasta && (!c.anio_plantacion || c.anio_plantacion > filtros.anioHasta)) return false;
       if (filtros.equipo) {
         const tieneEquipo = c.sector_ids?.some(sid => sectorIdToEquipo.get(sid) === filtros.equipo);
         if (!tieneEquipo) return false;
@@ -619,7 +619,7 @@ function popupCuartelHtml(c: Cuartel, unidadesArr: any[]): string {
     }).join(" ");
     sectoresRow = `<tr><td style="color:#666;padding:3px 6px 3px 0;white-space:nowrap;font-weight:500;vertical-align:top">Riego:</td><td style="padding:3px 0"><div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div></td></tr>`;
   }
-  return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${c.nombre}</h3><table style="width:100%">${r("Especie",c.especie)}${r("Variedad",c.variedad)}${r("Año plantación",c["año_plantacion"])}${supRow}${r("Jefe de campo",c.jefe_campo)}${r("Centro costo",c.centro_costo)}${sectoresRow}</table></div>`;
+  return `<div style="min-width:220px;font-size:13px"><h3 style="margin:0 0 8px;font-size:15px;font-weight:600">${c.nombre}</h3><table style="width:100%">${r("Especie",c.especie)}${r("Variedad",c.variedad)}${r("Anio plantacion",c.anio_plantacion)}${supRow}${r("Jefe de campo",c.jefe_campo)}${r("Centro costo",c.centro_costo)}${sectoresRow}</table></div>`;
 }
 
 function popupSectorHtml(s: SectorGeo, _cuarteles: Cuartel[], equiposArr?: Equipo[], unidadesArr?: any[], bombasSector?: any[], filtrosSector?: any[]): string {

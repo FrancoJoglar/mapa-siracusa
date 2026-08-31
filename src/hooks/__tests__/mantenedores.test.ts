@@ -253,7 +253,7 @@ describe("useCuarteles", () => {
       nombre: "TEST Cuartel",
       especie: "Olivo",
       variedad: "Arbequina",
-      "año_plantacion": 2018,
+      anio_plantacion: 2018,
       superficie_ha: 12.5,
       plantas: 1200,
       polinizante: "Frantoio",
