@@ -44,7 +44,7 @@ export default function AdminCuarteles() {
       if (data) {
         const nuevo: Cuartel = {
           id: data, nombre: "Nuevo Cuartel " + Date.now(),
-          especie: "", variedad: "", anio_plantacion: null,
+          especie: "", variedad: "", "año_plantacion": null,
           superficie_ha: null, plantas: null, polinizante: "",
           jefe_campo: "", centro_costo: "",
           sector_ids: [],
@@ -167,7 +167,7 @@ export default function AdminCuarteles() {
                     </button>
                   </td>
                   <td><strong>{c.nombre}</strong></td>
-                  <td>{c.especie}</td><td>{c.variedad}</td><td>{c.anio_plantacion}</td>
+                  <td>{c.especie}</td><td>{c.variedad}</td><td>{c["año_plantacion"]}</td>
                   <td>{c.superficie_ha ? `${c.superficie_ha} ha` : ""}</td><td>{c.jefe_campo}</td>
                   <td>{c.centro_costo}</td><td>{(c.sector_ids || []).map(id => sectorCodeMap.get(id)).filter(Boolean).join(", ")}</td>
                   <td>
