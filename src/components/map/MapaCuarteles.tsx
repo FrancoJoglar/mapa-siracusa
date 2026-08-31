@@ -117,7 +117,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
   const [advancedFilters, setAdvancedFilters] = useState<FiltrosAvanzadosState>({ modo: "sectores", sectoresSeleccionados: [], cuartelesSeleccionados: [] });
 
   // GPS
-  const { position: gpsPosition, watching: gpsWatching, startWatching, stopWatching } = useGeolocation();
+  const { position: gpsPosition, heading: gpsHeading, watching: gpsWatching, startWatching, stopWatching } = useGeolocation();
   const handleGpsToggle = () => {
     if (gpsWatching) { stopWatching(); }
     else { startWatching(); }
@@ -413,7 +413,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
             }
           />
           <MapClickHandler onDeselect={() => setSelectedId(null)} />
-          {gpsPosition && <GpsMarker position={gpsPosition} />}
+          {gpsPosition && <GpsMarker position={gpsPosition} heading={gpsHeading} />}
           <GpsButton onWatchStart={startWatching} onWatchStop={stopWatching} watching={gpsWatching} />
           {medir && <MedirControls />}
 
@@ -994,26 +994,59 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
 
 
 
-function GpsMarker({ position }: { position: { lat: number; lng: number } }) {
+function GpsMarker({ position, heading }: { position: { lat: number; lng: number }; heading: number | null }) {
   const map = useMap();
+  const markerRef = useRef<L.Marker | null>(null);
+  const accuracyRef = useRef<L.Circle | null>(null);
+  const firstFix = useRef(true);
+
   useEffect(() => {
-    const marker = L.circleMarker([position.lat, position.lng], {
-      radius: 10,
-      color: "#1565c0",
-      fillColor: "#42a5f5",
-      fillOpacity: 0.8,
-      weight: 3,
-    }).addTo(map);
-    const accuracy = L.circle([position.lat, position.lng], {
-      radius: 50,
-      color: "#1565c0",
-      fillColor: "#42a5f5",
-      fillOpacity: 0.1,
-      weight: 1,
-    }).addTo(map);
-    map.flyTo([position.lat, position.lng], 16);
-    return () => { map.removeLayer(marker); map.removeLayer(accuracy); };
-  }, [position.lat, position.lng]);
+    if (!markerRef.current) {
+      // Create marker with a custom arrow icon
+      const icon = L.divIcon({
+        className: "",
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        html: `<div style="
+          width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+          filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+        ">
+          <svg viewBox="0 0 24 24" width="32" height="32" id="gps-arrow">
+            <path d="M12 2 L4 20 L12 16 L20 20 Z" fill="#1565c0" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </div>`,
+      });
+      markerRef.current = L.marker([position.lat, position.lng], { icon, zIndexOffset: 1000 }).addTo(map);
+      accuracyRef.current = L.circle([position.lat, position.lng], {
+        radius: 50, color: "#1565c0", fillColor: "#42a5f5", fillOpacity: 0.1, weight: 1,
+      }).addTo(map);
+    }
+
+    markerRef.current.setLatLng([position.lat, position.lng]);
+    if (accuracyRef.current) accuracyRef.current.setLatLng([position.lat, position.lng]);
+
+    // Rotate arrow based on heading
+    if (heading != null) {
+      const el = markerRef.current.getElement();
+      if (el) {
+        const svg = el.querySelector("#gps-arrow") as HTMLElement | null;
+        if (svg) svg.style.transform = `rotate(${heading}deg)`;
+      }
+    }
+
+    if (firstFix.current) {
+      map.flyTo([position.lat, position.lng], 16);
+      firstFix.current = false;
+    }
+  }, [position.lat, position.lng, heading, map]);
+
+  useEffect(() => {
+    return () => {
+      if (markerRef.current) { map.removeLayer(markerRef.current); markerRef.current = null; }
+      if (accuracyRef.current) { map.removeLayer(accuracyRef.current); accuracyRef.current = null; }
+    };
+  }, [map]);
+
   return null;
 }
 
