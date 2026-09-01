@@ -39,7 +39,6 @@ interface Props {
   onToggleAntenas: () => void;
   mostrarSondas: boolean;
   onToggleSondas: () => void;
-  onExportImage?: () => void;
 }
 
 export default function MapControls({
@@ -58,7 +57,6 @@ export default function MapControls({
   mostrarAntenas, onToggleAntenas,
   mostrarSondas, onToggleSondas,
   onGpsToggle, gpsWatching, headingOffset, onHeadingOffsetChange,
-  onExportImage,
 }: Props) {
   const [open, setOpen] = useState(true);
 
@@ -147,16 +145,6 @@ export default function MapControls({
               </div>
             )}
           </div>
-
-          {/* Exportar */}
-          {onExportImage && (
-            <div style={{ ...sectionStyle, borderBottom: "none" }}>
-              <button onClick={(e) => { e.stopPropagation(); onExportImage(); }} style={{
-                width: "100%", padding: "6px 0", borderRadius: 4, border: "1px solid #ccc",
-                background: "#f5f5f5", cursor: "pointer", fontSize: 12, fontWeight: 500, color: "#333",
-              }}>📷 Exportar Mapa</button>
-            </div>
-          )}
         </div>
       )}
     </div>

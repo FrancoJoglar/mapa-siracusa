@@ -16,6 +16,7 @@ interface Props {
   vista: "cuarteles" | "sectores";
   onOpenAdvanced?: () => void;
   advancedActive?: boolean;
+  onExportImage?: () => void;
 }
 
 export default function BarraFiltros({
@@ -34,6 +35,7 @@ export default function BarraFiltros({
   vista,
   onOpenAdvanced,
   advancedActive,
+  onExportImage,
 }: Props) {
   const set = (k: keyof FiltrosCuartel, v: string | number | null) =>
     onChange({ ...filtros, [k]: v });
@@ -160,6 +162,11 @@ export default function BarraFiltros({
         )}
 
         <div style={{ borderLeft: "1px solid #ddd", paddingLeft: 8, display: "flex", gap: 4 }}>
+          {onExportImage && (
+            <button onClick={onExportImage} style={btnExportImageStyle} title="Exportar imagen del mapa">
+              Mapa
+            </button>
+          )}
           <button onClick={onExportExcel} style={btnExportStyle} title="Exportar a Excel">
             Excel
           </button>
@@ -228,6 +235,17 @@ const btnExportStyle: React.CSSProperties = {
   border: "1px solid #c8e6c9",
   background: "#e8f5e9",
   color: "#2e7d32",
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 500,
+};
+
+const btnExportImageStyle: React.CSSProperties = {
+  padding: "5px 10px",
+  borderRadius: 6,
+  border: "1px solid #bbdefb",
+  background: "#e3f2fd",
+  color: "#1565c0",
   cursor: "pointer",
   fontSize: 12,
   fontWeight: 500,
