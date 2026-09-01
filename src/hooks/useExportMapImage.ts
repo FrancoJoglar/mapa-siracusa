@@ -19,6 +19,7 @@ export function useExportMapImage(
 
       if (features.length === 0) { alert("No hay datos para exportar"); setExporting(false); return; }
 
+      // Calculate bounds
       let allCoords: [number, number][] = [];
       features.forEach(f => {
         const geom = f.geometry;
@@ -32,7 +33,8 @@ export function useExportMapImage(
       const lngs = allCoords.map(c => c[1]);
       const bounds = L.latLngBounds([Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]);
 
-      const MAX = 6000, MIN = 3300;
+      // Image dimensions - smaller for speed
+      const MAX = 4000, MIN = 2500;
       const spanLat = Math.max(bounds.getNorth() - bounds.getSouth(), 1e-4);
       const meanLat = (bounds.getNorth() + bounds.getSouth()) / 2;
       const spanLng = Math.max((bounds.getEast() - bounds.getWest()) * Math.cos(meanLat * Math.PI / 180), 1e-4);
@@ -41,28 +43,37 @@ export function useExportMapImage(
       if (ratio >= 1) { imgW = MAX; imgH = Math.round(Math.max(MIN, MAX / ratio)); }
       else { imgH = MAX; imgW = Math.round(Math.max(MIN, MAX * ratio)); }
 
+      // Create offscreen container (positioned off-screen to avoid affecting main map)
       const container = document.createElement("div");
-      container.style.cssText = "position:fixed;left:0;top:0;width:" + imgW + "px;height:" + imgH + "px;z-index:99999;overflow:hidden;background:#000;";
+      container.style.cssText = `position:fixed;left:-99999px;top:-99999px;width:${imgW}px;height:${imgH}px;z-index:99999;overflow:hidden;background:#000;`;
       document.body.appendChild(container);
 
-      const map = L.map(container, {
-        zoomControl: false, attributionControl: false, preferCanvas: true, fadeAnimation: false, zoomAnimation: false,
-      });
-      const tile = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-        maxZoom: 19,
-        crossOrigin: "anonymous",
-      }).addTo(map);
-      map.invalidateSize(false);
-      map.fitBounds(bounds, { padding: [60, 60], animate: false });
+      const mapDiv = document.createElement("div");
+      mapDiv.style.cssText = `width:${imgW}px;height:${imgH}px;`;
+      container.appendChild(mapDiv);
 
+      const map = L.map(mapDiv, {
+        zoomControl: false, attributionControl: false, preferCanvas: true,
+        fadeAnimation: false, zoomAnimation: false, inertia: false,
+      });
+
+      const tile = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19, crossOrigin: "anonymous",
+      }).addTo(map);
+
+      map.fitBounds(bounds, { padding: [40, 40], animate: false });
+
+      // Wait for tiles to load (max 8s)
       await new Promise<void>((resolve) => {
         let done = false;
         const finish = () => { if (!done) { done = true; resolve(); } };
-        tile.on("load", finish);
-        setTimeout(finish, 12000);
+        tile.once("load", finish);
+        setTimeout(finish, 8000);
       });
-      await new Promise(r => setTimeout(r, 400));
+      // Extra settle time for rendering
+      await new Promise(r => setTimeout(r, 300));
 
+      // Add polygons
       const geoJsonData = vista === "cuarteles"
         ? { type: "FeatureCollection" as const, features: filteredCuarteles.filter(c => c.geojson).map(c => ({ ...c.geojson!, properties: { nombre: c.nombre, especie: c.especie } })) }
         : { type: "FeatureCollection" as const, features: filteredSectores.filter(s => s.geojson).map(s => ({ ...s.geojson!, properties: { codigo: s.codigo, especie: s.especie } })) };
@@ -78,42 +89,48 @@ export function useExportMapImage(
         },
       }).addTo(map);
 
-      // Title, legend, north arrow overlays
-      const titulo = vista === "cuarteles" ? "Cuarteles" : "Sectores";
+      // Scale bar
+      L.control.scale({ imperial: false, metric: true, maxWidth: 300, position: "bottomleft" }).addTo(map);
+
+      // Overlays (title, legend, north arrow)
+      const titulo = vista === "cuarteles" ? "Cuarteles" : "Sectores de riego";
       const fecha = new Date().toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" });
 
       const legendItems = vista === "cuarteles"
         ? [...new Set(filteredCuarteles.map(c => c.especie).filter(Boolean))].map(e => {
           const c = colorPorEspecie(e!);
-          return `<div style="display:flex;align-items:center;gap:14px;margin:6px 0"><span style="width:34px;height:34px;border-radius:6px;background:${c};border:2px solid rgba(255,255,255,.7)"></span><span>${e}</span></div>`;
+          return `<div style="display:flex;align-items:center;gap:10px;margin:4px 0"><span style="width:24px;height:24px;border-radius:4px;background:${c};border:2px solid rgba(255,255,255,.7)"></span><span>${e}</span></div>`;
         }).join("")
         : "";
 
       const overlay = document.createElement("div");
       overlay.style.cssText = "position:absolute;inset:0;z-index:1000;pointer-events:none;font-family:'Segoe UI',system-ui,sans-serif";
       overlay.innerHTML = `
-        <div style="position:absolute;top:36px;left:36px;background:rgba(15,23,42,.82);color:#fff;padding:22px 30px;border-radius:14px">
-          <div style="font-size:46px;font-weight:700;line-height:1.1">Siracusa 2025 — ${titulo}</div>
-          <div style="font-size:26px;opacity:.85;margin-top:6px">${fecha}</div>
+        <div style="position:absolute;top:24px;left:24px;background:rgba(15,23,42,.85);color:#fff;padding:16px 24px;border-radius:12px">
+          <div style="font-size:32px;font-weight:700;line-height:1.1">Siracusa 2025 — ${titulo}</div>
+          <div style="font-size:18px;opacity:.85;margin-top:4px">${fecha}</div>
         </div>
-        <div style="position:absolute;top:36px;right:36px;background:rgba(15,23,42,.82);color:#fff;padding:20px 26px;border-radius:14px;font-size:28px;min-width:220px">
-          <div style="font-size:22px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.7;margin-bottom:10px">Especies</div>
-          ${legendItems || '<div style="opacity:.7">—</div>'}
-        </div>
-        <div style="position:absolute;bottom:40px;right:44px;color:#fff;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,.8)">
-          <div style="font-size:48px;line-height:1">↑</div><div style="font-size:26px;font-weight:700">N</div>
+        ${legendItems ? `
+        <div style="position:absolute;top:24px;right:24px;background:rgba(15,23,42,.85);color:#fff;padding:16px 20px;border-radius:12px;font-size:18px;min-width:160px">
+          <div style="font-size:16px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.7;margin-bottom:6px">Especies</div>
+          ${legendItems}
+        </div>` : ''}
+        <div style="position:absolute;bottom:28px;right:28px;color:#fff;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,.8)">
+          <div style="font-size:36px;line-height:1">↑</div><div style="font-size:20px;font-weight:700">N</div>
         </div>`;
       container.appendChild(overlay);
 
-      await new Promise(r => setTimeout(r, 500));
+      // Wait for overlay + polygons to render
+      await new Promise(r => setTimeout(r, 400));
 
-      const mapPane = container.querySelector(".leaflet-map-pane") as HTMLElement | null;
-      let originalTransform = "", originalLeft = "", originalTop = "";
+      // Fix Leaflet's CSS transform before capture
+      const mapPane = mapDiv.querySelector(".leaflet-map-pane") as HTMLElement | null;
+      let savedTransform = "", savedLeft = "", savedTop = "";
       if (mapPane) {
-        originalTransform = mapPane.style.transform;
-        originalLeft = mapPane.style.left;
-        originalTop = mapPane.style.top;
-        const match = originalTransform.match(/translate3d\(([^,]+),\s*([^,]+),/);
+        savedTransform = mapPane.style.transform;
+        savedLeft = mapPane.style.left;
+        savedTop = mapPane.style.top;
+        const match = savedTransform.match(/translate3d\(([^,]+),\s*([^,]+)/);
         if (match) {
           mapPane.style.transform = "none";
           mapPane.style.left = match[1];
@@ -121,20 +138,27 @@ export function useExportMapImage(
         }
       }
 
+      // Capture
       const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(container, { useCORS: true, width: imgW, height: imgH, scale: 1, backgroundColor: "#000" });
+      const canvas = await html2canvas(container, {
+        useCORS: true, width: imgW, height: imgH, scale: 1, backgroundColor: "#000",
+        logging: false,
+      });
 
+      // Restore transform
       if (mapPane) {
-        mapPane.style.transform = originalTransform;
-        mapPane.style.left = originalLeft;
-        mapPane.style.top = originalTop;
+        mapPane.style.transform = savedTransform;
+        mapPane.style.left = savedLeft;
+        mapPane.style.top = savedTop;
       }
 
+      // Download
       const link = document.createElement("a");
       link.download = "mapa_siracusa_" + vista + "_" + new Date().toISOString().slice(0, 10) + ".png";
       link.href = canvas.toDataURL("image/png");
       link.click();
 
+      // Cleanup
       map.remove();
       container.remove();
     } catch (e) {
