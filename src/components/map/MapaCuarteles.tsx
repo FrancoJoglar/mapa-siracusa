@@ -118,6 +118,14 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
 
   // GPS
   const { position: gpsPosition, heading: gpsHeading, watching: gpsWatching, startWatching, stopWatching } = useGeolocation();
+  const [headingOffset, setHeadingOffset] = useState(() => {
+    const saved = localStorage.getItem("gps_heading_offset");
+    return saved ? Number(saved) : 0;
+  });
+  const handleHeadingOffsetChange = (v: number) => {
+    setHeadingOffset(v);
+    localStorage.setItem("gps_heading_offset", String(v));
+  };
   const handleGpsToggle = () => {
     if (gpsWatching) { stopWatching(); }
     else { startWatching(); }
@@ -413,7 +421,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
             }
           />
           <MapClickHandler onDeselect={() => setSelectedId(null)} />
-          {gpsPosition && <GpsMarker position={gpsPosition} heading={gpsHeading} />}
+          {gpsPosition && <GpsMarker position={gpsPosition} heading={gpsHeading} headingOffset={headingOffset} />}
           <GpsButton onWatchStart={startWatching} onWatchStop={stopWatching} watching={gpsWatching} />
           {medir && <MedirControls />}
 
@@ -589,6 +597,8 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
           gpsPosition={gpsPosition}
           onGpsToggle={handleGpsToggle}
           gpsWatching={gpsWatching}
+          headingOffset={headingOffset}
+          onHeadingOffsetChange={handleHeadingOffsetChange}
         />
         <ExportMapImage
           filteredCuarteles={filteredCuarteles}
@@ -994,7 +1004,7 @@ function ExportMapImage({ filteredCuarteles, filteredSectores, vista }: {
 
 
 
-function GpsMarker({ position, heading }: { position: { lat: number; lng: number }; heading: number | null }) {
+function GpsMarker({ position, heading, headingOffset }: { position: { lat: number; lng: number }; heading: number | null; headingOffset: number }) {
   const map = useMap();
   const markerRef = useRef<L.Marker | null>(null);
   const accuracyRef = useRef<L.Circle | null>(null);
@@ -1025,12 +1035,12 @@ function GpsMarker({ position, heading }: { position: { lat: number; lng: number
     markerRef.current.setLatLng([position.lat, position.lng]);
     if (accuracyRef.current) accuracyRef.current.setLatLng([position.lat, position.lng]);
 
-    // Rotate arrow based on heading
+    // Rotate arrow based on heading + offset
     if (heading != null) {
       const el = markerRef.current.getElement();
       if (el) {
         const svg = el.querySelector("#gps-arrow") as HTMLElement | null;
-        if (svg) svg.style.transform = `rotate(${heading}deg)`;
+        if (svg) svg.style.transform = `rotate(${heading + headingOffset}deg)`;
       }
     }
 
@@ -1038,7 +1048,7 @@ function GpsMarker({ position, heading }: { position: { lat: number; lng: number
       map.flyTo([position.lat, position.lng], 16);
       firstFix.current = false;
     }
-  }, [position.lat, position.lng, heading, map]);
+  }, [position.lat, position.lng, heading, headingOffset, map]);
 
   useEffect(() => {
     return () => {

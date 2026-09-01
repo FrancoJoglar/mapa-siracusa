@@ -20,6 +20,8 @@ interface Props {
   gpsPosition: { lat: number; lng: number } | null;
   onGpsToggle: () => void;
   gpsWatching: boolean;
+  headingOffset: number;
+  onHeadingOffsetChange: (v: number) => void;
   // Equipos
   equiposActivo: boolean;
   onToggleEquipos: () => void;
@@ -55,7 +57,7 @@ export default function MapControls({
   mostrarImpulsiones, onToggleImpulsiones,
   mostrarAntenas, onToggleAntenas,
   mostrarSondas, onToggleSondas,
-  onGpsToggle, gpsWatching,
+  onGpsToggle, gpsWatching, headingOffset, onHeadingOffsetChange,
   onExportImage,
 }: Props) {
   const [open, setOpen] = useState(true);
@@ -103,6 +105,23 @@ export default function MapControls({
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: gpsWatching ? "#4caf50" : "#ef5350", flexShrink: 0 }} />
               Mi ubicación
             </label>
+            {gpsWatching && (
+              <div onClick={(e) => e.stopPropagation()} style={{ padding: "4px 0 2px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                  <span style={{ fontSize: 11, color: "#666" }}>Calibrar flecha</span>
+                  <span style={{ fontSize: 10, color: "#999", fontVariantNumeric: "tabular-nums" }}>{headingOffset}°</span>
+                </div>
+                <input
+                  type="range"
+                  min={-180}
+                  max={180}
+                  step={5}
+                  value={headingOffset}
+                  onChange={(e) => onHeadingOffsetChange(Number(e.target.value))}
+                  style={{ width: "100%", cursor: "pointer" }}
+                />
+              </div>
+            )}
             <Checkbox label="Medir" checked={medir} onChange={onToggleMedir} color="#2e7d32" />
             <Checkbox label="Nombres" checked={showCuartelLabels} onChange={onToggleLabels} color="#1565c0" />
           </div>

@@ -19,6 +19,11 @@ export function useGeolocation() {
   const watchIdRef = useRef<number | null>(null);
   const headingRef = useRef<number | null>(null);
 
+  const updateHeading = useCallback((h: number) => {
+    headingRef.current = h;
+    setState(prev => ({ ...prev, heading: h }));
+  }, []);
+
   const startWatching = useCallback(() => {
     if (!navigator.geolocation) {
       setState(prev => ({ ...prev, error: "Geolocalización no soportada" }));
@@ -50,10 +55,16 @@ export function useGeolocation() {
 
     // Device orientation for heading
     const handleOrientation = (e: DeviceOrientationEvent) => {
-      const h = (e as any).alpha;
-      if (h != null) {
-        headingRef.current = h;
-        setState(prev => ({ ...prev, heading: h }));
+      // iOS: webkitCompassHeading is degrees from magnetic north (0=N, 90=E)
+      const webkitHeading = (e as any).webkitCompassHeading;
+      if (webkitHeading != null) {
+        updateHeading(webkitHeading);
+        return;
+      }
+      // Android: alpha is degrees from device's initial orientation
+      const alpha = (e as any).alpha;
+      if (alpha != null) {
+        updateHeading(alpha);
       }
     };
 
@@ -68,7 +79,7 @@ export function useGeolocation() {
     } else {
       window.addEventListener("deviceorientation", handleOrientation);
     }
-  }, []);
+  }, [updateHeading]);
 
   const stopWatching = useCallback(() => {
     if (watchIdRef.current !== null) {
