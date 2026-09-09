@@ -112,5 +112,49 @@ path.leaflet-interactive:focus-visible {
   border-top-color: rgba(15, 23, 42, 0.88) !important;
 }
 
+/* Tooltip de dibujo de Geoman.
+   Geoman no le pone clase propia al tooltip, asi que caia en el override
+   transparente de arriba y quedaba texto pelado sobre el satelite. Lo
+   reconocemos por su contenido (.pm-tip-main, ver lib/geomanLang.ts) para no
+   pisar los tooltips de sectores, que si dependen de ese override. */
+.leaflet-tooltip:has(.pm-tip-main) {
+  background: rgba(15, 23, 42, 0.92) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: #fff !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  padding: 6px 12px !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+  backdrop-filter: blur(4px) !important;
+  /* Geoman abre el tooltip con opacity 0.8 inline */
+  opacity: 1 !important;
+}
+.leaflet-tooltip:has(.pm-tip-main)::before {
+  display: none !important;
+}
+
+.pm-tip-main {
+  display: block;
+}
+
+.pm-tip-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+.pm-tip-hint kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
 .leaflet-map-pane, .leaflet-pane { transform-origin: 0 0 !important; }
 .leaflet-zoom-animated { transform-origin: 0 0 !important; }

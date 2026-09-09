@@ -3,6 +3,7 @@ import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
 import { supabase } from "../../lib/supabase";
+import { setupGeomanEs } from "../../lib/geomanLang";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -56,6 +57,8 @@ export default function GeomanEditor({ initialGeoJSON, table, entityId, where, r
         drawPolygon: !readOnly,
         dragMode: !readOnly, editMode: !readOnly, removalMode: false,
       });
+
+      setupGeomanEs(pm);
 
       if (initialGeoJSON?.geometry) {
         console.log("INIT initialGeoJSON type:", initialGeoJSON.geometry.type);

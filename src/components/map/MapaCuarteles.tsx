@@ -16,6 +16,7 @@ import * as turf from "@turf/turf";
 import { supabase } from "../../lib/supabase";
 import { useGeolocation } from "../../hooks/useGeolocation";
 import { useExportMapImage } from "../../hooks/useExportMapImage";
+import { setupGeomanEs } from "../../lib/geomanLang";
 
 const CENTRO_MAPA: [number, number] = [-35.14, -71.625];
 const ZOOM_INICIAL = 14;
@@ -786,6 +787,8 @@ function MedirControls() {
       cutPolygon: false, rotateMode: false,
       dragMode: false, editMode: false, removalMode: false,
     });
+
+    setupGeomanEs(pm);
 
     // Show area/distance label on created measurement shapes
     map.on("pm:create", (e: any) => {
