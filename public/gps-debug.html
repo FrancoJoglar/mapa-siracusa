@@ -1,0 +1,97 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diagnóstico brújula</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:0;padding:16px;background:#0f172a;color:#e2e8f0}
+  h1{font-size:17px;margin:0 0 4px}
+  p.sub{font-size:13px;color:#94a3b8;margin:0 0 16px}
+  .row{display:flex;gap:12px;margin-bottom:16px}
+  .card{flex:1;background:#1e293b;border-radius:10px;padding:12px;text-align:center}
+  .card h2{font-size:13px;margin:0 0 8px;color:#cbd5e1;font-weight:600}
+  .val{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  svg{display:block;margin:6px auto 0}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:#1e293b;border-radius:10px;overflow:hidden}
+  td{padding:7px 10px;border-bottom:1px solid #334155}
+  td:first-child{color:#94a3b8;white-space:nowrap}
+  td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+  button{width:100%;padding:13px;font-size:15px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:600;margin-bottom:16px}
+  .nota{font-size:13px;color:#94a3b8;margin-top:16px;line-height:1.6}
+</style>
+
+<h1>Diagnóstico de la brújula</h1>
+<p class="sub">Sujeta el teléfono plano y gira despacio hacia la derecha.</p>
+
+<button id="permiso">Activar sensores</button>
+
+<div class="row">
+  <div class="card">
+    <h2>A — actual</h2>
+    <div class="val" id="vA">—</div>
+    <svg width="70" height="70" viewBox="0 0 24 24" id="fA">
+      <path d="M12 2 L4 20 L12 16 L20 20 Z" fill="#38bdf8" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <div class="card">
+    <h2>B — alternativa</h2>
+    <div class="val" id="vB">—</div>
+    <svg width="70" height="70" viewBox="0 0 24 24" id="fB">
+      <path d="M12 2 L4 20 L12 16 L20 20 Z" fill="#fbbf24" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+    </svg>
+  </div>
+</div>
+
+<table>
+  <tr><td>alpha crudo</td><td id="alpha">—</td></tr>
+  <tr><td>webkitCompassHeading</td><td id="wk">—</td></tr>
+  <tr><td>absolute</td><td id="abs">—</td></tr>
+  <tr><td>evento recibido</td><td id="evt">—</td></tr>
+  <tr><td>eventos/seg</td><td id="hz">0</td></tr>
+  <tr><td>navegador</td><td id="ua">—</td></tr>
+</table>
+
+<p class="nota">Gira a la <b>derecha</b>. Dime cuál de las dos flechas gira también a la derecha, y qué número marca cada una cuando mires al <b>norte</b>.</p>
+
+<script>
+document.getElementById('ua').textContent =
+  /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'iOS' :
+  /Android/.test(navigator.userAgent) ? 'Android' : 'otro';
+
+let n = 0;
+setInterval(() => { document.getElementById('hz').textContent = n; n = 0; }, 1000);
+
+function onEvt(e, nombre) {
+  n++;
+  const alpha = e.alpha;
+  const wk = e.webkitCompassHeading;
+  document.getElementById('alpha').textContent = alpha == null ? 'null' : alpha.toFixed(1);
+  document.getElementById('wk').textContent = wk == null ? 'no disponible' : wk.toFixed(1);
+  document.getElementById('abs').textContent = String(e.absolute);
+  document.getElementById('evt').textContent = nombre;
+
+  // A = lo que hace la app hoy
+  const a = wk != null ? wk : (alpha == null ? null : (360 - alpha) % 360);
+  // B = la alternativa sin invertir
+  const b = wk != null ? (360 - wk) % 360 : (alpha == null ? null : alpha);
+
+  if (a != null) { document.getElementById('vA').textContent = Math.round(a) + '°'; document.getElementById('fA').style.transform = 'rotate(' + a + 'deg)'; }
+  if (b != null) { document.getElementById('vB').textContent = Math.round(b) + '°'; document.getElementById('fB').style.transform = 'rotate(' + b + 'deg)'; }
+}
+
+function escuchar() {
+  window.addEventListener('deviceorientationabsolute', e => onEvt(e, 'deviceorientationabsolute'));
+  window.addEventListener('deviceorientation', e => onEvt(e, 'deviceorientation'));
+}
+
+document.getElementById('permiso').onclick = () => {
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(p => {
+      document.getElementById('permiso').textContent = p === 'granted' ? 'Sensores activos' : 'Permiso denegado: ' + p;
+      if (p === 'granted') escuchar();
+    }).catch(err => { document.getElementById('permiso').textContent = 'Error: ' + err; });
+  } else {
+    escuchar();
+    document.getElementById('permiso').textContent = 'Sensores activos';
+  }
+};
+</script>
