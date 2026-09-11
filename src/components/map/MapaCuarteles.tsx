@@ -538,34 +538,44 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
             <GeoJSON key={"val-" + v.id} data={v.geojson} pointToLayer={(_f, latlng) => {
               const fillCol = v.color || "#ef5350";
               const c = L.circleMarker(latlng, { radius: 5, color: fillCol, fillColor: fillCol, fillOpacity: 0.9, pane: "valvulas" });
+              c.bindTooltip(tooltipInfra(v.codigo, v.tipo, v.diametro_mm && v.diametro_mm + " mm", v.bloque_riego),
+                { direction: "top", offset: L.point(0, -6) });
               return c;
             }} />
           ))}
           {equiposActivo && mostrarSubmatrices && tuberias.filter(t => t.nivel === "submatriz").length > 0 && tuberias.filter(t => t.nivel === "submatriz").map(t => t.geojson && (
             <GeoJSON key={"tub-sub-" + t.id} data={t.geojson} style={{
               color: "#e65100", weight: 3, opacity: 0.85,
-            }} />
+            }} onEachFeature={(_f, layer) => layer.bindTooltip(
+              tooltipInfra(t.codigo, t.nombre, t.material, t.diametro_mm && t.diametro_mm + " mm"),
+              { sticky: true })} />
           ))}
           {equiposActivo && mostrarMatrices && tuberias.filter(t => t.nivel === "matriz").length > 0 && tuberias.filter(t => t.nivel === "matriz").map(t => t.geojson && (
             <GeoJSON key={"tub-mat-" + t.id} data={t.geojson} style={{
               color: "#1565c0", weight: 3, opacity: 0.85,
-            }} />
+            }} onEachFeature={(_f, layer) => layer.bindTooltip(
+              tooltipInfra(t.codigo, t.nombre, t.material, t.diametro_mm && t.diametro_mm + " mm"),
+              { sticky: true })} />
           ))}
           {equiposActivo && mostrarImpulsiones && tuberias.filter(t => t.nivel === "impulsion").length > 0 && tuberias.filter(t => t.nivel === "impulsion").map(t => t.geojson && (
             <GeoJSON key={"tub-imp-" + t.id} data={t.geojson} style={{
               color: "#2e7d32", weight: 3, opacity: 0.85,
-            }} />
+            }} onEachFeature={(_f, layer) => layer.bindTooltip(
+              tooltipInfra(t.codigo, t.nombre, t.material, t.diametro_mm && t.diametro_mm + " mm"),
+              { sticky: true })} />
           ))}
 
           {/* ANTENAS Y SONDAS: independientes */}
           {mostrarAntenas && antenas.filter(a => filtroPuntosEquipo === "todos" || a.equipo_id === filtroPuntosEquipo).length > 0 && antenas.filter(a => filtroPuntosEquipo === "todos" || a.equipo_id === filtroPuntosEquipo).map(a => a.geojson && (
             <GeoJSON key={"ant-" + a.id} data={a.geojson} pointToLayer={(_f, latlng) =>
               L.circleMarker(latlng, { radius: 6, color: a.color || "#1565c0", fillColor: "#42a5f5", fillOpacity: 0.9 })
+                .bindTooltip(tooltipInfra(a.codigo, a.tipo), { direction: "top", offset: L.point(0, -7) })
             } />
           ))}
           {mostrarSondas && sondas.filter(s => filtroPuntosEquipo === "todos" || s.equipo_id === filtroPuntosEquipo).length > 0 && sondas.filter(s => filtroPuntosEquipo === "todos" || s.equipo_id === filtroPuntosEquipo).map(s => s.geojson && (
             <GeoJSON key={"son-" + s.id} data={s.geojson} pointToLayer={(_f, latlng) =>
               L.circleMarker(latlng, { radius: 6, color: s.color || "#2e7d32", fillColor: "#66bb6a", fillOpacity: 0.9 })
+                .bindTooltip(tooltipInfra(s.codigo, s.tipo, s.profundidad_m && s.profundidad_m + " m"), { direction: "top", offset: L.point(0, -7) })
             } />
           ))}
           {vista === "cuarteles" && <BuscadorCuartel cuarteles={cuarteles} />}
@@ -609,6 +619,14 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
       </div>
     </div>
   );
+}
+
+// Tooltip de una capa de infraestructura: el codigo en negrita y los datos
+// que existan detras, separados por punto medio. Los campos vacios se caen
+// solos, asi no quedan separadores sueltos.
+function tooltipInfra(codigo: string, ...detalles: (string | number | null | undefined)[]): string {
+  const extra = detalles.filter(Boolean).join(" · ");
+  return `<strong>${codigo}</strong>${extra ? " · " + extra : ""}`;
 }
 
 // ====== POPUP FUNCTIONS (outside component for SectoresLayer access) ======
