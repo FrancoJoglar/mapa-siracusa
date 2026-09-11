@@ -227,7 +227,7 @@ export default function Georreferenciador({ equipoCodigo, equipoId, initialCente
       const coords = t.geometria.type === "MultiLineString" ? t.geometria.coordinates[0] : t.geometria.coordinates;
       const latlngs = coords.map((c: number[]) => L.latLng(c[1], c[0]));
       const line = L.polyline(latlngs, { color, weight: 5 }).addTo(m);
-      line.bindTooltip(t.codigo, { permanent: true, direction: "center", className: "cuartel-tooltip" });
+      line.bindTooltip(t.codigo, { permanent: true, direction: "center" });
       line.on("click", () => { if (!modoDibujo) setEditandoTuberia(t); });
       line.on("dblclick", () => {
         if (modoDibujo || editandoVertices) return;
@@ -250,7 +250,7 @@ export default function Georreferenciador({ equipoCodigo, equipoId, initialCente
       const [lng, lat] = v.geometria.coordinates;
       const fillCol = v.color || "#ef5350";
       const c = L.circleMarker([lat, lng], { radius: 8, color: fillCol, fillColor: fillCol, fillOpacity: 0.9, pane: "valvulas" });
-      c.bindTooltip(`${v.codigo}${v.sector_codigo ? " ("+v.sector_codigo+")" : ""}${v.id ? " [click]" : ""}`, { permanent: false, className: "cuartel-tooltip" });
+      c.bindTooltip(`${v.codigo}${v.sector_codigo ? " ("+v.sector_codigo+")" : ""}${v.id ? " [click]" : ""}`, { permanent: false });
       if (v.id) {
         c.on("click", () => { if (!modoDibujo) setEditandoValvula(v); });
         c.on("dblclick", () => {
@@ -283,7 +283,7 @@ export default function Georreferenciador({ equipoCodigo, equipoId, initialCente
     const markers = latlngs.map((ll, i) => {
       const divIcon = L.divIcon({ html: `<div style="width:14px;height:14px;border-radius:50%;background:#1565c0;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.5)"></div>`, iconSize: [14, 14], iconAnchor: [7, 7], className: "" });
       const mk = L.marker(ll, { icon: divIcon, draggable: true });
-      mk.bindTooltip(`${i + 1}`, { permanent: true, direction: "top", className: "cuartel-tooltip", offset: L.point(0, -10) });
+      mk.bindTooltip(`${i + 1}`, { permanent: true, direction: "top", offset: L.point(0, -10) });
       mk.on("drag", () => {
         const pts = vertexRef.current.map(v => v.getLatLng());
         tuberiaEditLineRef.current?.setLatLngs(pts);

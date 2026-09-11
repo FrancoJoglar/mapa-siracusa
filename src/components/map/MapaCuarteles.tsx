@@ -519,7 +519,7 @@ export default function MapaCuarteles({ cuarteles, edificaciones, sectores, unid
                 color: "#d32f2f", weight: 3, fillOpacity: 0.05, opacity: 1, dashArray: "4,4",
               });
               layer.bringToFront();
-              layer.bindTooltip(feature.properties.codigo, { sticky: true, className: "cuartel-tooltip", opacity: 0.9 });
+              layer.bindTooltip(feature.properties.codigo, { sticky: true, opacity: 0.9 });
               layer.bindPopup(`<div style="font-size:13px"><strong>${feature.properties.codigo}</strong><br/>Cuartel: ${feature.properties.cuartel}<br/>Sector: ${feature.properties.sector}</div>`, { maxWidth: 250 });
             }} />
           )}
@@ -731,7 +731,8 @@ function SectoresLayer({ data, sectores, cuarteles, equipos, unidades, bombasMap
           layer.bindTooltip(tooltipHtml, {
             permanent: showLabels,
             direction: "center",
-            className: "",
+            // tooltipHtml ya trae su propio recuadro con estilo
+            className: "tooltip-plano",
             opacity: showLabels ? 1 : 0.92,
           });
           if (showLabels) {

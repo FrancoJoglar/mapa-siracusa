@@ -15,20 +15,6 @@ body {
   min-height: 100vh;
 }
 
-.cuatel-tooltip {
-  background: rgba(0, 0, 0, 0.75);
-  border: none;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 12px;
-  padding: 4px 8px;
-  box-shadow: none;
-}
-
-.cuatel-tooltip::before {
-  border-top-color: rgba(0, 0, 0, 0.75);
-}
-
 table {
   border-collapse: collapse;
 }
@@ -69,71 +55,70 @@ path.leaflet-interactive:focus-visible {
   pointer-events: none !important;
 }
 
-.medir-tooltip {
-  background: rgba(46, 125, 50, 0.85) !important;
-  border: 2px solid #1b5e20 !important;
-  border-radius: 4px !important;
-  color: #fff !important;
-  font-weight: 700 !important;
-  font-size: 13px !important;
-  padding: 4px 8px !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
+/* ==========================================================================
+   Tooltips del mapa
+
+   El default es la pildora oscura legible: cualquier bindTooltip nuevo se ve
+   bien sin tener que acordarse de pasarle className. Antes era al reves
+   (.leaflet-tooltip transparente) y cada tooltip nacia roto salvo que alguien
+   recordara darle clase — asi es como quedaron invisibles los de
+   cuartel_sector, edificaciones y los tres del georreferenciador.
+
+   Para un tooltip que trae su propia caja en el HTML, usar .tooltip-plano.
+   ========================================================================== */
+.leaflet-tooltip {
+  background: rgba(15, 23, 42, 0.88);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 12px;
+  padding: 5px 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
 }
-.medir-tooltip::before {
+
+/* Leaflet dibuja la flechita con un borde distinto segun la direccion
+   (top/bottom/left/right). Ocultarla evita tener que colorear las cuatro. */
+.leaflet-tooltip::before {
   display: none !important;
 }
 
-/* Override Leaflet default tooltip */
-.leaflet-tooltip {
+/* Opt-out: el contenido ya viene con su propio recuadro estilizado. */
+.tooltip-plano {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
-}
-.leaflet-tooltip::before {
-  border-top-color: transparent !important;
+  backdrop-filter: none !important;
 }
 
-/* Tooltip de cuarteles y sectores - DEBE IR DESPUES de .leaflet-tooltip */
-.cuatel-label,
+/* Etiqueta permanente de cuartel: mas chica, para que no tape el mapa
+   cuando estan todas visibles a la vez. */
 .cuartel-label {
-  background: rgba(15, 23, 42, 0.88) !important;
-  border: none !important;
-  border-radius: 8px !important;
-  color: #fff !important;
-  font-size: 11px !important;
-  padding: 4px 10px !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.35) !important;
-  white-space: nowrap !important;
-  backdrop-filter: blur(4px) !important;
-}
-.cuatel-label::before,
-.cuartel-label::before {
-  border-top-color: rgba(15, 23, 42, 0.88) !important;
+  font-size: 11px;
+  padding: 4px 10px;
 }
 
-/* Tooltip de dibujo de Geoman.
-   Geoman no le pone clase propia al tooltip, asi que caia en el override
-   transparente de arriba y quedaba texto pelado sobre el satelite. Lo
-   reconocemos por su contenido (.pm-tip-main, ver lib/geomanLang.ts) para no
-   pisar los tooltips de sectores, que si dependen de ese override. */
+/* Medicion de area/distancia: verde, para distinguirla de los datos. */
+.medir-tooltip {
+  background: rgba(46, 125, 50, 0.9) !important;
+  border: 2px solid #1b5e20 !important;
+  border-radius: 4px !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  padding: 4px 8px !important;
+}
+
+/* Tooltip de dibujo de Geoman. Geoman no le pone clase propia, asi que lo
+   reconocemos por su contenido (.pm-tip-main, ver lib/geomanLang.ts).
+   Hereda la pildora del default; aca van solo las diferencias. */
 .leaflet-tooltip:has(.pm-tip-main) {
-  background: rgba(15, 23, 42, 0.92) !important;
-  border: none !important;
-  border-radius: 8px !important;
-  color: #fff !important;
-  font-size: 12px !important;
-  line-height: 1.35 !important;
-  padding: 6px 12px !important;
-  text-align: center !important;
-  white-space: nowrap !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
-  backdrop-filter: blur(4px) !important;
+  line-height: 1.35;
+  padding: 6px 12px;
+  text-align: center;
   /* Geoman abre el tooltip con opacity 0.8 inline */
   opacity: 1 !important;
-}
-.leaflet-tooltip:has(.pm-tip-main)::before {
-  display: none !important;
 }
 
 .pm-tip-main {
