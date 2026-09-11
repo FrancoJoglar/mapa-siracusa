@@ -61,10 +61,12 @@ export function useGeolocation() {
         updateHeading(webkitHeading);
         return;
       }
-      // Android: alpha is degrees from device's initial orientation
+      // Android: alpha gira en sentido ANTIHORARIO desde el norte, al reves
+      // que un rumbo de brujula. Sin el 360 - alpha la flecha sale espejada:
+      // giras a la derecha y apunta a la izquierda.
       const alpha = (e as any).alpha;
       if (alpha != null) {
-        updateHeading(alpha);
+        updateHeading((360 - alpha) % 360);
       }
     };
 
