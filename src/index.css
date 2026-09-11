@@ -65,17 +65,22 @@ path.leaflet-interactive:focus-visible {
    cuartel_sector, edificaciones y los tres del georreferenciador.
 
    Para un tooltip que trae su propia caja en el HTML, usar .tooltip-plano.
+
+   Los !important no son decorativos: leaflet.css se importa desde los
+   componentes del mapa y termina DESPUES de index.css en el bundle, asi que
+   con la misma especificidad gana la regla de Leaflet (fondo blanco). Sin
+   !important esto se ve pisado en la app aunque funcione en un html suelto.
    ========================================================================== */
 .leaflet-tooltip {
-  background: rgba(15, 23, 42, 0.88);
-  border: none;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 12px;
-  padding: 5px 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-  white-space: nowrap;
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.88) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: #fff !important;
+  font-size: 12px !important;
+  padding: 5px 10px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+  white-space: nowrap !important;
+  backdrop-filter: blur(4px) !important;
 }
 
 /* Leaflet dibuja la flechita con un borde distinto segun la direccion
@@ -96,8 +101,8 @@ path.leaflet-interactive:focus-visible {
 /* Etiqueta permanente de cuartel: mas chica, para que no tape el mapa
    cuando estan todas visibles a la vez. */
 .cuartel-label {
-  font-size: 11px;
-  padding: 4px 10px;
+  font-size: 11px !important;
+  padding: 4px 10px !important;
 }
 
 /* Medicion de area/distancia: verde, para distinguirla de los datos. */
@@ -114,9 +119,9 @@ path.leaflet-interactive:focus-visible {
    reconocemos por su contenido (.pm-tip-main, ver lib/geomanLang.ts).
    Hereda la pildora del default; aca van solo las diferencias. */
 .leaflet-tooltip:has(.pm-tip-main) {
-  line-height: 1.35;
-  padding: 6px 12px;
-  text-align: center;
+  line-height: 1.35 !important;
+  padding: 6px 12px !important;
+  text-align: center !important;
   /* Geoman abre el tooltip con opacity 0.8 inline */
   opacity: 1 !important;
 }
